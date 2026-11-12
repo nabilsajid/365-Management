@@ -1,0 +1,8 @@
+{
+  "admin": { "full_name": "SAJID" },
+  "employees": [
+    { "full_name": "Rafi", "email": "rafi@gmail.com", "job_title": "Logistics Manager" },
+    { "full_name": "Rafin", "email": "rafin@gmail.com", "job_title": "Human Resource" },
+    { "full_name": "Sourav", "email": "sourav@gmail.com", "job_title": "Graphic Designer" }
+  ]
+}
