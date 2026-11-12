@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { MonthPicker } from '@/components/month-picker';
 import { ActionButton, ResourceManager } from '@/components/resource-manager';
 import { sectionOf } from '@/lib/domain/changes';
 import { nextMonth, parseMonth } from '@/lib/domain/points';
@@ -145,14 +145,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
               {month ? `Showing days waiting in ${monthLabel(month)}.` : 'Showing every day that is waiting. Pick a month to narrow it down.'}
             </p>
           </div>
-          <form className="month-picker" method="get">
-            <label className="field">
-              <span>Month</span>
-              <input type="month" name="month" defaultValue={month ? month.slice(0, 7) : ''} />
-            </label>
-            <button type="submit">Show</button>
-            {month ? <Link href="/approvals">All months</Link> : null}
-          </form>
+          <MonthPicker value={month ? month.slice(0, 7) : ''} current={localDate(new Date().toISOString()).slice(0, 7)} allowAll />
         </header>
       </section>
 

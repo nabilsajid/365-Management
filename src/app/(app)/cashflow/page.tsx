@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { MonthPicker } from '@/components/month-picker';
 import { ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { dateInZone, monthStart, nextMonth, parseMonth } from '@/lib/domain/points';
@@ -166,14 +167,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
             {month === currentMonth ? ' (current month)' : ''}. Balances and client dues always count every month.
           </p>
         </div>
-        <form className="month-picker" method="get">
-          <input type="hidden" name="tab" value={tab} />
-          <label className="field">
-            <span>Month</span>
-            <input type="month" name="month" defaultValue={month.slice(0, 7)} max={currentMonth.slice(0, 7)} />
-          </label>
-          <button type="submit">Show</button>
-        </form>
+        <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} keep={{ tab }} />
       </div>
 
       <nav className="tabs" aria-label="Cash flow sections">

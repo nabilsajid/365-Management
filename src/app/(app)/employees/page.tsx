@@ -1,3 +1,4 @@
+import { MonthPicker } from '@/components/month-picker';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { dateInZone, monthStart, nextMonth, parseMonth } from '@/lib/domain/points';
@@ -101,13 +102,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             {month === currentMonth ? ' (current month)' : ''}.
           </p>
         </div>
-        <form className="month-picker" method="get">
-          <label className="field">
-            <span>Month</span>
-            <input type="month" name="month" defaultValue={month.slice(0, 7)} max={currentMonth.slice(0, 7)} />
-          </label>
-          <button type="submit">Show</button>
-        </form>
+        <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} />
       </div>
 
       <section className="panel">
