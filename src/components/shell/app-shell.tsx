@@ -1,13 +1,14 @@
 'use client';
 
-import { ChevronDown, ChevronRight, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { locate, navFor } from './nav';
+import { locate, navFor, type Viewer } from './nav';
 
 const STORAGE_KEY = 'sidebar-collapsed';
+const THEME_KEY = 'theme';
 
 function initials(name: string): string {
   return name
@@ -19,20 +20,26 @@ function initials(name: string): string {
 }
 
 function SidebarNav({
-  isAdmin,
+  viewer,
+  badges,
   collapsed,
   pathname,
   onNavigate,
 }: {
-  isAdmin: boolean;
+  viewer: Viewer;
+  /** Counts shown beside links, keyed by href (things waiting for this person). */
+  badges: Record<string, number>;
   collapsed: boolean;
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const current = locate(pathname)?.href;
+  // Highlight the tapped link straight away instead of waiting for the page to load.
+  const [tapped, setTapped] = useState<string | null>(null);
+  useEffect(() => setTapped(null), [pathname]);
+  const current = tapped ?? locate(pathname, viewer)?.href;
   return (
     <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-4">
-      {navFor(isAdmin).map((group) => (
+      {navFor(viewer).map((group) => (
         <div key={group.title} className="mb-5">
           <p
             className={cn(
@@ -50,19 +57,33 @@ function SidebarNav({
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    onClick={onNavigate}
+                    onClick={() => {
+                      setTapped(item.href);
+                      onNavigate?.();
+                    }}
                     aria-current={active ? 'page' : undefined}
                     title={collapsed ? item.label : undefined}
                     className={cn(
-                      'flex h-9 items-center gap-3 rounded-control px-3 text-[13px] font-medium no-underline transition-colors hover:no-underline',
+                      'relative flex h-10 items-center gap-3 rounded-control px-3 text-[13px] font-medium no-underline transition-colors duration-100 hover:no-underline active:scale-[0.98]',
                       active
-                        ? 'bg-primary text-white'
+                        ? 'bg-primary text-on-primary'
                         : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white',
                       collapsed && 'justify-center px-0',
                     )}
                   >
                     <Icon size={17} aria-hidden className="shrink-0" />
-                    <span className={cn('truncate', collapsed && 'sr-only')}>{item.label}</span>
+                    <span className={cn('flex-1 truncate', collapsed && 'sr-only')}>{item.label}</span>
+                    {badges[item.href] ? (
+                      <span
+                        className={cn(
+                          'rounded-full bg-warning px-1.5 text-[11px] font-semibold leading-5 text-white',
+                          collapsed && 'absolute right-1.5 top-1 h-2 w-2 p-0 text-[0px] leading-none',
+                        )}
+                        aria-label={`${badges[item.href]} waiting`}
+                      >
+                        {badges[item.href]}
+                      </span>
+                    ) : null}
                   </Link>
                 </li>
               );
@@ -77,13 +98,88 @@ function SidebarNav({
 function Brand({ orgName, collapsed }: { orgName: string; collapsed: boolean }) {
   return (
     <div className={cn('flex h-14 shrink-0 items-center gap-3 border-b border-white/10 px-4', collapsed && 'justify-center px-0')}>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-primary text-xs font-bold text-white">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-primary text-xs font-bold text-on-primary">
         365
       </span>
       <span className={cn('min-w-0', collapsed && 'sr-only')}>
         <span className="block truncate text-sm font-semibold text-white">{orgName}</span>
         <span className="block text-[11px] text-sidebar-muted">Management</span>
       </span>
+    </div>
+  );
+}
+
+/** Brief confirmations such as "Saved." or "Sent to an admin for approval." */
+function Toast() {
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const show = (event: Event) => {
+      setMessage(String((event as CustomEvent).detail ?? ''));
+      clearTimeout(timer);
+      timer = setTimeout(() => setMessage(null), 3500);
+    };
+    window.addEventListener('app:toast', show);
+    return () => {
+      window.removeEventListener('app:toast', show);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  return (
+    <div aria-live="polite" role="status" className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
+      {message ? (
+        <span className="fade-in rounded-full border border-line-strong bg-ink px-4 py-2 text-[13px] font-medium text-page shadow-lg">
+          {message}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ThemeToggle() {
+  const [dark, setDark] = useState(false);
+
+  // The inline script in the root layout has already applied the saved theme.
+  useEffect(() => setDark(document.documentElement.dataset.theme === 'dark'), []);
+
+  function toggle() {
+    const next = dark ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try {
+      window.localStorage.setItem(THEME_KEY, next);
+    } catch {
+      // Ignore: the choice just won't be remembered.
+    }
+    setDark(!dark);
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 text-muted">
+      <Sun size={15} aria-hidden className={cn('hidden sm:block', !dark && 'text-ink')} />
+      <button
+        type="button"
+        role="switch"
+        aria-checked={dark}
+        aria-label="Dark mode"
+        title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+        onClick={toggle}
+        className={cn(
+          'relative h-6 w-11 shrink-0 rounded-full border border-line-strong transition-colors duration-150',
+          dark ? 'bg-primary' : 'bg-subtle',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute left-0.5 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 items-center justify-center rounded-full shadow-sm transition-transform duration-150 ease-out',
+            dark ? 'translate-x-5 bg-on-primary text-primary' : 'translate-x-0 bg-card text-muted',
+          )}
+        >
+          {dark ? <Moon size={11} aria-hidden /> : <Sun size={11} aria-hidden />}
+        </span>
+      </button>
+      <Moon size={15} aria-hidden className={cn('hidden sm:block', dark && 'text-ink')} />
     </div>
   );
 }
@@ -115,14 +211,14 @@ function UserMenu({ name, jobTitle, isAdmin }: { name: string; jobTitle: string 
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2.5 rounded-control py-1 pl-1 pr-2 transition-colors hover:bg-slate-100"
+        className="flex items-center gap-2.5 rounded-control py-1 pl-1 pr-2 transition-colors hover:bg-subtle"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary-hover">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary-strong">
           {initials(name) || '?'}
         </span>
         <span className="hidden text-left leading-tight sm:block">
           <span className="block text-[13px] font-medium text-ink">{name}</span>
-          <span className="block text-[11px] text-muted">{jobTitle ?? 'No job role set'}</span>
+          <span className="block max-w-[180px] truncate text-[11px] text-muted">{jobTitle ?? 'No role yet'}</span>
         </span>
         <ChevronDown size={15} aria-hidden className="text-muted" />
       </button>
@@ -131,14 +227,15 @@ function UserMenu({ name, jobTitle, isAdmin }: { name: string; jobTitle: string 
           <div className="border-b border-line px-2.5 pb-2.5 pt-1.5">
             <p className="truncate text-[13px] font-medium text-ink">{name}</p>
             <p className="text-xs text-muted">
-              {jobTitle ?? 'No job role set'} · {isAdmin ? 'Admin' : 'Employee'}
+              {jobTitle ?? 'No role yet'}
+              {isAdmin ? ' · Full access' : ''}
             </p>
           </div>
           <form action="/auth/signout" method="post" className="pt-1.5">
             <button
               type="submit"
               role="menuitem"
-              className="flex w-full items-center gap-2 rounded-control px-2.5 py-2 text-left text-[13px] text-ink transition-colors hover:bg-slate-100"
+              className="flex w-full items-center gap-2 rounded-control px-2.5 py-2 text-left text-[13px] text-ink transition-colors hover:bg-subtle"
             >
               <LogOut size={15} aria-hidden />
               Sign out
@@ -155,18 +252,26 @@ export function AppShell({
   userName,
   jobTitle,
   isAdmin,
+  segments,
+  notice,
+  badges = {},
   children,
 }: {
   orgName: string;
   userName: string;
   jobTitle: string | null;
   isAdmin: boolean;
+  segments: string[];
+  /** A message shown above every page, for example a pending database update. */
+  notice?: string | null;
+  badges?: Record<string, number>;
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const viewer = useMemo<Viewer>(() => ({ isAdmin, segments: new Set(segments) }), [isAdmin, segments]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const here = locate(pathname);
+  const here = locate(pathname, viewer);
 
   // Remember the collapsed sidebar on this device.
   useEffect(() => {
@@ -204,12 +309,12 @@ export function AppShell({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-20 hidden flex-col bg-sidebar transition-[width] duration-200 lg:flex',
+          'fixed inset-y-0 left-0 z-20 hidden flex-col border-r border-sidebar-line bg-sidebar transition-[width] duration-200 ease-out lg:flex',
           collapsed ? 'w-16' : 'w-[250px]',
         )}
       >
         <Brand orgName={orgName} collapsed={collapsed} />
-        <SidebarNav isAdmin={isAdmin} collapsed={collapsed} pathname={pathname} />
+        <SidebarNav viewer={viewer} badges={badges} collapsed={collapsed} pathname={pathname} />
         <div className="border-t border-white/10 p-3">
           <button
             type="button"
@@ -233,10 +338,10 @@ export function AppShell({
           <button
             type="button"
             aria-label="Close navigation"
-            className="absolute inset-0 h-full w-full cursor-default bg-slate-900/50"
+            className="fade-in absolute inset-0 h-full w-full cursor-default bg-slate-950/60"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative flex h-full w-[250px] max-w-[85vw] flex-col bg-sidebar">
+          <aside className="drawer-in relative flex h-full w-[270px] max-w-[85vw] flex-col bg-sidebar">
             <Brand orgName={orgName} collapsed={false} />
             <button
               type="button"
@@ -246,18 +351,18 @@ export function AppShell({
             >
               <X size={18} aria-hidden />
             </button>
-            <SidebarNav isAdmin={isAdmin} collapsed={false} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            <SidebarNav viewer={viewer} badges={badges} collapsed={false} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       ) : null}
 
-      <div className={cn('transition-[padding] duration-200', collapsed ? 'lg:pl-16' : 'lg:pl-[250px]')}>
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-line bg-card/95 px-4 backdrop-blur sm:px-6">
+      <div className={cn('transition-[padding] duration-200 ease-out', collapsed ? 'lg:pl-16' : 'lg:pl-[250px]')}>
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-line bg-card/90 px-3 backdrop-blur sm:gap-3 sm:px-6">
           <button
             type="button"
             aria-label="Open navigation"
             onClick={() => setMobileOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-control text-ink transition-colors hover:bg-slate-100 lg:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-control text-ink transition-colors duration-100 hover:bg-subtle active:scale-95 lg:hidden"
           >
             <Menu size={19} aria-hidden />
           </button>
@@ -265,7 +370,7 @@ export function AppShell({
             {here ? (
               <>
                 <span className="hidden text-muted sm:inline">{here.group}</span>
-                <ChevronRight size={14} aria-hidden className="hidden text-slate-300 sm:inline" />
+                <ChevronRight size={14} aria-hidden className="hidden text-line-strong sm:inline" />
                 {pathname === here.href ? (
                   <span className="truncate font-medium text-ink">{here.label}</span>
                 ) : (
@@ -273,7 +378,7 @@ export function AppShell({
                     <Link href={here.href} className="truncate text-muted hover:text-ink">
                       {here.label}
                     </Link>
-                    <ChevronRight size={14} aria-hidden className="text-slate-300" />
+                    <ChevronRight size={14} aria-hidden className="text-line-strong" />
                     <span className="font-medium text-ink">Details</span>
                   </>
                 )}
@@ -282,9 +387,18 @@ export function AppShell({
               <span className="font-medium text-ink">365 Management</span>
             )}
           </nav>
+          <ThemeToggle />
           <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} />
         </header>
-        <main className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">
+          {notice ? (
+            <p role="alert" className="mb-5 rounded-card border border-warning bg-warning-soft px-4 py-3 text-[13px] text-warning-strong">
+              {notice}
+            </p>
+          ) : null}
+          {children}
+        </main>
+        <Toast />
       </div>
     </div>
   );

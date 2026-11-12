@@ -5,25 +5,73 @@
 @theme {
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
+  --color-primary-strong: #1d4ed8;
   --color-primary-soft: #eff6ff;
+  --color-on-primary: #ffffff;
   --color-sidebar: #0f172a;
   --color-sidebar-hover: #1e293b;
+  --color-sidebar-line: #0f172a;
   --color-sidebar-text: #cbd5e1;
   --color-sidebar-muted: #94a3b8;
   --color-page: #f8fafc;
   --color-card: #ffffff;
+  --color-subtle: #f1f5f9;
+  --color-hover: #f8fafc;
   --color-ink: #0f172a;
   --color-muted: #64748b;
   --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+  --color-chart-muted: #94a3b8;
   --color-success: #16a34a;
+  --color-success-strong: #15803d;
   --color-success-soft: #f0fdf4;
   --color-warning: #d97706;
+  --color-warning-strong: #b45309;
   --color-warning-soft: #fffbeb;
   --color-danger: #dc2626;
+  --color-danger-strong: #b91c1c;
   --color-danger-soft: #fef2f2;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --radius-card: 12px;
   --radius-control: 8px;
+}
+
+/* Dark mode: the same tokens with dark values. The toggle in the top bar sets
+   data-theme on <html>; every component reads the tokens, so nothing else changes. */
+:root {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  /* Neutral graphite: no blue tint. The accent is a soft white, so primary
+     buttons and the active sidebar link read as light on near-black. */
+  color-scheme: dark;
+  --color-primary: #ededed;
+  --color-primary-hover: #ffffff;
+  --color-primary-strong: #fafafa;
+  --color-primary-soft: rgb(255 255 255 / 0.08);
+  --color-on-primary: #0a0a0a;
+  --color-sidebar: #0f0f0f;
+  --color-sidebar-hover: #1f1f1f;
+  --color-sidebar-line: #262626;
+  --color-sidebar-text: #d4d4d4;
+  --color-sidebar-muted: #8a8a8a;
+  --color-page: #0a0a0a;
+  --color-card: #141414;
+  --color-subtle: #1f1f1f;
+  --color-hover: #1a1a1a;
+  --color-ink: #f5f5f5;
+  --color-muted: #a3a3a3;
+  --color-line: #262626;
+  --color-line-strong: #404040;
+  --color-chart-muted: #525252;
+  --color-success-strong: #4ade80;
+  --color-success-soft: rgb(34 197 94 / 0.14);
+  --color-warning-strong: #fbbf24;
+  --color-warning-soft: rgb(245 158 11 / 0.14);
+  --color-danger: #ef4444;
+  --color-danger-strong: #f87171;
+  --color-danger-soft: rgb(239 68 68 / 0.14);
 }
 
 @layer base {
@@ -60,6 +108,29 @@
 
   a:hover {
     text-decoration: underline;
+  }
+
+  /* In dark mode the accent is near-white, so links in content are underlined to stay recognisable. */
+  :root[data-theme='dark'] .panel a,
+  :root[data-theme='dark'] .page-header a {
+    text-decoration: underline;
+    text-decoration-color: var(--color-line-strong);
+    text-underline-offset: 3px;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  /* No 300ms tap delay, and no accidental double-tap zoom on controls. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
   }
 
   button {
@@ -190,8 +261,19 @@
     border-bottom: 0;
   }
 
+  .panel tbody tr {
+    transition: background-color 0.1s;
+  }
+
   .panel tbody tr:hover td {
-    background: #fbfcfe;
+    background: var(--color-hover);
+  }
+
+  /* While fresh data loads after a save, keep the old rows visible but dimmed. */
+  [data-pending='true'] {
+    opacity: 0.55;
+    transition: opacity 0.15s;
+    pointer-events: none;
   }
 
   .panel .num {
@@ -265,7 +347,7 @@
   .field textarea:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
   }
 
   .field input[type='checkbox'] {
@@ -288,13 +370,21 @@
     color: var(--color-ink);
     font-size: 0.8125rem;
     font-weight: 500;
-    transition: background-color 0.15s, border-color 0.15s;
+    min-height: 2.25rem;
+    transition: background-color 0.1s, border-color 0.1s, transform 0.1s;
+    user-select: none;
+  }
+
+  .panel button:active:not(:disabled),
+  .page-header button:active:not(:disabled),
+  .login button:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   .panel button:hover:not(:disabled),
   .page-header button:hover:not(:disabled) {
-    background: var(--color-page);
-    border-color: #cbd5e1;
+    background: var(--color-subtle);
+    border-color: var(--color-line-strong);
   }
 
   .panel button.primary,
@@ -302,7 +392,7 @@
   .login button.primary {
     background: var(--color-primary);
     border-color: var(--color-primary);
-    color: #fff;
+    color: var(--color-on-primary);
   }
 
   .panel button.primary:hover:not(:disabled),
@@ -318,7 +408,7 @@
 
   .panel button.danger:hover:not(:disabled) {
     background: var(--color-danger-soft);
-    border-color: #fecaca;
+    border-color: var(--color-danger);
   }
 
   .actions {
@@ -352,8 +442,8 @@
     align-items: center;
     padding: 0.1rem 0.55rem;
     border-radius: 999px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--color-subtle);
+    color: var(--color-muted);
     font-size: 0.75rem;
     font-weight: 500;
     white-space: nowrap;
@@ -363,38 +453,193 @@
   .badge-verified,
   .badge-completed,
   .badge-available,
+  .badge-perfect,
+  .badge-resolved,
+  .badge-acquired,
   .badge-active,
   .badge-sent {
     background: var(--color-success-soft);
-    color: #15803d;
+    color: var(--color-success-strong);
   }
 
   .badge-pending,
   .badge-submitted,
   .badge-changes_requested,
   .badge-maintenance,
+  .badge-moderate,
+  .badge-needed,
   .badge-onboarding,
   .badge-in_progress,
   .badge-in_use {
     background: var(--color-warning-soft);
-    color: #b45309;
+    color: var(--color-warning-strong);
   }
 
   .badge-rejected,
+  .badge-denied,
+  .badge-weak,
+  .badge-open,
   .badge-void,
   .badge-violation {
     background: var(--color-danger-soft);
-    color: #b91c1c;
+    color: var(--color-danger-strong);
   }
 
   .badge-admin {
     background: var(--color-primary-soft);
-    color: var(--color-primary-hover);
+    color: var(--color-primary-strong);
   }
 
   .chip {
     display: inline-block;
     margin: 0 0.5rem 0.2rem 0;
+  }
+
+  /* Coloured labels, used for roles. One hue per name; the tint and text are
+     mixed from it so they stay readable in both themes. */
+  .tag-red { --tag: #dc2626; }
+  .tag-orange { --tag: #ea580c; }
+  .tag-amber { --tag: #d97706; }
+  .tag-lime { --tag: #65a30d; }
+  .tag-green { --tag: #16a34a; }
+  .tag-teal { --tag: #0d9488; }
+  .tag-cyan { --tag: #0891b2; }
+  .tag-blue { --tag: #2563eb; }
+  .tag-indigo { --tag: #4f46e5; }
+  .tag-purple { --tag: #9333ea; }
+  .tag-pink { --tag: #db2777; }
+  .tag-slate { --tag: #64748b; }
+
+  .badge[class*='tag-'] {
+    background: color-mix(in srgb, var(--tag) 15%, transparent);
+    color: color-mix(in srgb, var(--tag) 72%, var(--color-ink));
+    border: 1px solid color-mix(in srgb, var(--tag) 35%, transparent);
+  }
+
+  .count {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    background: var(--color-subtle);
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+
+  .search {
+    width: 100%;
+    max-width: 20rem;
+    margin-bottom: 0.9rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: var(--color-card);
+    color: var(--color-ink);
+  }
+
+  .search:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+
+  .more {
+    display: flex;
+    justify-content: center;
+    padding-top: 2rem;
+  }
+
+  /* Tabs made of links, so each tab is its own fast page load. */
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--color-line);
+    overflow-x: auto;
+  }
+
+  .tabs a {
+    padding: 0.6rem 0.9rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: color 0.1s, border-color 0.1s;
+  }
+
+  .tabs a:hover {
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  .tabs a[aria-current='page'] {
+    color: var(--color-ink);
+    border-bottom-color: var(--color-primary);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* A tappable pill around each checkbox in a multiple-choice field. */
+  .choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.25rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.1s, border-color 0.1s;
+  }
+
+  .choice:hover {
+    background: var(--color-subtle);
+  }
+
+  .choice:has(input:checked) {
+    background: var(--color-primary-soft);
+    border-color: var(--color-primary);
+    color: var(--color-primary-strong);
+  }
+
+  .choice input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-primary);
+  }
+
+  .skeleton {
+    border-radius: var(--radius-control);
+    background: var(--color-subtle);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  .fade-in {
+    animation: fade-in 0.15s ease-out;
+  }
+
+  .drawer-in {
+    animation: drawer-in 0.2s ease-out;
+  }
+
+  .page-in {
+    animation: page-in 0.18s ease-out;
   }
 
   .detail {
@@ -418,6 +663,59 @@
     gap: 0.5rem;
   }
 
+  /* Bigger hit areas on touch screens, and 16px inputs so iOS does not zoom in. */
+  @media (pointer: coarse) {
+    .panel button,
+    .page-header button,
+    .login button,
+    .choice {
+      min-height: 2.75rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .field input:not([type='checkbox']),
+    .field select,
+    .field textarea {
+      font-size: 16px;
+      min-height: 2.75rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .panel {
+      padding: 1rem;
+    }
+
+    .table-wrap {
+      margin: 0 -1rem -1rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .panel th,
+    .panel td {
+      padding: 0.65rem 1rem;
+    }
+
+    .panel-header > button,
+    .panel-header > .action {
+      width: 100%;
+    }
+
+    .panel-header > .action button {
+      width: 100%;
+    }
+
+    .detail {
+      grid-template-columns: 1fr;
+      gap: 0.15rem;
+    }
+
+    .detail dd {
+      margin-bottom: 0.6rem;
+    }
+  }
+
   .login {
     max-width: 400px;
     margin: 14vh auto 0;
@@ -435,5 +733,30 @@
   .login button.primary {
     width: 100%;
     padding: 0.6rem;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }

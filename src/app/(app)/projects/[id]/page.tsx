@@ -4,25 +4,35 @@ import { ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { label } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, peopleOptions, rowsOf } from '@/lib/page';
-import type { Client, Profile, Project, Task } from '@/types/database';
+import { titleTags } from '@/lib/domain/roles';
+import type { Client, Profile, Project, ProjectMember, Role, Task } from '@/types/database';
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, orgId, isAdmin } = await getPageContext();
+  const { supabase, orgId, isAdmin, can } = await getPageContext();
 
   const projectResult = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const project = projectResult.data as Project | null;
   if (!project) notFound();
 
-  const [clientResult, tasksResult, peopleResult] = await Promise.all([
-    supabase.from('clients').select('*').eq('id', project.client_id).maybeSingle(),
+  const [clientResult, tasksResult, peopleResult, membersResult, rolesResult] = await Promise.all([
+    project.client_id
+      ? supabase.from('clients').select('*').eq('id', project.client_id).maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase.from('tasks').select('*').eq('project_id', id).eq('org_id', orgId).order('position'),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
+    supabase.from('project_members').select('*').eq('project_id', id),
+    supabase.from('roles').select('name, color').eq('org_id', orgId),
   ]);
   const client = clientResult.data as Client | null;
   const tasks = rowsOf<Task>(tasksResult.data);
   const people = rowsOf<Profile>(peopleResult.data);
   const person = new Map(people.map((profile) => [profile.id, profile]));
+  const team = rowsOf<ProjectMember>(membersResult.data)
+    .map((row) => person.get(row.profile_id))
+    .filter((profile): profile is Profile => Boolean(profile));
+  const links = project.file_links ?? [];
+  const roleColor = new Map(rowsOf<Pick<Role, 'name' | 'color'>>(rolesResult.data).map((role) => [role.name, role.color]));
 
   const taskRows = tasks.map((task) => {
     const assignee = task.assignee_id ? person.get(task.assignee_id) : undefined;
@@ -49,7 +59,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       <div className="page-header">
         <div>
           <p className="muted">
-            <Link href="/projects">Projects</Link> / {client?.name ?? 'Client'}
+            {can('projects') ? <Link href="/projects">Projects</Link> : <Link href="/my-tasks">My Tasks</Link>}
+            {client ? ` / ${client.name}` : ''}
           </p>
           <h1>{project.name}</h1>
         </div>
@@ -58,7 +69,36 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       <section className="panel">
         <dl className="detail">
           <dt>Client</dt>
-          <dd>{client?.name ?? '—'}</dd>
+          <dd>{client?.name ?? 'No client (internal project)'}</dd>
+          <dt>Team</dt>
+          <dd>
+            {team.length === 0 ? (
+              'Nobody assigned yet.'
+            ) : (
+              <span className="grid gap-1.5">
+                {team.map((profile) => (
+                  <span key={profile.id} className="tags">
+                    <strong>{profile.full_name}</strong>
+                    {titleTags(profile.job_title, roleColor).map((tag) => (
+                      <span key={tag.label} className={tag.color ? `badge tag-${tag.color}` : 'badge'}>
+                        {tag.label}
+                      </span>
+                    ))}
+                  </span>
+                ))}
+              </span>
+            )}
+          </dd>
+          <dt>Links</dt>
+          <dd>
+            {links.length === 0
+              ? 'No links attached.'
+              : links.map((link) => (
+                  <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="chip">
+                    {link.label}
+                  </a>
+                ))}
+          </dd>
           <dt>Status</dt>
           <dd>{label(project.status)}</dd>
           <dt>Dates</dt>
@@ -72,7 +112,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
       <ResourceManager
         title="Deliverables"
-        description="One task per deliverable, each with its own description, file links and assignee."
+        description={can('projects') ? 'One task per deliverable, each with its own description, file links and assignee.' : 'The deliverables assigned to you in this project.'}
         endpoint="/api/tasks"
         rows={asRows(taskRows)}
         columns={[
@@ -86,7 +126,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         ]}
         fields={taskFields}
         fixedValues={{ project_id: project.id, position: tasks.length }}
-        canWrite={isAdmin}
+        canWrite={isAdmin || can('projects')}
+        needsApproval={!isAdmin}
         addLabel="Add deliverable"
         emptyText="No deliverables yet."
       />

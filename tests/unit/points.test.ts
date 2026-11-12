@@ -4,6 +4,7 @@ import {
   DEFAULT_POINT_RULES,
   bonusAmount,
   dateInZone,
+  dateTimeInZone,
   monthStart,
   nextMonth,
   parseMonth,
@@ -75,4 +76,12 @@ test('a month summary keeps earnings and deductions apart', () => {
   const summary = summarizeEntries([{ points: 100 }, { points: 300 }, { points: -150 }]);
   assert.deepEqual(summary, { total: 250, earned: 400, deducted: -150 });
   assert.deepEqual(summarizeEntries([]), { total: 0, earned: 0, deducted: 0 });
+});
+
+test('timestamps are shown in the organization timezone, including the date', () => {
+  // 22:16 UTC on the 12th is 04:16 on the 13th in Dhaka.
+  const at = new Date('2026-11-12T22:16:30Z');
+  assert.equal(dateTimeInZone(at, 'Asia/Dhaka'), '2026-11-13 04:16');
+  assert.equal(dateTimeInZone(at, 'UTC'), '2026-11-12 22:16');
+  assert.equal(dateTimeInZone(new Date('2026-11-12T18:00:00Z'), 'Asia/Dhaka'), '2026-11-13 00:00');
 });

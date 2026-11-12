@@ -4,8 +4,9 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import type { CashflowPoint } from '@/lib/domain/dashboard';
 import { money } from '@/lib/format';
 
-const INCOME = '#2563eb';
-const EXPENSES = '#94a3b8';
+// CSS variables, so the chart follows the light and dark themes.
+const INCOME = 'var(--color-primary)';
+const EXPENSES = 'var(--color-chart-muted)';
 
 function shortMonth(month: string): string {
   return new Date(`${month.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
@@ -24,15 +25,17 @@ export function CashflowChart({ data }: { data: CashflowPoint[] }) {
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={4}>
-          <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: '#e2e8f0' }} tick={{ fill: '#64748b', fontSize: 12 }} />
-          <YAxis tickLine={false} axisLine={false} width={56} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={compact} />
+          <CartesianGrid stroke="var(--color-line)" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: 'var(--color-line)' }} tick={{ fill: 'var(--color-muted)', fontSize: 12 }} />
+          <YAxis tickLine={false} axisLine={false} width={56} tick={{ fill: 'var(--color-muted)', fontSize: 12 }} tickFormatter={compact} />
           <Tooltip
-            cursor={{ fill: '#f1f5f9' }}
+            cursor={{ fill: 'var(--color-subtle)' }}
             formatter={(value, name) => [money(Number(value)), name]}
-            contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxShadow: '0 4px 12px rgb(15 23 42 / 0.06)' }}
+            contentStyle={{ borderRadius: 8, border: '1px solid var(--color-line)', background: 'var(--color-card)', color: 'var(--color-ink)', fontSize: 13, boxShadow: '0 4px 12px rgb(15 23 42 / 0.08)' }}
+            labelStyle={{ color: 'var(--color-ink)' }}
+            itemStyle={{ color: 'var(--color-ink)' }}
           />
-          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13, color: '#64748b' }} />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13, color: 'var(--color-muted)' }} />
           <Bar dataKey="income" name="Money in" fill={INCOME} radius={[4, 4, 0, 0]} maxBarSize={28} />
           <Bar dataKey="expenses" name="Money out" fill={EXPENSES} radius={[4, 4, 0, 0]} maxBarSize={28} />
         </BarChart>

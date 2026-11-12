@@ -29,6 +29,13 @@ export function dateInZone(at: Date, timeZone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+/** Date and time (YYYY-MM-DD HH:MM, 24-hour) of an instant in a timezone. */
+export function dateTimeInZone(at: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
+  return `${dateInZone(at, timeZone)} ${get('hour')}:${get('minute')}`;
+}
+
 /** First day (YYYY-MM-01) of the month an instant falls in, in a timezone. */
 export function monthStart(at: Date, timeZone: string): string {
   return `${dateInZone(at, timeZone).slice(0, 7)}-01`;

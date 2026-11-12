@@ -24,11 +24,17 @@ export interface Dashboard {
   equipment: { count: number; value: number; unpriced: number };
   projects: Record<string, number>;
   tasks: Record<string, number>;
-  approvals: { submissions: number; attendance: number; bonuses: number };
+  approvals: { submissions: number; attendance: number; bonuses: number; changes: number };
   cashflow: CashflowPoint[];
   progress: ProjectProgress[];
   deadlines: Deadline[];
   activity: ActivityItem[];
+  /** Open broadcasts: all of them for admins, the viewer's own for everyone else. */
+  broadcasts: { id: string; sender: string; message: string; at: string }[];
+  /** Items on the urgently-needed list that the viewer can see. */
+  neededItems: number;
+  /** The viewer's own numbers, shown on everyone's dashboard. */
+  mine: { openTasks: number; points: number; target: number; equipmentHeld: number };
 }
 
 type Rows = Record<string, unknown>[];
@@ -47,11 +53,16 @@ function countBy(rows: Rows | null, key: string): Record<string, number> {
 
 const KIND_LABEL: Record<string, string> = { drive: 'Google Drive link', dropbox: 'Dropbox link', text: 'Text note' };
 
-/** Combined financial and operational overview for the admin dashboard. */
+/**
+ * Everything the dashboard can show. Row level security returns only what the
+ * viewer's roles allow, so the same queries serve every role; the page then
+ * decides which sections to draw.
+ */
 export async function getDashboard(
   supabase: SupabaseClient,
   orgId: string,
   timeZone: string,
+  userId: string,
 ): Promise<Dashboard> {
   const now = new Date();
   const month = monthStart(now, timeZone);
@@ -63,7 +74,7 @@ export async function getDashboard(
   const [
     balances, invoices, invoiceBalances, payments, expenses, fixed, equipment,
     projects, tasks, people, pendingSubmissions, pendingAttendance, pendingBonuses,
-    recentSubmissions, recentPayments, recentExpenses,
+    recentSubmissions, recentPayments, recentExpenses, myPoints, settings, openBroadcasts, needed, pendingChanges,
   ] = await Promise.all([
     supabase.from('account_balances').select('balance').eq('org_id', orgId),
     supabase.from('invoices').select('id, invoice_number, status').eq('org_id', orgId),
@@ -71,9 +82,9 @@ export async function getDashboard(
     supabase.from('payments').select('amount, paid_on').eq('org_id', orgId).gte('paid_on', from).lt('paid_on', until),
     supabase.from('expenses').select('amount, expense_date').eq('org_id', orgId).gte('expense_date', from).lt('expense_date', until),
     supabase.from('fixed_expenses').select('monthly_amount').eq('org_id', orgId).eq('is_active', true),
-    supabase.from('equipment').select('purchase_price, status').eq('org_id', orgId),
+    supabase.from('equipment').select('purchase_price, status, current_holder_id').eq('org_id', orgId),
     supabase.from('projects').select('id, name, status, due_date').eq('org_id', orgId),
-    supabase.from('tasks').select('id, project_id, title, status, due_date').eq('org_id', orgId),
+    supabase.from('tasks').select('id, project_id, title, status, due_date, assignee_id').eq('org_id', orgId),
     supabase.from('profiles').select('id, full_name').eq('org_id', orgId),
     supabase.from('task_submissions').select('id').eq('org_id', orgId).eq('review_status', 'pending'),
     supabase.from('attendance').select('id').eq('org_id', orgId).eq('status', 'pending'),
@@ -81,10 +92,15 @@ export async function getDashboard(
     supabase.from('task_submissions').select('id, task_id, submitted_by, kind, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(6),
     supabase.from('payments').select('id, invoice_id, amount, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(6),
     supabase.from('expenses').select('id, description, category, amount, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(6),
+    supabase.from('monthly_points').select('total_points').eq('org_id', orgId).eq('employee_id', userId).eq('period_month', month).maybeSingle(),
+    supabase.from('point_settings').select('monthly_target').eq('org_id', orgId).maybeSingle(),
+    supabase.from('broadcasts').select('id, sender_id, message, created_at').eq('org_id', orgId).eq('status', 'open').order('created_at', { ascending: false }).limit(5),
+    supabase.from('equipment_needs').select('id').eq('org_id', orgId).eq('status', 'needed'),
+    supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
   ]);
 
   const projectRows = (projects.data ?? []) as { id: string; name: string; status: string; due_date: string | null }[];
-  const taskRows = (tasks.data ?? []) as { id: string; project_id: string; title: string; status: string; due_date: string | null }[];
+  const taskRows = (tasks.data ?? []) as { id: string; project_id: string; title: string; status: string; due_date: string | null; assignee_id: string | null }[];
   const invoiceRows = (invoices.data ?? []) as { id: string; invoice_number: string; status: string }[];
 
   const voided = new Set(invoiceRows.filter((invoice) => invoice.status === 'void').map((invoice) => invoice.id));
@@ -92,7 +108,7 @@ export async function getDashboard(
     .filter((row) => !voided.has(row.invoice_id))
     .reduce((total, row) => total + Math.max(0, Number(row.outstanding)), 0);
 
-  const gear = ((equipment.data ?? []) as { purchase_price: number | null; status: string }[]).filter(
+  const gear = ((equipment.data ?? []) as { purchase_price: number | null; status: string; current_holder_id: string | null }[]).filter(
     (item) => item.status !== 'retired',
   );
 
@@ -162,10 +178,24 @@ export async function getDashboard(
       submissions: pendingSubmissions.data?.length ?? 0,
       attendance: pendingAttendance.data?.length ?? 0,
       bonuses: pendingBonuses.data?.length ?? 0,
+      changes: pendingChanges.data?.length ?? 0,
     },
     cashflow,
     progress: projectProgress(projectRows, taskRows),
     deadlines: upcomingDeadlines(today, projectRows, taskRows),
     activity,
+    broadcasts: ((openBroadcasts.data ?? []) as { id: string; sender_id: string; message: string; created_at: string }[]).map((row) => ({
+      id: row.id,
+      sender: personName.get(row.sender_id) ?? 'Someone',
+      message: row.message,
+      at: row.created_at,
+    })),
+    neededItems: needed.data?.length ?? 0,
+    mine: {
+      openTasks: taskRows.filter((task) => task.assignee_id === userId && task.status !== 'approved').length,
+      points: Number(myPoints.data?.total_points ?? 0),
+      target: Number(settings.data?.monthly_target ?? 1500),
+      equipmentHeld: gear.filter((item) => item.current_holder_id === userId).length,
+    },
   };
 }

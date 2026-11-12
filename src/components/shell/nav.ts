@@ -1,5 +1,8 @@
 import {
   ClipboardCheck,
+  Inbox,
+  Megaphone,
+  ShieldCheck,
   FolderKanban,
   LayoutDashboard,
   ListChecks,
@@ -13,7 +16,12 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Shown to admins only. */
   adminOnly?: boolean;
+  /** Shown to everyone except admins. */
+  nonAdminOnly?: boolean;
+  /** Shown to admins and to anyone whose roles include this segment. */
+  segment?: string;
 }
 
 export interface NavGroup {
@@ -21,33 +29,58 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-// Only pages that exist are listed. Finance, the dashboard and approvals are
-// admin-only, matching the permissions enforced by the API and the database.
+export interface Viewer {
+  isAdmin: boolean;
+  segments: ReadonlySet<string>;
+}
+
+// Only pages that exist are listed. Items without a rule are for everyone:
+// those pages show each person their own data, plus whatever their roles add.
 const GROUPS: NavGroup[] = [
-  { title: 'Overview', items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true }] },
+  {
+    title: 'Overview',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone },
+    ],
+  },
   {
     title: 'Workspace',
     items: [
-      { href: '/projects', label: 'Projects & Clients', icon: FolderKanban },
+      { href: '/projects', label: 'Projects', icon: FolderKanban, segment: 'projects' },
       { href: '/my-tasks', label: 'My Tasks', icon: ListChecks },
     ],
   },
-  { title: 'Finance', items: [{ href: '/cashflow', label: 'Cash Flow & Invoices', icon: Wallet, adminOnly: true }] },
+  { title: 'Finance', items: [{ href: '/cashflow', label: 'Cash Flow & Invoices', icon: Wallet, segment: 'cashflow' }] },
   { title: 'Logistics', items: [{ href: '/logistics', label: 'Equipment & Costs', icon: Package }] },
   { title: 'Team', items: [{ href: '/employees', label: 'Employees & Rewards', icon: Users }] },
-  { title: 'Management', items: [{ href: '/approvals', label: 'Approvals', icon: ClipboardCheck, adminOnly: true }] },
+  {
+    title: 'Management',
+    items: [
+      { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, adminOnly: true },
+      { href: '/requests', label: 'My Requests', icon: Inbox, nonAdminOnly: true },
+      { href: '/roles', label: 'Roles & Access', icon: ShieldCheck, adminOnly: true },
+    ],
+  },
 ];
 
-export function navFor(isAdmin: boolean): NavGroup[] {
-  return GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => isAdmin || !item.adminOnly),
-  })).filter((group) => group.items.length > 0);
+export function navFor(viewer: Viewer): NavGroup[] {
+  const allowed = (item: NavItem) =>
+    viewer.isAdmin
+      ? !item.nonAdminOnly
+      : !item.adminOnly && (!item.segment || viewer.segments.has(item.segment));
+  return GROUPS.map((group) => ({ ...group, items: group.items.filter(allowed) })).filter(
+    (group) => group.items.length > 0,
+  );
 }
 
-/** Where a path sits in the navigation, for the top bar. Task pages belong to Projects. */
-export function locate(pathname: string): { group: string; label: string; href: string } | null {
-  const path = pathname.startsWith('/tasks') ? '/projects' : pathname;
+/** Where a path sits in the navigation, for the top bar. Task pages belong to My Tasks or Projects. */
+export function locate(pathname: string, viewer?: Viewer): { group: string; label: string; href: string } | null {
+  const canSeeProjects = !viewer || viewer.isAdmin || viewer.segments.has('projects');
+  let path = pathname;
+  if (pathname.startsWith('/tasks') || (pathname.startsWith('/projects/') && !canSeeProjects)) {
+    path = canSeeProjects ? '/projects' : '/my-tasks';
+  }
   for (const group of GROUPS) {
     for (const item of group.items) {
       if (path === item.href || path.startsWith(`${item.href}/`)) {

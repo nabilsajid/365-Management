@@ -9,7 +9,7 @@ export function Progress({ value, label, className }: { value: number; label: st
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={percent}
-      className={cn('h-1.5 w-full overflow-hidden rounded-full bg-slate-100', className)}
+      className={cn('h-1.5 w-full overflow-hidden rounded-full bg-subtle', className)}
     >
       <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${percent}%` }} />
     </div>

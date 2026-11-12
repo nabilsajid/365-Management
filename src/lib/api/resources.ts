@@ -1,14 +1,19 @@
 import type { ResourceConfig } from './crud';
-import { accessForRole } from '../domain/roles';
 import * as v from '../validation';
 
 // One entry per table exposed through the generic CRUD handlers.
-// Anything with `read: 'admin'` is cash-flow data that employees never see.
+// `read` names the segments whose holders may see a resource; admins always may.
+// `propose` names the segments whose holders may suggest changes: those are
+// stored as change requests and only applied once an admin approves them.
+// Rows are narrowed further by row level security (for example to your own tasks).
 
 const now = () => new Date().toISOString();
 
 export const clients: ResourceConfig = {
   table: 'clients',
+  label: 'client',
+  propose: ['cashflow', 'projects'],
+  read: ['projects', 'cashflow'],
   createSchema: v.clientCreate,
   updateSchema: v.clientUpdate,
   orderBy: { column: 'name', ascending: true },
@@ -16,13 +21,16 @@ export const clients: ResourceConfig = {
 
 export const projects: ResourceConfig = {
   table: 'projects',
+  label: 'project',
+  propose: ['projects'],
   select: '*, client:clients(id, name)',
-  updateSchema: v.projectUpdate,
   filters: ['client_id', 'status'],
 };
 
 export const tasks: ResourceConfig = {
   table: 'tasks',
+  label: 'task',
+  propose: ['projects'],
   select: '*, assignee:profiles(id, full_name, job_title)',
   createSchema: v.taskCreate,
   updateSchema: v.taskUpdate,
@@ -41,6 +49,8 @@ export const submissions: ResourceConfig = {
 
 export const equipment: ResourceConfig = {
   table: 'equipment',
+  label: 'equipment',
+  propose: ['equipment'],
   select: '*, holder:profiles(id, full_name, job_title)',
   createSchema: v.equipmentCreate,
   updateSchema: v.equipmentUpdate,
@@ -50,7 +60,9 @@ export const equipment: ResourceConfig = {
 
 export const fixedExpenses: ResourceConfig = {
   table: 'fixed_expenses',
-  read: 'admin',
+  label: 'fixed expense',
+  propose: ['costs'],
+  read: ['costs', 'cashflow'],
   createSchema: v.fixedExpenseCreate,
   updateSchema: v.fixedExpenseUpdate,
   orderBy: { column: 'name', ascending: true },
@@ -58,7 +70,9 @@ export const fixedExpenses: ResourceConfig = {
 
 export const expenses: ResourceConfig = {
   table: 'expenses',
-  read: 'admin',
+  label: 'expense',
+  propose: ['cashflow', 'costs'],
+  read: ['cashflow', 'costs'],
   createSchema: v.expenseCreate,
   updateSchema: v.expenseUpdate,
   filters: ['category', 'account_id', 'fixed_expense_id'],
@@ -68,7 +82,9 @@ export const expenses: ResourceConfig = {
 
 export const accounts: ResourceConfig = {
   table: 'accounts',
-  read: 'admin',
+  label: 'account',
+  propose: ['cashflow'],
+  read: ['cashflow'],
   createSchema: v.accountCreate,
   updateSchema: v.accountUpdate,
   orderBy: { column: 'name', ascending: true },
@@ -76,7 +92,9 @@ export const accounts: ResourceConfig = {
 
 export const invoices: ResourceConfig = {
   table: 'invoices',
-  read: 'admin',
+  label: 'invoice',
+  propose: ['cashflow'],
+  read: ['cashflow'],
   createSchema: v.invoiceCreate,
   updateSchema: v.invoiceUpdate,
   filters: ['client_id', 'project_id', 'status'],
@@ -85,7 +103,9 @@ export const invoices: ResourceConfig = {
 
 export const payments: ResourceConfig = {
   table: 'payments',
-  read: 'admin',
+  label: 'payment',
+  propose: ['cashflow'],
+  read: ['cashflow'],
   createSchema: v.paymentCreate,
   updateSchema: v.paymentUpdate,
   filters: ['invoice_id', 'account_id'],
@@ -94,14 +114,13 @@ export const payments: ResourceConfig = {
 
 export const employees: ResourceConfig = {
   table: 'profiles',
-  updateSchema: v.employeeUpdate,
   orderBy: { column: 'full_name', ascending: true },
-  // Changing someone's job role changes their access with it.
-  onUpdate: (_ctx, data) => ('job_title' in data ? { access_role: accessForRole(data.job_title) } : {}),
 };
 
 export const attendance: ResourceConfig = {
   table: 'attendance',
+  label: 'attendance',
+  propose: ['team_points'],
   updateSchema: v.attendanceUpdate,
   filters: ['employee_id', 'status', 'work_date'],
   orderBy: { column: 'work_date', ascending: false },
@@ -115,6 +134,8 @@ export const attendance: ResourceConfig = {
 
 export const violationTypes: ResourceConfig = {
   table: 'violation_types',
+  label: 'violation type',
+  propose: ['team_points'],
   createSchema: v.violationTypeCreate,
   updateSchema: v.violationTypeUpdate,
   orderBy: { column: 'name', ascending: true },
@@ -122,12 +143,16 @@ export const violationTypes: ResourceConfig = {
 
 export const pointEntries: ResourceConfig = {
   table: 'point_entries',
+  label: 'point entry',
+  propose: ['team_points'],
   updateSchema: v.pointEntryUpdate,
   filters: ['employee_id', 'period_month', 'source'],
 };
 
 export const bonuses: ResourceConfig = {
   table: 'bonuses',
+  label: 'bonus',
+  propose: ['bonuses'],
   updateSchema: v.bonusDecision,
   filters: ['employee_id', 'period_month', 'status'],
   orderBy: { column: 'period_month', ascending: false },
@@ -135,4 +160,30 @@ export const bonuses: ResourceConfig = {
     data.status === 'pending'
       ? { decided_by: null, decided_at: null }
       : { decided_by: ctx.userId, decided_at: now() },
+};
+
+export const roles: ResourceConfig = {
+  table: 'roles',
+  createSchema: v.roleCreate,
+  updateSchema: v.roleUpdate,
+  orderBy: { column: 'name', ascending: true },
+};
+
+// Anyone can add a needed item (custom POST); equipment roles manage the list.
+export const equipmentNeeds: ResourceConfig = {
+  table: 'equipment_needs',
+  write: ['equipment'],
+  updateSchema: v.equipmentNeedUpdate,
+  filters: ['status'],
+};
+
+// Anyone can send a broadcast (custom POST); only admins resolve or delete them.
+export const broadcasts: ResourceConfig = {
+  table: 'broadcasts',
+  updateSchema: v.broadcastUpdate,
+  filters: ['status'],
+  onUpdate: (ctx, data) =>
+    data.status === 'resolved'
+      ? { resolved_by: ctx.userId, resolved_at: now() }
+      : { resolved_by: null, resolved_at: null },
 };

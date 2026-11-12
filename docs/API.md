@@ -5,15 +5,15 @@ All routes are under `/api`, need a signed-in user, and exchange JSON.
 - Success: `{ "data": ... }`
 - Failure: `{ "error": { "message": "...", "details": ... } }` with status 400 (invalid input), 401 (signed out), 403 (not allowed), 404, 409 (duplicate or still linked) or 500.
 
-"Member" means any active employee. Unless noted, collection routes support `GET` (list) and `POST` (create), and item routes (`/[id]`) support `GET`, `PATCH` and `DELETE`.
+"Member" means any signed-in person. A segment name (such as `cashflow`) means admins plus anyone whose roles include that segment; see [ARCHITECTURE.md](ARCHITECTURE.md#permissions). Member routes still return only the rows the caller may see. Unless noted, collection routes support `GET` (list) and `POST` (create), and item routes (`/[id]`) support `GET`, `PATCH` and `DELETE`.
 
 ## 1. Projects & Clients
 
 | Route | Read | Write | Notes |
 | --- | --- | --- | --- |
-| `/clients`, `/clients/[id]` | Member | Admin | |
-| `/projects` | Member | Admin | `POST` takes the project, its brief and `deliverables[]`, and creates one task per deliverable. Filters: `client_id`, `status`. |
-| `/projects/[id]` | Member | Admin | |
+| `/clients`, `/clients/[id]` | `projects` or `cashflow` | Admin | |
+| `/projects` | Member | Admin | `POST` `{ name, client_name?, brief?, start_date?, due_date?, file_links[]?, member_ids[]?, deliverables[]? }`. Only `name` is required. `client_name` is looked up by name and created if new. Filters: `client_id`, `status`. |
+| `/projects/[id]` | Member | Admin | `PATCH` takes the same fields except `deliverables`; `member_ids` replaces the team. |
 | `/tasks`, `/tasks/[id]` | Member | Admin | Filters: `project_id`, `assignee_id`, `status`. Responses include the assignee's name and job role. |
 | `/tasks/[id]/submissions` | Member | Assignee or admin | `POST` `{ kind: "drive" \| "dropbox" \| "text", url?, note? }` |
 | `/submissions/[id]` | Member | Admin | `PATCH` `{ review_status, review_note? }` is the admin review. |
@@ -23,24 +23,25 @@ All routes are under `/api`, need a signed-in user, and exchange JSON.
 | Route | Read | Write | Notes |
 | --- | --- | --- | --- |
 | `/equipment`, `/equipment/[id]` | Member | Admin | `purchase_price` is optional. Set `current_holder_id` to record who holds an item. Filters: `status`, `current_holder_id`. |
-| `/fixed-expenses`, `/fixed-expenses/[id]` | Admin | Admin | |
-| `/expenses?category=transport` | Admin | Admin | Transport trips are expenses with `trip_origin` and `trip_destination`. |
+| `/fixed-expenses`, `/fixed-expenses/[id]` | `costs` or `cashflow` | Admin | |
+| `/expenses?category=transport` | `costs` or `cashflow` | Admin | Transport trips are expenses with `trip_origin` and `trip_destination`. |
 
 ## 3. Cash Flow & Invoices
 
 | Route | Read | Write | Notes |
 | --- | --- | --- | --- |
-| `/accounts`, `/accounts/[id]` | Admin | Admin | |
-| `/invoices`, `/invoices/[id]` | Admin | Admin | Filters: `client_id`, `project_id`, `status`. |
-| `/payments`, `/payments/[id]` | Admin | Admin | Filters: `invoice_id`, `account_id`. |
-| `/expenses`, `/expenses/[id]` | Admin | Admin | `category: "equipment"` creates an inventory record; `amount` may be omitted for that category only. Filters: `category`, `account_id`, `fixed_expense_id`. |
+| `/accounts`, `/accounts/[id]` | `cashflow` | Admin | |
+| `/invoices`, `/invoices/[id]` | `cashflow` | Admin | Filters: `client_id`, `project_id`, `status`. |
+| `/payments`, `/payments/[id]` | `cashflow` | Admin | Filters: `invoice_id`, `account_id`. |
+| `/expenses`, `/expenses/[id]` | `cashflow` or `costs` | Admin | `category: "equipment"` creates an inventory record; `amount` may be omitted for that category only. Filters: `category`, `account_id`, `fixed_expense_id`. |
 
 ## 4. Employees & Rewards
 
 | Route | Read | Write | Notes |
 | --- | --- | --- | --- |
-| `/employees` | Member | Admin | `POST` `{ email, full_name, job_title }` invites a new person; `job_title` must be one of the roles in `src/lib/domain/roles.ts`, and access follows it. Needs the service-role key. |
-| `/employees/[id]` | Member | Admin | `GET` and `PATCH` only. Deactivate with `is_active: false`. |
+| `/roles`, `/roles/[id]` | Member | Admin | `{ name, description?, color?, permissions[] }`. The Admin role cannot be deleted. |
+| `/employees` | Member | Admin | `POST` `{ email, full_name, role_ids[] }` invites a new person with one or more roles. Needs the service-role key. |
+| `/employees/[id]` | Member | Admin | `GET` and `PATCH` only. `PATCH` `{ full_name?, role_ids?, is_active? }`; `role_ids` replaces the person's roles. |
 | `/attendance` | Own (admin: all) | Member | `POST` `{ work_date }` marks your own day as pending. Admins may pass `employee_id` and `status`. |
 | `/attendance/[id]` | Own (admin: all) | Admin | `PATCH` `{ status: "verified" }` verifies the day and awards the points. |
 | `/points` | Own (admin: all) | Admin | Point entries. `POST` records a violation or adjustment: `{ source, employee_id, reason, violation_type_id?, points?, month? }`. Filters: `employee_id`, `period_month`, `source`. |
@@ -52,8 +53,26 @@ All routes are under `/api`, need a signed-in user, and exchange JSON.
 | `/bonuses/calculate` | n/a | Admin | `POST` `{ month: "YYYY-MM" }` for a finished month. |
 | `/bonuses/[id]` | Own (admin: all) | Admin | `PATCH` `{ status: "approved" \| "rejected" \| "pending" }` |
 
+## Change requests
+
+For every route whose Write column says Admin, a non-admin whose roles include that part of the app gets `202 { "data": { "pending": true, "summary": "..." } }`: the change was stored for approval, not applied. The exceptions are roles, employees, point rules, submissions review, bonus calculation and broadcasts, which only admins can change.
+
+| Route | Read | Write | Notes |
+| --- | --- | --- | --- |
+| `/change-requests?status=pending` | Own (admin: all) | n/a | |
+| `/change-requests/[id]` | n/a | Admin | `POST` `{ decision: "approve" \| "deny", note? }`. Approving applies the change. |
+
+## Broadcasts and needed equipment
+
+| Route | Read | Write | Notes |
+| --- | --- | --- | --- |
+| `/broadcasts` | Own (admin: all) | Member | `POST` `{ message }` sends a broadcast to the admins (up to 280 characters). |
+| `/broadcasts/[id]` | Own (admin: all) | Admin | `PATCH` `{ status: "resolved" \| "open" }` |
+| `/equipment-needs` | Own (`equipment`: all) | Member | `POST` `{ item_name, quantity?, note? }` |
+| `/equipment-needs/[id]` | Own (`equipment`: all) | `equipment` | `PATCH` `{ item_name?, quantity?, note?, status? }`; `status` is `needed` or `acquired`. |
+
 ## 5. Admin Dashboard
 
 | Route | Read | Notes |
 | --- | --- | --- |
-| `/dashboard` | Admin | Funds, outstanding dues, this month's expenses, fixed monthly costs, equipment value, project and task counts, pending approvals. |
+| `/dashboard` | Member | Returns only what the caller's roles allow, plus their own task, points and equipment counts. |

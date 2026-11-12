@@ -1,4 +1,5 @@
-import { crud, requireContext } from '@/lib/api/context';
+import { crud, requireWriter } from '@/lib/api/context';
+import { proposeChange } from '@/lib/api/crud';
 import { fail, fromDbError, ok, readJson } from '@/lib/api/http';
 import { pointEntries } from '@/lib/api/resources';
 import { monthStart, parseMonth } from '@/lib/domain/points';
@@ -7,17 +8,28 @@ import { pointEntryCreate } from '@/lib/validation';
 
 export const GET = crud.collection(pointEntries).GET;
 
-// Admin records a documented deduction (violation) or a manual adjustment.
-// Deductions only change points; they never touch salary.
+// Records a documented deduction (violation) or a manual adjustment. An admin's
+// entry applies at once; one from a role with team points goes to an admin for
+// approval. Deductions only change points; they never touch salary.
 export async function POST(request: Request): Promise<Response> {
-  const auth = await requireContext('admin');
+  const auth = await requireWriter(['team_points']);
   if (auth.response) return auth.response;
-  const { ctx } = auth;
+  const { ctx, mode } = auth;
   const orgId = ctx.profile.org_id;
 
   const body = await readJson(request, pointEntryCreate);
   if (body.response) return body.response;
   const input = body.data;
+
+  if (mode === 'propose') {
+    // Only an admin decides points, and nobody can put forward points for themselves.
+    if (input.employee_id === ctx.userId) return fail(403, 'You cannot give or deduct your own points.');
+    const person = await ctx.supabase.from('profiles').select('full_name').eq('id', input.employee_id).eq('org_id', orgId).maybeSingle();
+    if (!person.data) return fail(400, 'That employee does not exist.');
+    const what = input.source === 'violation' ? 'Deduct points from' : 'Adjust points for';
+    const amount = input.points ? ` (${input.source === 'violation' ? -Math.abs(input.points) : input.points} points)` : '';
+    return proposeChange(ctx, request, input, `${what} ${person.data.full_name}${amount}: ${input.reason}`);
+  }
 
   const month = parseMonth(input.month) ?? monthStart(new Date(), await getOrgTimezone(ctx.supabase, orgId));
 

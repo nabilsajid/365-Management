@@ -4,23 +4,29 @@ import * as v from '../../src/lib/validation';
 
 const UUID = '11111111-1111-1111-1111-111111111111';
 
-test('project onboarding accepts a brief with deliverables', () => {
+test('a project needs only a name; client, links, team and deliverables are optional', () => {
+  assert.equal(v.projectCreate.safeParse({ name: 'Internal reel' }).success, true);
   const parsed = v.projectCreate.safeParse({
-    client_id: UUID,
     name: 'Launch campaign',
+    client_name: 'Acme',
     brief: 'Three videos',
+    file_links: [{ label: 'Brief', url: 'https://docs.google.com/document/d/1' }],
+    member_ids: [UUID],
     deliverables: [
       { title: 'Video 1', description: 'Teaser', file_links: [{ label: 'Footage', url: 'https://drive.google.com/x' }] },
       { title: 'Video 2', assignee_id: UUID, points_value: 300 },
     ],
   });
   assert.equal(parsed.success, true);
+  assert.equal(v.projectCreate.safeParse({ name: '  ' }).success, false);
+  assert.equal(v.projectCreate.safeParse({ name: 'X', member_ids: ['not-an-id'] }).success, false);
+  assert.equal(v.projectCreate.safeParse({ name: 'X', file_links: [{ label: 'Bad', url: 'ftp://x' }] }).success, false);
 });
 
-test('project onboarding rejects an untitled deliverable and unknown equipment fields are dropped', () => {
-  assert.equal(v.projectCreate.safeParse({ client_id: UUID, name: 'X', deliverables: [{ title: ' ' }] }).success, false);
+test('project input rejects an untitled deliverable and drops unknown equipment fields', () => {
+  assert.equal(v.projectCreate.safeParse({ name: 'X', deliverables: [{ title: ' ' }] }).success, false);
 
-  const parsed = v.projectCreate.parse({ client_id: UUID, name: 'X', equipment_ids: [UUID] });
+  const parsed = v.projectCreate.parse({ name: 'X', equipment_ids: [UUID] });
   assert.ok(!('equipment_ids' in parsed));
   assert.deepEqual(parsed.deliverables, []);
 });
@@ -98,4 +104,40 @@ test('bonus decisions and months are constrained', () => {
 test('attendance needs a real date', () => {
   assert.equal(v.attendanceCreate.safeParse({ work_date: '2026-11-12' }).success, true);
   assert.equal(v.attendanceCreate.safeParse({ work_date: '12/11/2026' }).success, false);
+});
+
+test('attendance times are clock times and the exit comes after the entry', () => {
+  const day = { work_date: '2026-11-12' };
+  assert.equal(v.attendanceCreate.safeParse({ ...day, check_in: '10:00', check_out: '18:30' }).success, true);
+  assert.equal(v.attendanceCreate.safeParse({ ...day, check_in: '10:00:00', check_out: '18:30:00' }).success, true);
+  assert.equal(v.attendanceCreate.safeParse({ ...day, check_in: '18:00', check_out: '09:00' }).success, false);
+  assert.equal(v.attendanceCreate.safeParse({ ...day, check_in: '10:00', check_out: '10:00' }).success, false);
+  assert.equal(v.attendanceCreate.safeParse({ ...day, check_in: '25:00', check_out: '26:00' }).success, false);
+  assert.equal(v.attendanceCreate.safeParse({ ...day, check_in: '10am', check_out: '6pm' }).success, false);
+  assert.equal(v.attendanceUpdate.safeParse({ check_in: '09:00', check_out: '08:00' }).success, false);
+  assert.equal(v.attendanceUpdate.safeParse({ check_out: null }).success, true);
+});
+
+test('a broadcast is a short, non-empty message', () => {
+  assert.equal(v.broadcastCreate.safeParse({ message: 'Editing PC will not start' }).success, true);
+  assert.equal(v.broadcastCreate.safeParse({ message: '   ' }).success, false);
+  assert.equal(v.broadcastCreate.safeParse({ message: 'x'.repeat(280) }).success, true);
+  assert.equal(v.broadcastCreate.safeParse({ message: 'x'.repeat(281) }).success, false);
+  assert.equal(v.broadcastUpdate.safeParse({ status: 'resolved' }).success, true);
+  assert.equal(v.broadcastUpdate.safeParse({ status: 'deleted' }).success, false);
+});
+
+test('equipment condition is perfect, moderate, weak or not set', () => {
+  for (const condition of ['perfect', 'moderate', 'weak', null]) {
+    assert.equal(v.equipmentCreate.safeParse({ name: 'Tripod', condition }).success, true, String(condition));
+  }
+  assert.equal(v.equipmentCreate.safeParse({ name: 'Tripod', condition: 'broken' }).success, false);
+});
+
+test('a needed item has a name and a whole positive quantity', () => {
+  assert.equal(v.equipmentNeedCreate.parse({ item_name: 'Camera battery' }).quantity, 1);
+  assert.equal(v.equipmentNeedCreate.safeParse({ item_name: 'Tripod', quantity: 2, note: 'For Friday' }).success, true);
+  assert.equal(v.equipmentNeedCreate.safeParse({ item_name: '', quantity: 1 }).success, false);
+  assert.equal(v.equipmentNeedCreate.safeParse({ item_name: 'Tripod', quantity: 0 }).success, false);
+  assert.equal(v.equipmentNeedUpdate.safeParse({ status: 'acquired' }).success, true);
 });

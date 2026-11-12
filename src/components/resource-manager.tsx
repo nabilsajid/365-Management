@@ -2,13 +2,18 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, useTransition, type FormEvent, type ReactNode } from 'react';
 import { formatFileLinks, parseFileLinks, type FileLinkInput } from '@/lib/domain/deliverables';
 import { label as humanize, money } from '@/lib/format';
 import type { Column, Field, Row } from './types';
 
-type FormState = Record<string, string | boolean>;
+type FormState = Record<string, string | boolean | string[]>;
 type Values = Record<string, unknown>;
+
+/** Shows a short confirmation at the bottom of the screen (see Toast in the app shell). */
+export function toast(message: string) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('app:toast', { detail: message }));
+}
 
 async function callApi(endpoint: string, method: string, body?: unknown): Promise<string | null> {
   try {
@@ -17,7 +22,11 @@ async function callApi(endpoint: string, method: string, body?: unknown): Promis
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (response.ok) return null;
+    if (response.ok) {
+      // 202 means the change was stored for an admin to approve rather than applied.
+      toast(response.status === 202 ? 'Sent to an admin for approval.' : 'Saved.');
+      return null;
+    }
     const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
     return payload?.error?.message ?? `Request failed (${response.status}).`;
   } catch {
@@ -30,6 +39,7 @@ function initialState(fields: Field[], initial?: Values): FormState {
   for (const field of fields) {
     const value = initial?.[field.name];
     if (field.type === 'checkbox') state[field.name] = value === undefined ? true : Boolean(value);
+    else if (field.type === 'multiselect') state[field.name] = Array.isArray(value) ? value.map(String) : [];
     else if (field.type === 'links') state[field.name] = formatFileLinks(value as FileLinkInput[] | null);
     else if (field.type === 'month') state[field.name] = value ? String(value).slice(0, 7) : '';
     else if (value === undefined) state[field.name] = field.defaultValue ?? '';
@@ -44,6 +54,12 @@ function serialize(fields: Field[], state: FormState): { values: Values; error?:
     const raw = state[field.name];
     if (field.type === 'checkbox') {
       values[field.name] = Boolean(raw);
+      continue;
+    }
+    if (field.type === 'multiselect') {
+      const chosen = Array.isArray(raw) ? raw : [];
+      if (field.required && chosen.length === 0) return { values, error: `Choose at least one: ${field.label}.` };
+      values[field.name] = chosen;
       continue;
     }
     const text = String(raw ?? '').trim();
@@ -81,7 +97,7 @@ function FieldForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const set = (name: string, value: string | boolean) => setState((current) => ({ ...current, [name]: value }));
+  const set = (name: string, value: string | boolean | string[]) => setState((current) => ({ ...current, [name]: value }));
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -103,7 +119,38 @@ function FieldForm({
         {fields.map((field) => {
           const id = `field-${field.name}`;
           const value = state[field.name];
-          const wide = field.type === 'textarea' || field.type === 'links';
+          const wide = field.type === 'textarea' || field.type === 'links' || field.type === 'multiselect';
+          if (field.type === 'multiselect') {
+            const chosen = Array.isArray(value) ? value : [];
+            return (
+              <div key={field.name} role="group" aria-label={field.label} className="field wide">
+                <span>
+                  {field.label}
+                  {field.required ? ' *' : ''}
+                </span>
+                <div className="choices">
+                  {(field.options ?? []).map((option) => (
+                    <label key={option.value} className="choice">
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(option.value)}
+                        onChange={(event) =>
+                          set(
+                            field.name,
+                            event.target.checked
+                              ? [...chosen, option.value]
+                              : chosen.filter((item) => item !== option.value),
+                          )
+                        }
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+                {field.hint ? <small>{field.hint}</small> : null}
+              </div>
+            );
+          }
           return (
             <label key={field.name} htmlFor={id} className={wide ? 'field wide' : 'field'}>
               <span>
@@ -187,6 +234,7 @@ export function ApiForm({
   resetOnSuccess?: boolean;
 }) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   return (
     <FieldForm
       fields={fields}
@@ -195,7 +243,7 @@ export function ApiForm({
       resetOnSuccess={resetOnSuccess}
       onSubmit={async (values) => {
         const message = await callApi(endpoint, method, { ...values, ...fixedValues });
-        if (!message) router.refresh();
+        if (!message) startTransition(() => router.refresh());
         return message;
       }}
     />
@@ -208,33 +256,31 @@ export function ActionButton({
   method = 'POST',
   body,
   children,
-  confirmText,
   primary,
 }: {
   endpoint: string;
   method?: 'POST' | 'PATCH' | 'DELETE';
   body?: Values;
   children: ReactNode;
-  confirmText?: string;
   primary?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [refreshing, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   async function run() {
-    if (confirmText && !window.confirm(confirmText)) return;
     setBusy(true);
     const message = await callApi(endpoint, method, body);
     setBusy(false);
     setError(message);
-    if (!message) router.refresh();
+    if (!message) startTransition(() => router.refresh());
   }
 
   return (
     <span className="action">
-      <button type="button" className={primary ? 'primary' : undefined} onClick={run} disabled={busy}>
-        {busy ? 'Working…' : children}
+      <button type="button" className={primary ? 'primary' : undefined} onClick={run} disabled={busy || refreshing}>
+        {busy || refreshing ? 'Working…' : children}
       </button>
       {error ? (
         <span className="error" role="alert">
@@ -258,6 +304,22 @@ function Cell({ row, column }: { row: Row; column: Column }) {
           </a>
         ))}
       </>
+    );
+  }
+  if (column.kind === 'tags') {
+    // Each tag is plain text, or { label, color } for a coloured label such as a role.
+    const tags = (Array.isArray(value) ? value : []).map((tag) =>
+      typeof tag === 'string' ? { label: tag, color: undefined } : (tag as { label: string; color?: string }),
+    );
+    if (tags.length === 0) return <>—</>;
+    return (
+      <span className="tags">
+        {tags.map((tag) => (
+          <span key={tag.label} className={tag.color ? `badge tag-${tag.color}` : 'badge'}>
+            {tag.label}
+          </span>
+        ))}
+      </span>
     );
   }
   if (value === null || value === undefined || value === '') return <>—</>;
@@ -301,6 +363,8 @@ export function ResourceManager({
   allowDelete = true,
   addLabel = 'Add',
   emptyText = 'Nothing here yet.',
+  needsApproval = false,
+  pageSize = 10,
 }: {
   title: string;
   description?: string;
@@ -315,11 +379,24 @@ export function ResourceManager({
   allowDelete?: boolean;
   addLabel?: string;
   emptyText?: string;
+  /** The viewer is not an admin: their changes here go to an admin for approval. */
+  needsApproval?: boolean;
+  /** Rows shown before "Show all". Long lists also get a search box. */
+  pageSize?: number;
 }) {
   const router = useRouter();
+  const [showAll, setShowAll] = useState(false);
+  const [search, setSearch] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Delete asks for confirmation inside the row. Browser confirm dialogs are
+  // blocked in some embedded browsers, where Delete would silently do nothing.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // Forms close straight away; the table dims while the fresh rows arrive.
+  const [refreshing, startTransition] = useTransition();
+  const refresh = () => startTransition(() => router.refresh());
 
   const formFields = editFields ?? fields;
   const canEdit = canWrite && formFields.length > 0;
@@ -327,18 +404,41 @@ export function ResourceManager({
   const showActions = canWrite && (canEdit || allowDelete);
 
   async function remove(row: Row) {
-    if (!window.confirm('Delete this record? This cannot be undone.')) return;
+    setConfirmingId(null);
+    setDeletingId(row.id);
     const message = await callApi(`${endpoint}/${row.id}`, 'DELETE');
+    setDeletingId(null);
     setError(message);
-    if (!message) router.refresh();
+    if (!message) refresh();
   }
+
+  // Long lists stay manageable: search across the visible columns, and show
+  // the first page until "Show all" is pressed.
+  const needle = search.trim().toLowerCase();
+  const matching = needle
+    ? rows.filter((row) =>
+        columns.some((column) => {
+          const value = row[column.key];
+          const text = Array.isArray(value)
+            ? value.map((item) => (typeof item === 'string' ? item : ((item as { label?: string }).label ?? ''))).join(' ')
+            : String(value ?? '');
+          return text.toLowerCase().includes(needle);
+        }),
+      )
+    : rows;
+  const visible = showAll || needle ? matching : matching.slice(0, pageSize);
+  const hidden = matching.length - visible.length;
 
   return (
     <section className="panel">
       <header className="panel-header">
         <div>
-          <h2>{title}</h2>
+          <h2>
+            {title}
+            {rows.length > 0 ? <span className="count">{rows.length}</span> : null}
+          </h2>
           {description ? <p className="muted">{description}</p> : null}
+          {needsApproval && canWrite ? <p className="muted">Changes you make here are sent to an admin for approval.</p> : null}
         </div>
         {canCreate && !adding ? (
           <button type="button" className="primary" onClick={() => setAdding(true)}>
@@ -356,7 +456,7 @@ export function ResourceManager({
             const message = await callApi(endpoint, 'POST', { ...values, ...fixedValues });
             if (!message) {
               setAdding(false);
-              router.refresh();
+              refresh();
             }
             return message;
           }}
@@ -369,10 +469,23 @@ export function ResourceManager({
         </p>
       ) : null}
 
+      {rows.length > pageSize ? (
+        <input
+          type="search"
+          className="search"
+          value={search}
+          placeholder={`Search ${rows.length} entries…`}
+          aria-label={`Search ${title}`}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      ) : null}
+
       {rows.length === 0 ? (
         <p className="muted empty">{emptyText}</p>
+      ) : matching.length === 0 ? (
+        <p className="muted empty">Nothing matches “{search}”.</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" data-pending={refreshing} aria-busy={refreshing}>
           <table>
             <thead>
               <tr>
@@ -385,7 +498,7 @@ export function ResourceManager({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) =>
+              {visible.map((row) =>
                 editingId === row.id ? (
                   <tr key={row.id}>
                     <td colSpan={columns.length + 1}>
@@ -398,7 +511,7 @@ export function ResourceManager({
                           const message = await callApi(`${endpoint}/${row.id}`, 'PATCH', values);
                           if (!message) {
                             setEditingId(null);
-                            router.refresh();
+                            refresh();
                           }
                           return message;
                         }}
@@ -406,7 +519,7 @@ export function ResourceManager({
                     </td>
                   </tr>
                 ) : (
-                  <tr key={row.id}>
+                  <tr key={row.id} data-pending={deletingId === row.id}>
                     {columns.map((column) => (
                       <td key={column.key} className={column.kind === 'money' || column.kind === 'number' ? 'num' : undefined}>
                         <Cell row={row} column={column} />
@@ -414,13 +527,22 @@ export function ResourceManager({
                     ))}
                     {showActions ? (
                       <td className="row-actions">
-                        {canEdit ? (
+                        {canEdit && confirmingId !== row.id ? (
                           <button type="button" onClick={() => setEditingId(row.id)}>
                             Edit
                           </button>
                         ) : null}
-                        {allowDelete ? (
-                          <button type="button" className="danger" onClick={() => remove(row)}>
+                        {allowDelete && confirmingId === row.id ? (
+                          <>
+                            <button type="button" className="danger" onClick={() => remove(row)} disabled={deletingId === row.id}>
+                              Yes, delete
+                            </button>
+                            <button type="button" onClick={() => setConfirmingId(null)}>
+                              Cancel
+                            </button>
+                          </>
+                        ) : allowDelete ? (
+                          <button type="button" className="danger" onClick={() => setConfirmingId(row.id)}>
                             Delete
                           </button>
                         ) : null}
@@ -433,6 +555,20 @@ export function ResourceManager({
           </table>
         </div>
       )}
+
+      {hidden > 0 ? (
+        <div className="more">
+          <button type="button" onClick={() => setShowAll(true)}>
+            Show all {matching.length}
+          </button>
+        </div>
+      ) : showAll && matching.length > pageSize ? (
+        <div className="more">
+          <button type="button" onClick={() => setShowAll(false)}>
+            Show fewer
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

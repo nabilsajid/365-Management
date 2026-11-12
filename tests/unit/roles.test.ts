@@ -1,53 +1,61 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { JOB_ROLES, accessForRole, isJobRole } from '../../src/lib/domain/roles';
-import { employeeInvite, employeeUpdate } from '../../src/lib/validation';
-import { employees } from '../../src/lib/api/resources';
-import type { ApiContext } from '../../src/lib/api/crud';
+import { SEGMENT_KEYS, canSee, segmentLabel, segmentsFromRoles } from '../../src/lib/domain/roles';
+import { navFor } from '../../src/components/shell/nav';
+import { employeeInvite, employeeUpdate, roleCreate, roleUpdate } from '../../src/lib/validation';
 
-test('the role list is the agreed one', () => {
-  assert.deepEqual([...JOB_ROLES], [
-    'Graphic Designer',
-    'Senior Graphic Designer',
-    'Video Editor',
-    'Senior Visualizer',
-    'Project Manager',
-    'Finance Manager',
-    'Human Resource',
-    'Logistics Manager',
-    'Operations Manager',
-    'Admin',
+const UUID = '11111111-1111-1111-1111-111111111111';
+
+test('the segments match the ones the database accepts', () => {
+  assert.deepEqual([...SEGMENT_KEYS], ['projects', 'equipment', 'costs', 'cashflow', 'team_points', 'bonuses']);
+  assert.equal(segmentLabel('cashflow'), 'Cash flow');
+  assert.equal(segmentLabel('unknown'), 'unknown');
+});
+
+test('several roles combine into one set of segments', () => {
+  const segments = segmentsFromRoles([
+    { permissions: ['projects'] },
+    { permissions: ['cashflow', 'projects'] },
+    { permissions: null },
   ]);
+  assert.deepEqual([...segments].sort(), ['cashflow', 'projects']);
+  assert.equal(segmentsFromRoles([]).size, 0);
 });
 
-test('only the Admin role gets admin access', () => {
-  assert.equal(accessForRole('Admin'), 'admin');
-  for (const role of JOB_ROLES.filter((value) => value !== 'Admin')) {
-    assert.equal(accessForRole(role), 'employee', role);
-  }
-  assert.equal(accessForRole(null), 'employee');
-  assert.equal(accessForRole('admin'), 'employee');
+test('admins see every segment; others only what their roles include', () => {
+  const none = new Set<string>();
+  assert.equal(canSee({ isAdmin: true, segments: none }, 'cashflow'), true);
+  assert.equal(canSee({ isAdmin: false, segments: none }, 'cashflow'), false);
+  assert.equal(canSee({ isAdmin: false, segments: new Set(['team_points']) }, 'team_points'), true);
+  assert.equal(canSee({ isAdmin: false, segments: new Set(['team_points']) }, 'bonuses'), false);
 });
 
-test('isJobRole rejects anything outside the list', () => {
-  assert.equal(isJobRole('Video Editor'), true);
-  assert.equal(isJobRole('Founder'), false);
-  assert.equal(isJobRole(undefined), false);
+const hrefs = (isAdmin: boolean, segments: string[]) =>
+  navFor({ isAdmin, segments: new Set(segments) }).flatMap((group) => group.items.map((item) => item.href));
+
+test('the sidebar only lists what a person can open', () => {
+  assert.deepEqual(hrefs(false, []), ['/dashboard', '/broadcasts', '/my-tasks', '/logistics', '/employees', '/requests']);
+  assert.deepEqual(hrefs(false, ['cashflow']), ['/dashboard', '/broadcasts', '/my-tasks', '/cashflow', '/logistics', '/employees', '/requests']);
+  assert.ok(hrefs(false, ['projects']).includes('/projects'));
+  assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/approvals'));
+  assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/roles'));
+  assert.ok(!hrefs(true, []).includes('/requests'));
+  assert.deepEqual(hrefs(true, []), ['/dashboard', '/broadcasts', '/projects', '/my-tasks', '/cashflow', '/logistics', '/employees', '/approvals', '/roles']);
 });
 
-test('inviting someone needs a role from the list', () => {
+test('a role needs a name and only known segments', () => {
+  assert.equal(roleCreate.safeParse({ name: 'Bookkeeper', permissions: ['cashflow', 'costs'] }).success, true);
+  assert.equal(roleCreate.safeParse({ name: 'Intern' }).success, true);
+  assert.equal(roleCreate.safeParse({ name: ' ', permissions: [] }).success, false);
+  assert.equal(roleCreate.safeParse({ name: 'X', permissions: ['everything'] }).success, false);
+  assert.ok(!('is_admin' in roleUpdate.parse({ name: 'X', is_admin: true })));
+});
+
+test('people are given one or more roles by id', () => {
   const base = { email: 'rafi@example.com', full_name: 'Rafi' };
-  assert.equal(employeeInvite.safeParse({ ...base, job_title: 'Logistics Manager' }).success, true);
-  assert.equal(employeeInvite.safeParse({ ...base, job_title: 'Chief Wizard' }).success, false);
+  assert.equal(employeeInvite.safeParse({ ...base, role_ids: [UUID, UUID.replace(/1/g, '2')] }).success, true);
+  assert.equal(employeeInvite.safeParse({ ...base, role_ids: [] }).success, false);
   assert.equal(employeeInvite.safeParse(base).success, false);
-});
-
-test('access cannot be set directly; it follows the role', () => {
-  const parsed = employeeUpdate.parse({ job_title: 'Graphic Designer', access_role: 'admin' });
-  assert.ok(!('access_role' in parsed));
-
-  const ctx = {} as ApiContext;
-  assert.deepEqual(employees.onUpdate?.(ctx, { job_title: 'Admin' }), { access_role: 'admin' });
-  assert.deepEqual(employees.onUpdate?.(ctx, { job_title: 'Finance Manager' }), { access_role: 'employee' });
-  assert.deepEqual(employees.onUpdate?.(ctx, { full_name: 'Renamed' }), {});
+  assert.equal(employeeUpdate.safeParse({ role_ids: ['not-an-id'] }).success, false);
+  assert.ok(!('access_role' in employeeUpdate.parse({ full_name: 'Rafi', access_role: 'admin' })));
 });

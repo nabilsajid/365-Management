@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getApiContext } from '@/lib/api/context';
+import { dateInZone, dateTimeInZone } from '@/lib/domain/points';
+import { canSee, type Segment } from '@/lib/domain/roles';
+import { getOrg } from '@/lib/services/rewards';
 import type { Profile } from '@/types/database';
 import type { Option, Row } from '@/components/types';
 
@@ -7,7 +10,20 @@ import type { Option, Row } from '@/components/types';
 export async function getPageContext() {
   const ctx = await getApiContext();
   if (!ctx) redirect('/login?reason=no-access');
-  return { ...ctx, orgId: ctx.profile.org_id, isAdmin: ctx.profile.access_role === 'admin' };
+  const isAdmin = ctx.profile.access_role === 'admin';
+  const org = await getOrg(ctx.supabase, ctx.profile.org_id);
+  return {
+    ...ctx,
+    orgId: ctx.profile.org_id,
+    isAdmin,
+    orgName: org.name,
+    timeZone: org.timezone,
+    /** A stored timestamp as a local date, or date and time, in the organization's timezone. */
+    localDate: (iso: string) => dateInZone(new Date(iso), org.timezone),
+    localDateTime: (iso: string) => dateTimeInZone(new Date(iso), org.timezone),
+    /** Whether this person's roles (or admin access) include a segment. */
+    can: (segment: Segment) => canSee({ isAdmin, segments: ctx.segments }, segment),
+  };
 }
 
 export function personLabel(person: Pick<Profile, 'full_name' | 'job_title'>): string {

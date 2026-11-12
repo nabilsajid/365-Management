@@ -277,5 +277,255 @@ select pg_temp.check(
   not exists (select 1 from bonuses where employee_id = '00000000-0000-0000-0000-0000000000e2'),
   'a pending bonus is withdrawn when the employee no longer qualifies');
 
+-- Roles as tags and per-segment visibility.
+select pg_temp.check(
+  (select count(*) = 10 from roles where org_id = '00000000-0000-0000-0000-000000000001'),
+  'a new organization gets the ten starting roles');
+
+insert into roles (id, org_id, name, permissions) values
+  ('00000000-0000-0000-0000-0000000070a1', '00000000-0000-0000-0000-000000000001', 'Bookkeeper', '{cashflow}');
+
+do $$ begin
+  insert into roles (org_id, name, permissions)
+  values ('00000000-0000-0000-0000-000000000001', 'Bad', '{everything}');
+  raise exception 'FAILED: unknown segment accepted';
+exception when check_violation then raise notice 'ok - a role can only list known segments';
+end $$;
+
+select set_profile_roles('00000000-0000-0000-0000-0000000000e2', array[
+  '00000000-0000-0000-0000-0000000070a1',
+  (select id from roles where org_id = '00000000-0000-0000-0000-000000000001' and name = 'Human Resource')
+]::uuid[]);
+select pg_temp.check(
+  (select job_title = 'Bookkeeper, Human Resource' and access_role = 'employee'
+   from profiles where id = '00000000-0000-0000-0000-0000000000e2'),
+  'a person can hold several roles and they show as their job title');
+
+update roles set name = 'Accountant' where id = '00000000-0000-0000-0000-0000000070a1';
+select pg_temp.check(
+  (select job_title = 'Accountant, Human Resource' from profiles where id = '00000000-0000-0000-0000-0000000000e2'),
+  'renaming a role updates everyone who holds it');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check((select count(*) >= 4 from expenses), 'a role with the cashflow segment sees expenses');
+select pg_temp.check((select count(*) = 1 from invoices), 'a role with the cashflow segment sees invoices');
+select pg_temp.check(
+  (select count(distinct employee_id) = 2 from point_entries),
+  'a role with the team_points segment sees everyone''s points');
+select pg_temp.check((select count(*) = 0 from tasks), 'without the projects segment, other people''s tasks are hidden');
+select pg_temp.check((select count(*) = 0 from projects), 'without the projects segment, projects are hidden');
+select pg_temp.check(
+  (select count(*) = 1 from equipment),
+  'without the equipment segment, only equipment you hold is visible');
+do $$
+declare n integer;
+begin
+  update expenses set description = 'Hacked' where true;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAILED: a viewing role edited expenses'; end if;
+  raise notice 'ok - segments give viewing rights only';
+end $$;
+do $$ begin
+  perform set_profile_roles('00000000-0000-0000-0000-0000000000e2', array[]::uuid[]);
+  raise exception 'FAILED: employee changed roles';
+exception when insufficient_privilege then raise notice 'ok - only admins assign roles';
+end $$;
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 2 from tasks), 'an assignee still sees their own tasks');
+select pg_temp.check((select count(*) = 1 from projects), 'an assignee sees the project their tasks belong to');
+select pg_temp.check((select count(*) = 0 from clients), 'an assignee without the projects segment cannot list clients');
+select pg_temp.check((select count(*) = 0 from equipment), 'someone holding nothing sees no equipment');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select set_profile_roles('00000000-0000-0000-0000-0000000000e2', array[
+  (select id from roles where org_id = '00000000-0000-0000-0000-000000000001' and is_admin)
+]::uuid[]);
+select pg_temp.check(
+  (select access_role = 'admin' and job_title = 'Admin' from profiles where id = '00000000-0000-0000-0000-0000000000e2'),
+  'the Admin role gives admin access, and old roles are replaced');
+do $$
+declare n integer;
+begin
+  delete from roles where is_admin;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAILED: the Admin role was deleted'; end if;
+  raise notice 'ok - the Admin role cannot be deleted';
+end $$;
+delete from roles where id = '00000000-0000-0000-0000-0000000070a1';
+select set_profile_roles('00000000-0000-0000-0000-0000000000e2', array[]::uuid[]);
+select pg_temp.check(
+  (select access_role = 'employee' and job_title is null from profiles where id = '00000000-0000-0000-0000-0000000000e2'),
+  'removing the Admin role removes admin access');
+
+-- Broadcasts, equipment condition and urgently needed equipment.
+update equipment set condition = 'moderate' where source_expense_id = '00000000-0000-0000-0000-00000000c002';
+do $$ begin
+  update equipment set condition = 'broken' where source_expense_id = '00000000-0000-0000-0000-00000000c002';
+  raise exception 'FAILED: unknown condition accepted';
+exception when check_violation then raise notice 'ok - equipment condition is perfect, moderate or weak';
+end $$;
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+insert into broadcasts (org_id, sender_id, message)
+values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', 'Editing PC will not start');
+do $$ begin
+  insert into broadcasts (org_id, sender_id, message)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e2', 'Pretending to be someone else');
+  raise exception 'FAILED: broadcast sent as another person';
+exception when insufficient_privilege then raise notice 'ok - a broadcast is always sent as yourself';
+end $$;
+do $$ begin
+  insert into broadcasts (org_id, sender_id, message)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', repeat('x', 281));
+  raise exception 'FAILED: over-long broadcast accepted';
+exception when check_violation then raise notice 'ok - a broadcast is at most 280 characters';
+end $$;
+insert into equipment_needs (org_id, item_name, quantity, requested_by)
+values ('00000000-0000-0000-0000-000000000001', 'Camera battery', 2, '00000000-0000-0000-0000-0000000000e1');
+do $$
+declare n integer;
+begin
+  update equipment_needs set status = 'acquired' where true;
+  get diagnostics n = row_count;
+  update broadcasts set status = 'resolved' where true;
+  if n <> 0 then raise exception 'FAILED: someone without the equipment segment marked a need acquired'; end if;
+  raise notice 'ok - only equipment roles and admins can mark a needed item acquired';
+end $$;
+select pg_temp.check((select count(*) = 1 and bool_and(status = 'open') from broadcasts), 'the sender sees their own broadcast and cannot resolve it');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check((select count(*) = 0 from broadcasts), 'other employees cannot read someone else''s broadcast');
+select pg_temp.check((select count(*) = 0 from equipment_needs), 'needed items are hidden without the equipment segment');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check((select count(*) = 1 from broadcasts), 'admins receive every broadcast');
+update broadcasts set status = 'resolved', resolved_by = auth.uid(), resolved_at = now() where true;
+update roles set permissions = '{equipment}' where org_id = '00000000-0000-0000-0000-000000000001' and name = 'Logistics Manager';
+select set_profile_roles('00000000-0000-0000-0000-0000000000e2', array[
+  (select id from roles where org_id = '00000000-0000-0000-0000-000000000001' and name = 'Logistics Manager')
+]::uuid[]);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+do $$
+declare n integer;
+begin
+  update equipment_needs set status = 'acquired' where true;
+  get diagnostics n = row_count;
+  if n <> 1 then raise exception 'FAILED: an equipment role could not mark a need acquired'; end if;
+  raise notice 'ok - an equipment role sees needed items and can mark them acquired';
+end $$;
+
+-- Projects without a client, with their own links and team.
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into projects (id, org_id, name, file_links) values
+  ('00000000-0000-0000-0000-00000000f002', '00000000-0000-0000-0000-000000000001', 'Internal reel',
+   '[{"label": "Brief", "url": "https://docs.google.com/document/d/1"}]');
+insert into tasks (org_id, project_id, title) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f002', 'Cut 1');
+select pg_temp.check(
+  (select client_id is null and jsonb_array_length(file_links) = 1 from projects where id = '00000000-0000-0000-0000-00000000f002'),
+  'a project can be created without a client and with its own links');
+select set_profile_roles('00000000-0000-0000-0000-0000000000e2', array[]::uuid[]);
+select set_project_members('00000000-0000-0000-0000-00000000f002', array['00000000-0000-0000-0000-0000000000e2']::uuid[]);
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check(
+  (select count(*) = 1 and bool_and(name = 'Internal reel') from projects),
+  'someone assigned to a project sees that project and no others');
+select pg_temp.check((select count(*) = 1 from tasks), 'and sees its deliverables');
+do $$ begin
+  perform set_project_members('00000000-0000-0000-0000-00000000f002', array[]::uuid[]);
+  raise exception 'FAILED: employee changed a project team';
+exception when insufficient_privilege then raise notice 'ok - only admins assign people to projects';
+end $$;
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select set_project_members('00000000-0000-0000-0000-00000000f002', array[]::uuid[]);
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check((select count(*) = 0 from projects), 'removing someone from a project hides it again');
+
+-- Change requests and role colours.
+select pg_temp.check(
+  (select count(distinct color) >= 9 from roles where org_id = '00000000-0000-0000-0000-000000000001'),
+  'roles have different colours');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+insert into change_requests (id, org_id, requested_by, method, path, body, summary) values
+  ('00000000-0000-0000-0000-0000000c4a01', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e2',
+   'POST', '/api/equipment', '{"name": "Light stand"}', 'Add equipment "Light stand"');
+do $$ begin
+  insert into change_requests (org_id, requested_by, method, path, summary, status)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e2', 'POST', '/api/equipment', 'Self approved', 'approved');
+  raise exception 'FAILED: a change request was created already approved';
+exception when insufficient_privilege then raise notice 'ok - a change request always starts as pending';
+end $$;
+do $$ begin
+  insert into change_requests (org_id, requested_by, method, path, summary)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e2', 'POST', 'https://evil.example/x', 'Bad path');
+  raise exception 'FAILED: a change request with an outside path was accepted';
+exception when check_violation then raise notice 'ok - a change request can only target the app''s own API';
+end $$;
+do $$
+declare n integer;
+begin
+  update change_requests set status = 'approved' where true;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAILED: requester approved their own change'; end if;
+  raise notice 'ok - the requester cannot approve their own change';
+end $$;
+select pg_temp.check((select count(*) = 1 from change_requests), 'the requester sees their own change request');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from change_requests), 'other employees cannot see it');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+update change_requests set status = 'denied', decided_by = auth.uid(), decided_at = now() where id = '00000000-0000-0000-0000-0000000c4a01';
+select pg_temp.check((select status = 'denied' from change_requests where id = '00000000-0000-0000-0000-0000000c4a01'), 'an admin can decide a change request');
+
+-- Attendance entry and exit times.
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+insert into attendance (org_id, employee_id, work_date, check_in, check_out)
+values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', '2026-10-07', '10:00', '18:30');
+select pg_temp.check(
+  (select check_in = '10:00' and check_out = '18:30' and status = 'pending' from attendance where work_date = '2026-10-07'),
+  'an employee marks attendance with entry and exit time');
+do $$ begin
+  insert into attendance (org_id, employee_id, work_date, check_in, check_out)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', '2026-10-08', '18:00', '09:00');
+  raise exception 'FAILED: exit before entry accepted';
+exception when check_violation then raise notice 'ok - the exit time must be after the entry time';
+end $$;
+
+-- Task points follow the task whenever it changes.
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into tasks (id, org_id, project_id, title, assignee_id, status, points_value) values
+  ('00000000-0000-0000-0000-0000000071b1', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f002', 'Born approved',
+   '00000000-0000-0000-0000-0000000000e1', 'approved', 67),
+  ('00000000-0000-0000-0000-0000000071b2', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f002', 'Points added later',
+   '00000000-0000-0000-0000-0000000000e1', 'approved', null);
+select pg_temp.check(
+  (select points = 67 from point_entries where task_id = '00000000-0000-0000-0000-0000000071b1'),
+  'a task created as approved earns its points');
+select pg_temp.check(
+  not exists (select 1 from point_entries where task_id = '00000000-0000-0000-0000-0000000071b2'),
+  'an approved task with no points value earns nothing yet');
+update tasks set points_value = 120 where id = '00000000-0000-0000-0000-0000000071b2';
+select pg_temp.check(
+  (select points = 120 and employee_id = '00000000-0000-0000-0000-0000000000e1' from point_entries where task_id = '00000000-0000-0000-0000-0000000071b2'),
+  'giving an approved task a points value awards the points');
+update tasks set points_value = 150 where id = '00000000-0000-0000-0000-0000000071b2';
+select pg_temp.check(
+  (select count(*) = 1 and max(points) = 150 from point_entries where task_id = '00000000-0000-0000-0000-0000000071b2'),
+  'changing the points value updates the award instead of adding another');
+update tasks set assignee_id = '00000000-0000-0000-0000-0000000000e2' where id = '00000000-0000-0000-0000-0000000071b2';
+select pg_temp.check(
+  (select employee_id = '00000000-0000-0000-0000-0000000000e2' from point_entries where task_id = '00000000-0000-0000-0000-0000000071b2'),
+  'reassigning an approved task moves its points');
+update tasks set assignee_id = null where id = '00000000-0000-0000-0000-0000000071b2';
+select pg_temp.check(
+  not exists (select 1 from point_entries where task_id = '00000000-0000-0000-0000-0000000071b2'),
+  'an unassigned task holds no points');
+
 reset role;
 rollback;

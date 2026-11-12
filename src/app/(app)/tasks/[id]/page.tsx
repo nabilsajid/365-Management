@@ -9,7 +9,7 @@ const KIND_LABEL: Record<string, string> = { drive: 'Google Drive', dropbox: 'Dr
 
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, orgId, isAdmin, userId } = await getPageContext();
+  const { supabase, orgId, isAdmin, userId, can, localDate } = await getPageContext();
 
   const taskResult = await supabase.from('tasks').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const task = taskResult.data as Task | null;
@@ -32,7 +32,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
     kind_label: KIND_LABEL[submission.kind] ?? submission.kind,
     link_text: submission.url ? 'Open link' : null,
     reviewer_name: submission.reviewed_by ? (person.get(submission.reviewed_by)?.full_name ?? '—') : null,
-    submitted_on: submission.created_at.slice(0, 10),
+    submitted_on: localDate(submission.created_at),
   }));
 
   return (
@@ -40,7 +40,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
       <div className="page-header">
         <div>
           <p className="muted">
-            <Link href="/projects">Projects</Link> /{' '}
+            {can('projects') ? <Link href="/projects">Projects</Link> : <Link href="/my-tasks">My Tasks</Link>} /{' '}
             <Link href={`/projects/${task.project_id}`}>{project?.name ?? 'Project'}</Link>
           </p>
           <h1>{task.title}</h1>

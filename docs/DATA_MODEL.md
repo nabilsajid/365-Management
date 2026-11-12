@@ -7,14 +7,18 @@ All tables are in the `public` schema and carry `org_id`. The SQL is in `supabas
 | Table | Purpose |
 | --- | --- |
 | `organizations` | The company. Holds `timezone` (default `Asia/Dhaka`) and `currency` (default `BDT`). |
-| `profiles` | One row per person, keyed by the Supabase Auth user id. `full_name`, `job_title` (visible job role, from the fixed list in `src/lib/domain/roles.ts`), `access_role` (`admin` for the Admin role, `employee` for every other role), `is_active`. |
+| `profiles` | One row per person, keyed by the Supabase Auth user id. `full_name`, `is_active`, and two derived columns kept in step with the person's roles: `job_title` (their role names) and `access_role` (`admin` or `employee`). |
+| `roles` | Roles an admin defines: `name`, `description`, `color` (label colour from a fixed palette), `permissions` (list of segments), `is_admin`. Each organization starts with ten. |
+| `change_requests` | A change proposed by a non-admin: `method`, `path`, `body`, `summary`, `status` (`pending`, `approved`, `denied`), who decided and when. The requester sees their own; admins see all. |
+| `profile_roles` | Which roles a person holds. A person can hold several. |
 
 ## 1. Projects & Clients
 
 | Table | Purpose |
 | --- | --- |
 | `clients` | Name and contact details. |
-| `projects` | Belongs to a client. `brief`, `status` (`onboarding`, `active`, `completed`, `archived`), dates. |
+| `projects` | `name`, `brief`, `file_links` (list of `{label, url}`), `status` (`onboarding`, `active`, `completed`, `archived`), dates. `client_id` is optional: a project can be internal. |
+| `project_members` | Employees assigned to a project. They can see the project and its deliverables even without the `projects` segment. |
 | `tasks` | One per deliverable ("Video 1", "Video 2"). Own `description`, `file_links` (list of `{label, url}`), `assignee_id`, `status`, optional `points_value`, `due_date`. |
 | `task_submissions` | Work handed in for a task. `kind` is `drive`, `dropbox` or `text`; links need a `url`, text needs a `note`. `review_status` is `pending`, `approved` or `changes_requested`, with reviewer and note. |
 
@@ -29,7 +33,8 @@ Equipment is never assigned to projects or tasks. There is no link between them.
 
 | Table | Purpose |
 | --- | --- |
-| `equipment` | Inventory. `purchase_price` and `purchase_date` are optional. `current_holder_id` says who has it now, with `holder_since`. `source_expense_id` points to the cash-flow purchase that created it, if any. |
+| `equipment` | Inventory. `purchase_price` and `purchase_date` are optional. `current_holder_id` says who has it now, with `holder_since`. `source_expense_id` points to the cash-flow purchase that created it, if any. `condition` is `perfect`, `moderate`, `weak` or empty (not checked yet). |
+| `equipment_needs` | Things the studio urgently needs to get: `item_name`, `quantity`, `note`, `status` (`needed` or `acquired`), `requested_by`. |
 | `fixed_expenses` | Recurring monthly costs: `name`, `kind` (`rent`, `utilities`, `other`), `monthly_amount`, `is_active`. |
 
 Transport expenses are rows in `expenses` with category `transport`, one per trip, with `trip_origin`, `trip_destination` and an optional `traveler_id`.
@@ -62,7 +67,7 @@ Automatic behaviour:
 | --- | --- |
 | `point_settings` | One row per organization, created automatically. See [POINTS_AND_BONUSES.md](POINTS_AND_BONUSES.md). |
 | `violation_types` | Named responsibility violations with a configurable `deduction_points`. |
-| `attendance` | One row per employee per day: `pending`, `verified` or `rejected`. |
+| `attendance` | One row per employee per day: `check_in` and `check_out` times, and `status` (`pending`, `verified` or `rejected`). People marking their own day must give both times. |
 | `point_entries` | The points ledger. Each entry has `period_month`, signed `points`, a `source` (`attendance`, `task`, `violation`, `adjustment`) and, for deductions and adjustments, a required `reason`. |
 | `monthly_points` (view) | Per employee per month: `total_points`, `earned_points`, `deducted_points`. |
 | `bonuses` | One per employee per month: `points_total`, `amount`, `status` (`pending`, `approved`, `rejected`), who decided and when. |
@@ -73,17 +78,33 @@ Automatic behaviour:
 - Approving a task adds its points to the assignee for the month of approval. Reverting the approval removes them.
 - `calculate_bonuses(month)` creates pending bonuses for a finished month.
 
+## Broadcasts
+
+| Table | Purpose |
+| --- | --- |
+| `broadcasts` | A short urgent message (up to 280 characters) from anyone to the admins. `status` is `open` or `resolved`, with who resolved it and when. |
+
 ## 5. Admin Dashboard
 
 No tables of its own. `src/lib/services/dashboard.ts` reads from the other modules.
 
 ## Row level security
 
-| Data | Employee | Admin |
+Admins can read and edit everything. For everyone else, reading depends on the segments of the roles they hold (`has_segment()`). They cannot edit those tables in the database: their edits are stored in `change_requests` and applied by an admin's approval.
+
+| Data | Always visible to you | Visible with segment |
 | --- | --- | --- |
-| Clients, projects, tasks, submissions, equipment | Read | Read and edit |
-| Profiles, point settings, violation types | Read | Read and edit |
-| Own attendance, point entries, bonuses | Read (own only) | Read and edit (everyone's) |
-| Submissions on tasks assigned to them | Create | Read and edit |
-| Own attendance for a day | Create as pending | Read and edit |
-| Accounts, invoices, payments, expenses, fixed expenses | No access | Read and edit |
+| Tasks, submissions | Tasks assigned to you and their submissions, plus all tasks of projects you are assigned to | `projects`: all |
+| Projects | Projects you are assigned to or have a task in | `projects`: all |
+| Clients | None | `projects` or `cashflow` |
+| Equipment | Items you hold | `equipment`: all |
+| Fixed expenses | None | `costs` or `cashflow` |
+| Expenses | None | `cashflow`: all; `costs`: transport only |
+| Accounts, invoices, payments | None | `cashflow` |
+| Attendance, point entries | Your own | `team_points`: everyone's |
+| Bonuses | Your own | `bonuses`: everyone's |
+| Needed equipment | Items you asked for | `equipment`: all, and may edit or mark acquired |
+| Broadcasts | The ones you sent | Admins only: all |
+| Profiles, roles, point settings, violation types | All | n/a |
+
+`set_profile_roles(profile, roles[])` replaces a person's roles in one step (admins only).

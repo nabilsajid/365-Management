@@ -28,6 +28,10 @@ export function fakeSupabase(results: Result[] = []) {
       calls.push(['from', table]);
       return builder;
     },
+    rpc(name: string, args: unknown) {
+      calls.push(['rpc', name, args]);
+      return builder;
+    },
   };
 
   return {

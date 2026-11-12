@@ -1,15 +1,17 @@
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { dateInZone, monthStart, nextMonth, parseMonth } from '@/lib/domain/points';
-import { JOB_ROLES } from '@/lib/domain/roles';
+import { roleTags, titleTags } from '@/lib/domain/roles';
 import { money, monthLabel } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, options, peopleOptions, rowsOf } from '@/lib/page';
 import { getMonthlySummary, getOrgTimezone, getPointRules } from '@/lib/services/rewards';
-import type { Attendance, Bonus, PointEntry, PointSettings, Profile, ViolationType } from '@/types/database';
+import type { Attendance, Bonus, PointEntry, PointSettings, Profile, ProfileRole, Role, ViolationType } from '@/types/database';
 
 export default async function EmployeesPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: requested } = await searchParams;
-  const { supabase, orgId, isAdmin, userId } = await getPageContext();
+  const { supabase, orgId, isAdmin, userId, can, localDate } = await getPageContext();
+  const seesTeamPoints = can('team_points');
+  const seesTeamBonuses = can('bonuses');
 
   const timeZone = await getOrgTimezone(supabase, orgId);
   const now = new Date();
@@ -18,7 +20,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const today = dateInZone(now, timeZone);
   const monthEnded = month < currentMonth;
 
-  const [rules, peopleR, attendanceR, entriesR, violationsR, settingsR, bonusesR] = await Promise.all([
+  const [rules, peopleR, attendanceR, entriesR, violationsR, settingsR, bonusesR, rolesR, heldR] = await Promise.all([
     getPointRules(supabase, orgId),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('attendance').select('*').eq('org_id', orgId).gte('work_date', month).lt('work_date', nextMonth(month)).order('work_date', { ascending: false }),
@@ -26,6 +28,8 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
     supabase.from('violation_types').select('*').eq('org_id', orgId).order('name'),
     supabase.from('point_settings').select('*').eq('org_id', orgId).maybeSingle(),
     supabase.from('bonuses').select('*').eq('org_id', orgId).order('period_month', { ascending: false }),
+    supabase.from('roles').select('*').eq('org_id', orgId).order('name'),
+    supabase.from('profile_roles').select('*').eq('org_id', orgId),
   ]);
   const people = rowsOf<Profile>(peopleR.data);
   const attendance = rowsOf<Attendance>(attendanceR.data);
@@ -33,9 +37,12 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const violations = rowsOf<ViolationType>(violationsR.data);
   const settings = settingsR.data as PointSettings | null;
   const bonuses = rowsOf<Bonus>(bonusesR.data);
+  const roles = rowsOf<Role>(rolesR.data);
+  const held = rowsOf<ProfileRole>(heldR.data);
 
   let summary = await getMonthlySummary(supabase, orgId, month, rules);
-  if (!isAdmin) summary = summary.filter((row) => row.employee_id === userId);
+  // Other people's points are only for roles that include the team points segment.
+  if (!seesTeamPoints) summary = summary.filter((row) => row.employee_id === userId);
 
   const person = new Map(people.map((profile) => [profile.id, profile]));
   const nameOf = (id: string | null) => (id ? (person.get(id)?.full_name ?? '—') : null);
@@ -44,13 +51,15 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
 
   const attendanceRows = attendance.map((day) => ({
     ...day,
+    check_in: day.check_in ? day.check_in.slice(0, 5) : null,
+    check_out: day.check_out ? day.check_out.slice(0, 5) : null,
     employee_name: nameOf(day.employee_id),
     verified_by_name: nameOf(day.verified_by),
   }));
   const entryRows = entries.map((entry) => ({
     ...entry,
     employee_name: nameOf(entry.employee_id),
-    recorded_on: entry.created_at.slice(0, 10),
+    recorded_on: localDate(entry.created_at),
   }));
   const bonusRows = bonuses.map((bonus) => ({
     ...bonus,
@@ -59,18 +68,29 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
     decided_by_name: nameOf(bonus.decided_by),
   }));
 
-  const profileFields: Field[] = [
+  // Roles are tags: a person can hold several.
+  const roleName = new Map(roles.map((role) => [role.id, role.name]));
+  const roleColor = new Map(roles.map((role) => [role.name, role.color]));
+  const needsApproval = !isAdmin;
+  const peopleRows = people.map((profile) => {
+    const ids = held.filter((row) => row.profile_id === profile.id).map((row) => row.role_id);
+    return {
+      ...profile,
+      role_ids: ids,
+      role_names: roleTags(ids.map((id) => roleName.get(id)), roleColor),
+    };
+  });
+  const personFields: Field[] = [
     { name: 'full_name', label: 'Full name', required: true },
     {
-      name: 'job_title',
-      label: 'Role',
-      type: 'select',
+      name: 'role_ids',
+      label: 'Roles',
+      type: 'multiselect',
       required: true,
-      options: JOB_ROLES.map((role) => ({ value: role, label: role })),
-      hint: 'Admin has full edit access to everything. Every other role is an employee.',
+      options: options(roles, (role) => role.name),
+      hint: 'Pick one or more. A person sees everything any of their roles allows.',
     },
   ];
-
   return (
     <>
       <div className="page-header">
@@ -93,7 +113,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
       <section className="panel">
         <header className="panel-header">
           <div>
-            <h2>Monthly points</h2>
+            <h2>{seesTeamPoints ? 'Monthly points' : 'My points this month'}</h2>
             <p className="muted">
               Target {rules.monthly_target.toLocaleString('en-US')} points. Every {rules.bonus_step_points.toLocaleString('en-US')} points
               above the target earns a {money(rules.bonus_step_amount)} bonus, once approved. Deductions never reduce salary.
@@ -117,7 +137,15 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               {summary.map((row) => (
                 <tr key={row.employee_id}>
                   <td>{row.full_name}</td>
-                  <td>{row.job_title ?? '—'}</td>
+                  <td>
+                    <span className="tags">
+                      {titleTags(row.job_title, roleColor).map((tag) => (
+                        <span key={tag.label} className={tag.color ? `badge tag-${tag.color}` : 'badge'}>
+                          {tag.label}
+                        </span>
+                      ))}
+                    </span>
+                  </td>
                   <td className="num">{row.earned.toLocaleString('en-US')}</td>
                   <td className="num">{row.deducted.toLocaleString('en-US')}</td>
                   <td className="num">
@@ -135,28 +163,36 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
       <section className="panel">
         <header className="panel-header">
           <div>
-            <h2>Attendance</h2>
+            <h2>Mark attendance</h2>
             <p className="muted">
-              Each office day an admin verifies earns {rules.attendance_points.toLocaleString('en-US')} points.
+              {markedToday ? "Today's attendance is recorded." : 'Enter the time you arrived and the time you left.'}
             </p>
           </div>
-          {markedToday ? (
-            <span className="muted">Today is marked.</span>
-          ) : (
-            <ActionButton endpoint="/api/attendance" body={{ work_date: today }} primary>
-              Mark today&apos;s attendance
-            </ActionButton>
-          )}
         </header>
+        {markedToday ? null : (
+          <ApiForm
+            endpoint="/api/attendance"
+            submitLabel="Mark attendance"
+            initial={{ work_date: today }}
+            fields={[
+              { name: 'work_date', label: 'Date', type: 'date', required: true },
+              { name: 'check_in', label: 'Entry time', type: 'time', required: true },
+              { name: 'check_out', label: 'Exit time', type: 'time', required: true },
+              { name: 'note', label: 'Note' },
+            ]}
+          />
+        )}
       </section>
 
       <ResourceManager
-        title={`Attendance in ${monthLabel(month)}`}
+        title={`${seesTeamPoints ? 'Attendance' : 'My attendance'} in ${monthLabel(month)}`}
         endpoint="/api/attendance"
         rows={asRows(attendanceRows)}
         columns={[
           { key: 'work_date', label: 'Date' },
           { key: 'employee_name', label: 'Employee' },
+          { key: 'check_in', label: 'Entry' },
+          { key: 'check_out', label: 'Exit' },
           { key: 'status', label: 'Status', kind: 'label' },
           { key: 'verified_by_name', label: 'Verified by' },
           { key: 'note', label: 'Note' },
@@ -164,22 +200,27 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
         fields={[
           { name: 'employee_id', label: 'Employee', type: 'select', required: true, options: staff },
           { name: 'work_date', label: 'Date', type: 'date', required: true, defaultValue: today },
+          { name: 'check_in', label: 'Entry time', type: 'time' },
+          { name: 'check_out', label: 'Exit time', type: 'time' },
           { name: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'verified', options: enumOptions(['pending', 'verified', 'rejected']) },
           { name: 'note', label: 'Note' },
         ]}
         editFields={[
           { name: 'work_date', label: 'Date', type: 'date', required: true },
+          { name: 'check_in', label: 'Entry time', type: 'time' },
+          { name: 'check_out', label: 'Exit time', type: 'time' },
           { name: 'status', label: 'Status', type: 'select', required: true, options: enumOptions(['pending', 'verified', 'rejected']) },
           { name: 'note', label: 'Note' },
         ]}
-        canWrite={isAdmin}
+        canWrite={isAdmin || seesTeamPoints}
+        needsApproval={needsApproval}
         addLabel="Record attendance"
-        emptyText="No attendance recorded for this month."
+        emptyText="No data found."
       />
 
       <ResourceManager
-        title={`Point history for ${monthLabel(month)}`}
-        description="Attendance and task points are added automatically. Deductions and adjustments are recorded here with a reason."
+        title={`${seesTeamPoints ? 'Point history' : 'My point history'} for ${monthLabel(month)}`}
+        description={isAdmin ? 'Points from verified attendance and approved tasks are added automatically. You can also give or deduct points here, with a reason.' : seesTeamPoints ? 'You can give or deduct points for other people here, with a reason. Nothing counts until an admin approves it.' : 'Every point you earned or lost this month. Only an admin decides points.'}
         endpoint="/api/points"
         rows={asRows(entryRows)}
         columns={[
@@ -190,16 +231,16 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
           { key: 'reason', label: 'Reason' },
         ]}
         fields={[
-          { name: 'employee_id', label: 'Employee', type: 'select', required: true, options: staff },
+          { name: 'employee_id', label: 'Employee', type: 'select', required: true, options: isAdmin ? staff : staff.filter((person) => person.value !== userId) },
           {
             name: 'source',
             label: 'Type',
             type: 'select',
             required: true,
-            defaultValue: 'violation',
+            defaultValue: 'adjustment',
             options: [
-              { value: 'violation', label: 'Responsibility violation (deduction)' },
-              { value: 'adjustment', label: 'Manual adjustment' },
+              { value: 'adjustment', label: 'Give points' },
+              { value: 'violation', label: 'Deduct points (responsibility violation)' },
             ],
           },
           {
@@ -208,7 +249,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             type: 'select',
             options: options(violations.filter((type) => type.is_active), (type) => `${type.name} (−${type.deduction_points})`),
           },
-          { name: 'points', label: 'Points', type: 'number', hint: 'Violation: overrides the type\'s deduction. Adjustment: use a minus sign to subtract.' },
+          { name: 'points', label: 'Points', type: 'number', hint: 'How many points to give or deduct. For a deduction with a violation type chosen, leave empty to use that type\'s amount.' },
           { name: 'reason', label: 'Reason', type: 'textarea', required: true },
         ]}
         editFields={[
@@ -216,9 +257,10 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
           { name: 'reason', label: 'Reason', type: 'textarea' },
         ]}
         fixedValues={{ month }}
-        canWrite={isAdmin}
-        addLabel="Record deduction or adjustment"
-        emptyText="No points recorded for this month."
+        canWrite={isAdmin || seesTeamPoints}
+        needsApproval={needsApproval}
+        addLabel="Give or deduct points"
+        emptyText="No data found."
       />
 
       <section className="panel">
@@ -238,7 +280,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
       </section>
 
       <ResourceManager
-        title="Bonus records"
+        title={seesTeamBonuses ? 'Bonus records' : 'My bonuses'}
         endpoint="/api/bonuses"
         rows={asRows(bonusRows)}
         columns={[
@@ -252,29 +294,29 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
         editFields={[
           { name: 'status', label: 'Decision', type: 'select', required: true, options: enumOptions(['pending', 'approved', 'rejected']) },
         ]}
-        canWrite={isAdmin}
+        canWrite={isAdmin || seesTeamBonuses}
+        needsApproval={needsApproval}
         emptyText="No bonuses yet."
       />
 
       <ResourceManager
         title="Team"
-        description={isAdmin ? 'Adding someone sends them an email invitation.' : undefined}
+        description={isAdmin ? 'Edit a person to change their roles; create or change the roles themselves under Roles & Access. Adding someone sends them an email invitation.' : undefined}
         endpoint="/api/employees"
-        rows={asRows(people)}
+        rows={asRows(peopleRows)}
         columns={[
           { key: 'full_name', label: 'Name' },
-          { key: 'job_title', label: 'Role' },
-          { key: 'access_role', label: 'Access', kind: 'label' },
+          { key: 'role_names', label: 'Roles', kind: 'tags' },
           { key: 'is_active', label: 'Active', kind: 'bool' },
         ]}
-        fields={[{ name: 'email', label: 'Email', type: 'email', required: true }, ...profileFields]}
-        editFields={[...profileFields, { name: 'is_active', label: 'Active', type: 'checkbox' }]}
+        fields={[{ name: 'email', label: 'Email', type: 'email', required: true }, ...personFields]}
+        editFields={[...personFields, { name: 'is_active', label: 'Active', type: 'checkbox' }]}
         canWrite={isAdmin}
         allowDelete={false}
         addLabel="Invite employee"
       />
 
-      {isAdmin ? (
+      {isAdmin || seesTeamPoints ? (
         <>
           <ResourceManager
             title="Violation types"
@@ -292,10 +334,12 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               { name: 'is_active', label: 'Active', type: 'checkbox' },
             ]}
             canWrite
+            needsApproval={needsApproval}
             addLabel="Add violation type"
             emptyText="No violation types yet."
           />
 
+          {isAdmin ? (
           <section className="panel">
             <header className="panel-header">
               <div>
@@ -318,6 +362,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               ]}
             />
           </section>
+          ) : null}
         </>
       ) : null}
     </>

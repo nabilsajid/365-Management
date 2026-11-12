@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { makeCrud, type ApiContext, type ResourceConfig } from '../../src/lib/api/crud';
+import { describeFields, makeCrud, summarize, type ApiContext, type ResourceConfig } from '../../src/lib/api/crud';
 import type { Profile } from '../../src/types/database';
 import { fakeSupabase, type Result } from './fake-supabase';
 
@@ -34,10 +34,10 @@ const anySchema = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
-function setup(role: 'admin' | 'employee' | null, results: Result[] = []) {
+function setup(role: 'admin' | 'employee' | null, results: Result[] = [], segments: string[] = []) {
   const db = fakeSupabase(results);
   const ctx: ApiContext | null = role
-    ? { supabase: db.client, userId: profile(role).id, profile: profile(role) }
+    ? { supabase: db.client, userId: profile(role).id, profile: profile(role), segments: new Set(segments) }
     : null;
   return { db, crud: makeCrud(async () => ctx) };
 }
@@ -141,6 +141,22 @@ test('cash-flow style resources are hidden from employees', async () => {
   assert.equal(db.calls.length, 0);
 });
 
+test('a role that includes the segment can read but still cannot edit', async () => {
+  const finance: ResourceConfig = { ...config, table: 'invoices', read: ['cashflow'] };
+
+  const allowed = setup('employee', [{ data: [], error: null }], ['cashflow']);
+  assert.equal((await allowed.crud.collection(finance).GET(new Request('http://test/api/invoices'))).status, 200);
+  assert.equal((await allowed.crud.collection(finance).POST(post({ name: 'INV' }))).status, 403);
+
+  const other = setup('employee', [], ['projects', 'team_points']);
+  const refused = await other.crud.collection(finance).GET(new Request('http://test/api/invoices'));
+  assert.equal(refused.status, 403);
+  assert.equal(other.db.calls.length, 0);
+
+  const admin = setup('admin', [{ data: [], error: null }]);
+  assert.equal((await admin.crud.collection(finance).GET(new Request('http://test/api/invoices'))).status, 200);
+});
+
 test('a missing record gives 404', async () => {
   const { crud } = setup('admin', [{ data: null, error: null }]);
   const response = await crud.item(config).PATCH(patch({ name: 'X' }), params(ROW_ID));
@@ -191,4 +207,97 @@ test('a resource without a create schema refuses POST', async () => {
   const { crud } = setup('admin');
   const response = await crud.collection({ table: 'bonuses' }).POST(post({ name: 'X' }));
   assert.equal(response.status, 405);
+});
+
+// --- Change requests: roles propose, admins apply ---------------------------
+
+const proposable: ResourceConfig = { ...config, table: 'equipment', label: 'equipment', propose: ['equipment'] };
+
+test('a role with the segment proposes a new record instead of creating it', async () => {
+  const { db, crud } = setup('employee', [{ data: null, error: null }], ['equipment']);
+  const response = await crud.collection(proposable).POST(
+    new Request('http://test/api/equipment', { method: 'POST', body: JSON.stringify({ name: 'Light stand', purchase_price: 4500 }) }),
+  );
+
+  assert.equal(response.status, 202);
+  assert.deepEqual((await response.json()).data.pending, true);
+  assert.deepEqual(db.called('from').map(([, table]) => table), ['change_requests']);
+  const stored = db.called('insert')[0][1] as Record<string, unknown>;
+  assert.equal(stored.method, 'POST');
+  assert.equal(stored.path, '/api/equipment');
+  assert.equal(stored.requested_by, 'employee-user');
+  assert.equal(stored.org_id, ORG);
+  assert.deepEqual(stored.body, { name: 'Light stand', purchase_price: 4500 });
+  assert.equal(stored.summary, 'Add equipment "Light stand" (name: Light stand, purchase price: 4500)');
+});
+
+test('proposed edits and deletions name the record and never touch it', async () => {
+  const current = { id: ROW_ID, name: 'Sony FX3', status: 'available' };
+  const edit = setup('employee', [{ data: current, error: null }, { data: null, error: null }], ['equipment']);
+  const edited = await edit.crud.item(proposable).PATCH(
+    new Request(`http://test/api/equipment/${ROW_ID}`, { method: 'PATCH', body: JSON.stringify({ condition: 'weak' }) }),
+    params(ROW_ID),
+  );
+  assert.equal(edited.status, 202);
+  assert.equal(edit.db.called('update').length, 0);
+  const editRow = edit.db.called('insert')[0][1] as Record<string, unknown>;
+  assert.equal(editRow.summary, 'Change equipment "Sony FX3" (condition: weak)');
+  assert.equal(editRow.path, `/api/equipment/${ROW_ID}`);
+
+  const remove = setup('employee', [{ data: current, error: null }, { data: null, error: null }], ['equipment']);
+  const removed = await remove.crud.item(proposable).DELETE(
+    new Request(`http://test/api/equipment/${ROW_ID}`, { method: 'DELETE' }),
+    params(ROW_ID),
+  );
+  assert.equal(removed.status, 202);
+  assert.equal(remove.db.called('delete').length, 0);
+  const removeRow = remove.db.called('insert')[0][1] as Record<string, unknown>;
+  assert.equal(removeRow.summary, 'Delete equipment "Sony FX3"');
+  assert.equal(removeRow.body, null);
+});
+
+test('a change cannot be proposed for a record the person cannot see', async () => {
+  const { db, crud } = setup('employee', [{ data: null, error: null }], ['equipment']);
+  const response = await crud.item(proposable).PATCH(
+    new Request(`http://test/api/equipment/${ROW_ID}`, { method: 'PATCH', body: JSON.stringify({ name: 'X' }) }),
+    params(ROW_ID),
+  );
+  assert.equal(response.status, 404);
+  assert.equal(db.called('insert').length, 0);
+});
+
+test('invalid input is rejected before a change request is stored', async () => {
+  const { db, crud } = setup('employee', [], ['equipment']);
+  const response = await crud.collection(proposable).POST(
+    new Request('http://test/api/equipment', { method: 'POST', body: JSON.stringify({ name: '' }) }),
+  );
+  assert.equal(response.status, 400);
+  assert.equal(db.calls.length, 0);
+});
+
+test('a role without the segment can neither change nor propose', async () => {
+  const { db, crud } = setup('employee', [], ['cashflow']);
+  const response = await crud.collection(proposable).POST(
+    new Request('http://test/api/equipment', { method: 'POST', body: JSON.stringify({ name: 'Light stand' }) }),
+  );
+  assert.equal(response.status, 403);
+  assert.equal(db.calls.length, 0);
+});
+
+test('an admin applies the same change directly, with no request', async () => {
+  const { db, crud } = setup('admin', [{ data: { id: ROW_ID }, error: null }]);
+  const response = await crud.collection(proposable).POST(
+    new Request('http://test/api/equipment', { method: 'POST', body: JSON.stringify({ name: 'Light stand' }) }),
+  );
+  assert.equal(response.status, 201);
+  assert.deepEqual(db.called('from').map(([, table]) => table), ['equipment']);
+});
+
+test('summaries read naturally', () => {
+  assert.equal(summarize('Add', 'expense', 'Taxi to shoot', { amount: 400, trip_origin: 'Office', note: null }), 'Add expense "Taxi to shoot" (amount: 400, trip origin: Office)');
+  assert.equal(summarize('Add', 'invoice', 'INV-7', { client_id: 'abc', project_id: null, invoice_number: 'INV-7', amount: 3453 }), 'Add invoice "INV-7" (invoice number: INV-7, amount: 3453)');
+  assert.equal(summarize('Change', 'equipment', 'Tripod', { notes: null, current_holder_id: 'abc' }), 'Change equipment "Tripod" (notes: empty)');
+  assert.equal(summarize('Delete', 'invoice', 'INV-001'), 'Delete invoice "INV-001"');
+  assert.equal(summarize('Change', 'bonus', '', { status: 'approved' }), 'Change bonus (status: approved)');
+  assert.equal(describeFields({ file_links: [{ label: 'a' }], name: 'X' }), 'name: X');
 });

@@ -1,10 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { cache } from 'react';
 import type { MonthlyPoints, PointSettings, Profile } from '../../types/database';
 import { DEFAULT_POINT_RULES, bonusAmount, pointsToTarget, type PointRules } from '../domain/points';
 
+/** The organization's name and timezone. Cached, so a page and its layout share one lookup. */
+export const getOrg = cache(async (supabase: SupabaseClient, orgId: string): Promise<{ name: string; timezone: string }> => {
+  const { data } = await supabase.from('organizations').select('name, timezone').eq('id', orgId).maybeSingle();
+  return {
+    name: (data?.name as string | undefined) ?? '365 Management',
+    timezone: (data?.timezone as string | undefined) ?? 'Asia/Dhaka',
+  };
+});
+
 export async function getOrgTimezone(supabase: SupabaseClient, orgId: string): Promise<string> {
-  const { data } = await supabase.from('organizations').select('timezone').eq('id', orgId).maybeSingle();
-  return (data?.timezone as string | undefined) ?? 'Asia/Dhaka';
+  return (await getOrg(supabase, orgId)).timezone;
 }
 
 export async function getPointRules(supabase: SupabaseClient, orgId: string): Promise<PointRules> {

@@ -25,9 +25,11 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Reads the session (refreshing it when it has expired) and verifies the
+  // token. With Supabase's signing keys this is checked locally, so it does not
+  // add a network call to every click.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub;
 
   const { pathname } = request.nextUrl;
   const isPublic = pathname.startsWith('/login') || pathname.startsWith('/auth');

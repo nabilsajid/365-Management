@@ -10,6 +10,7 @@ export type ReviewStatus = 'pending' | 'approved' | 'changes_requested';
 export type AccountKind = 'cash' | 'bank' | 'mobile_wallet';
 export type InvoiceStatus = 'draft' | 'sent' | 'void';
 export type ExpenseCategory = 'general' | 'equipment' | 'fixed' | 'transport';
+export type EquipmentCondition = 'perfect' | 'moderate' | 'weak';
 export type EquipmentStatus = 'available' | 'in_use' | 'maintenance' | 'retired';
 export type FixedExpenseKind = 'rent' | 'utilities' | 'other';
 export type AttendanceStatus = 'pending' | 'verified' | 'rejected';
@@ -34,6 +35,23 @@ export interface Profile {
   created_at: string;
 }
 
+export interface Role {
+  id: string;
+  org_id: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  color: string;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export interface ProfileRole {
+  profile_id: string;
+  role_id: string;
+  org_id: string;
+}
+
 export interface Client {
   id: string;
   org_id: string;
@@ -48,13 +66,20 @@ export interface Client {
 export interface Project {
   id: string;
   org_id: string;
-  client_id: string;
+  client_id: string | null;
   name: string;
   brief: string | null;
+  file_links: FileLink[];
   status: ProjectStatus;
   start_date: string | null;
   due_date: string | null;
   created_at: string;
+}
+
+export interface ProjectMember {
+  project_id: string;
+  profile_id: string;
+  org_id: string;
 }
 
 export interface FileLink {
@@ -165,7 +190,45 @@ export interface Equipment {
   current_holder_id: string | null;
   holder_since: string | null;
   source_expense_id: string | null;
+  condition: EquipmentCondition | null;
   notes: string | null;
+  created_at: string;
+}
+
+export interface EquipmentNeed {
+  id: string;
+  org_id: string;
+  item_name: string;
+  quantity: number;
+  note: string | null;
+  status: 'needed' | 'acquired';
+  requested_by: string | null;
+  created_at: string;
+}
+
+export interface Broadcast {
+  id: string;
+  org_id: string;
+  sender_id: string;
+  message: string;
+  status: 'open' | 'resolved';
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface ChangeRequest {
+  id: string;
+  org_id: string;
+  requested_by: string;
+  method: 'POST' | 'PATCH' | 'DELETE';
+  path: string;
+  body: Record<string, unknown> | null;
+  summary: string;
+  status: 'pending' | 'approved' | 'denied';
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
   created_at: string;
 }
 
@@ -192,6 +255,8 @@ export interface Attendance {
   org_id: string;
   employee_id: string;
   work_date: string;
+  check_in: string | null;
+  check_out: string | null;
   status: AttendanceStatus;
   verified_by: string | null;
   verified_at: string | null;

@@ -48,3 +48,17 @@ bonus = floor(points above target ÷ 1,000) × ৳1,000     (0 if below one full
 - A deduction is a negative point entry with source `violation`. A written reason is required.
 - Deductions only reduce points. Nothing in the system reduces salary.
 - Admins can also record a manual `adjustment`, positive or negative, with a reason.
+
+## Who decides points
+
+Only an admin decides points. Points appear in three ways, each needing an admin:
+
+- An admin verifies an attendance day.
+- An admin approves a task that has a points value (or the organization has a default). The award follows the task: changing its points value or assignee later updates the award, and un-approving it removes the award.
+- An admin gives or deducts points by hand, with a reason.
+
+A role with the team points segment (for example Human Resource) can put forward any of these for other people, but it is stored as a change request and counts only once an admin approves it. Nobody can put forward points for themselves.
+
+## Cash flow by month
+
+The Cash Flow page lists payments, invoices and expenses for one month at a time, chosen with the month picker, so every month starts with empty lists. Nothing is deleted: earlier months stay available. Account balances and client dues are always calculated from every entry in every month, and unpaid invoices from earlier months are listed separately until they are settled.

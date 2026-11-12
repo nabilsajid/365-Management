@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { JOB_ROLES } from './domain/roles';
+import { ROLE_COLORS, SEGMENT_KEYS } from './domain/roles';
 import { submissionProblem } from './domain/submissions';
 
 // Input schemas for the API routes, one group per module.
@@ -40,13 +40,17 @@ export const deliverable = z.object(taskFields);
 
 export const projectStatus = z.enum(['onboarding', 'active', 'completed', 'archived']);
 
+// A project needs only a name. The client is optional and given by name; the
+// team and links belong to the project itself.
 const projectFields = {
-  client_id: id,
   name: text,
+  client_name: optionalText,
   brief: optionalText,
   status: projectStatus.optional(),
   start_date: date.nullish(),
   due_date: date.nullish(),
+  file_links: z.array(fileLink).max(50).optional(),
+  member_ids: z.array(id).max(100).optional(),
 };
 
 export const projectCreate = z.object({
@@ -95,9 +99,30 @@ export const equipmentCreate = z.object({
   purchase_date: date.nullish(),
   status: z.enum(['available', 'in_use', 'maintenance', 'retired']).optional(),
   current_holder_id: id.nullish(),
+  condition: z.enum(['perfect', 'moderate', 'weak']).nullish(),
   notes: optionalText,
 });
 export const equipmentUpdate = equipmentCreate.partial();
+
+export const equipmentNeedCreate = z.object({
+  item_name: text,
+  quantity: z.number().int().positive().max(999).default(1),
+  note: optionalText,
+});
+export const equipmentNeedUpdate = z
+  .object({
+    item_name: text,
+    quantity: z.number().int().positive().max(999),
+    note: optionalText,
+    status: z.enum(['needed', 'acquired']),
+  })
+  .partial();
+
+export const BROADCAST_MAX = 280;
+export const broadcastCreate = z.object({
+  message: z.string().trim().min(1, 'Write a message.').max(BROADCAST_MAX, `Keep it under ${BROADCAST_MAX} characters.`),
+});
+export const broadcastUpdate = z.object({ status: z.enum(['open', 'resolved']) });
 
 export const fixedExpenseCreate = z.object({
   name: text,
@@ -175,32 +200,66 @@ export const expenseUpdate = expenseFields.partial();
 
 // --- Module 4: employees and rewards ----------------------------------------
 
-// Access is not an input: it follows the job role (only "Admin" has admin access).
-const jobRole = z.enum(JOB_ROLES, { message: 'Choose a role from the list.' });
+// Access is not an input: it follows the roles a person holds.
+const roleIds = z.array(id).min(1, 'Choose at least one role.').max(20);
 
 export const employeeInvite = z.object({
   email: z.string().trim().email(),
   full_name: text,
-  job_title: jobRole,
+  role_ids: roleIds,
 });
 export const employeeUpdate = z
   .object({
     full_name: text,
-    job_title: jobRole,
+    role_ids: roleIds,
     is_active: z.boolean(),
   })
   .partial();
 
-export const attendanceStatus = z.enum(['pending', 'verified', 'rejected']);
-export const attendanceCreate = z.object({
-  work_date: date,
-  employee_id: id.optional(),
-  status: attendanceStatus.optional(),
+export const changeDecision = z.object({
+  decision: z.enum(['approve', 'deny']),
   note: optionalText,
 });
-export const attendanceUpdate = z
-  .object({ work_date: date, status: attendanceStatus, note: optionalText })
+
+export const roleCreate = z.object({
+  name: text,
+  description: optionalText,
+  color: z.enum(ROLE_COLORS).optional(),
+  permissions: z.array(z.enum(SEGMENT_KEYS)).max(SEGMENT_KEYS.length).default([]),
+});
+export const roleUpdate = z
+  .object({
+    name: text,
+    description: optionalText,
+    color: z.enum(ROLE_COLORS),
+    permissions: z.array(z.enum(SEGMENT_KEYS)).max(SEGMENT_KEYS.length),
+  })
   .partial();
+
+export const attendanceStatus = z.enum(['pending', 'verified', 'rejected']);
+
+// "09:30" or "09:30:00". Comparing the first five characters as text orders times correctly.
+const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Use a time like 09:30.');
+const exitAfterEntry = (value: { check_in?: string | null; check_out?: string | null }, ctx: z.RefinementCtx) => {
+  if (value.check_in && value.check_out && value.check_out.slice(0, 5) <= value.check_in.slice(0, 5)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The exit time must be after the entry time.', path: ['check_out'] });
+  }
+};
+
+export const attendanceCreate = z
+  .object({
+    work_date: date,
+    employee_id: id.optional(),
+    status: attendanceStatus.optional(),
+    check_in: clock.nullish(),
+    check_out: clock.nullish(),
+    note: optionalText,
+  })
+  .superRefine(exitAfterEntry);
+export const attendanceUpdate = z
+  .object({ work_date: date, status: attendanceStatus, check_in: clock.nullable(), check_out: clock.nullable(), note: optionalText })
+  .partial()
+  .superRefine(exitAfterEntry);
 
 export const violationTypeCreate = z.object({
   name: text,
