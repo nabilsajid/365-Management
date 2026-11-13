@@ -44,7 +44,7 @@ self.addEventListener('push', (event) => {
         if (items.length === 0) return fallback;
         const first = items[0];
         if (items.length === 1) return { title: first.title, body: first.body || '', href: first.href || '/my-tasks' };
-        return { title: 'You have ' + items.length + ' new assignments', body: first.title + (first.body ? ': ' + first.body : ''), href: '/my-tasks' };
+        return { title: items.length + ' new things for you', body: first.title + (first.body ? ': ' + first.body : ''), href: '/my-tasks' };
       })
       .catch(() => fallback)
       .then((alert) =>
@@ -52,7 +52,7 @@ self.addEventListener('push', (event) => {
           body: alert.body,
           icon: '/icons/icon-192.png',
           badge: '/icons/icon-192.png',
-          tag: 'assignments',
+          tag: 'updates',
           renotify: true,
           data: { href: alert.href },
         }),

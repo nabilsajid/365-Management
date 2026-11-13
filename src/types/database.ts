@@ -106,6 +106,8 @@ export interface Project {
   /** none, waiting (for the client to confirm) or confirmed. Missing until the database update. */
   shoot_status?: string;
   shoot_date?: string | null;
+  /** Set once an admin has given (or declined to give) points for the finished project. */
+  points_awarded_at?: string | null;
 }
 
 export interface ProjectMember {

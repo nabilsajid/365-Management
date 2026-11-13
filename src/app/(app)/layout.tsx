@@ -1,9 +1,12 @@
+import { after } from 'next/server';
 import type { ReactNode } from 'react';
 import { AssignmentPopup, type NotificationItem } from '@/components/assignment-popup';
+import { LiveRefresh } from '@/components/live-refresh';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { ApiForm } from '@/components/resource-manager';
 import { AppShell } from '@/components/shell/app-shell';
 import { getPageContext } from '@/lib/page';
+import { dispatchPushes, pushConfigured } from '@/lib/server/push';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,12 +23,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           supabase.from('attendance').select('id').eq('org_id', orgId).eq('status', 'pending'),
           supabase.from('bonuses').select('id').eq('org_id', orgId).eq('status', 'pending'),
           supabase.from('password_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
+          // Finished projects whose team has not been given points yet.
+          supabase.from('projects').select('id').eq('org_id', orgId).eq('status', 'completed').is('points_awarded_at', null),
         ])
       : Promise.resolve([]),
     // New assignments, shown in a pop-up until the person has seen them.
     supabase.from('notifications').select('id, title, body, href').eq('profile_id', userId).is('read_at', null).order('created_at', { ascending: false }).limit(8),
   ]);
   const notifications = ((unread.data ?? []) as NotificationItem[]);
+
+  // Whatever anyone just did may have created notifications; send them to people's devices once this page is out.
+  if (pushConfigured()) after(dispatchPushes);
 
   const changes = pendingChanges.data?.length ?? 0;
   const otherWaiting = (pendingOther as { data: unknown[] | null }[]).reduce(
@@ -50,6 +58,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       badges={badges}
       previewRole={preview?.roleName ?? null}
     >
+      <LiveRefresh orgId={orgId} />
       <div className="page-in">
         {needsProfile ? (
           <section className="panel mx-auto max-w-2xl">

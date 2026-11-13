@@ -815,6 +815,35 @@ select pg_temp.check(has_segment('cashflow') and not has_segment('equipment') an
 select stop_role_preview();
 select pg_temp.check(is_admin() and (select count(*) > 0 from expenses), 'leaving the preview restores full access');
 
+-- More notifications, and the live-update counter.
+reset role;
+delete from notifications;
+select set_config('test.version', (select version::text from org_activity where org_id = '00000000-0000-0000-0000-000000000001'), true);
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+insert into broadcasts (org_id, sender_id, message) values ('00000000-0000-0000-0000-000000000001', auth.uid(), 'Need a battery now');
+insert into change_requests (org_id, requested_by, method, path, body, summary)
+values ('00000000-0000-0000-0000-000000000001', auth.uid(), 'POST', '/api/expenses', '{}', 'Add expense "taxi"');
+select pg_temp.check(
+  (select version::text from org_activity) <> current_setting('test.version'),
+  'any change moves the live-update counter, which members can read');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check(
+  (select count(*) = 2 from notifications where title in ('New broadcast', 'A change is waiting for your approval')),
+  'admins are notified of broadcasts and of changes waiting for approval');
+insert into notices (org_id, title, is_urgent) values ('00000000-0000-0000-0000-000000000001', 'Fire drill at 3', true);
+insert into projects (id, org_id, name, status) values ('00000000-0000-0000-0000-00000000f0ee', '00000000-0000-0000-0000-000000000001', 'Wrap film', 'active');
+update projects set status = 'completed' where id = '00000000-0000-0000-0000-00000000f0ee';
+select pg_temp.check(
+  (select count(*) = 1 from notifications where title like 'Project completed%' and href = '/projects/00000000-0000-0000-0000-00000000f0ee#award'),
+  'finishing a project asks the admin to give points');
+select pg_temp.check((select count(*) = 0 from notifications where title = 'Urgent notice'), 'the person who posts a notice is not notified of it');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check(
+  (select count(*) = 1 from notifications where title = 'Urgent notice' and body = 'Fire drill at 3'),
+  'a notice notifies everyone else, employees included');
+select pg_temp.check((select count(*) = 0 from notifications where title = 'New broadcast'), 'employees are not notified of broadcasts');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

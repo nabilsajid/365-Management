@@ -181,3 +181,11 @@ On Roles & Access an admin can view the app as any other role. `start_role_previ
 ## Alerts on the device
 
 People turn alerts on per device under Profiles & Contacts, My profile; the browser's push address is stored in `push_subscriptions`. After a request that can assign work (creating or changing a project or deliverable), the server sends each new notification's owner a push (`src/lib/server/push.ts`). The push carries no text: it wakes the service worker (`public/sw.js`), which asks `GET /api/notifications` what is new and shows it. Needs `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (generated once from that page by an admin) and the service-role key. On iPhone and iPad alerts work only in the installed app.
+
+## Live updates
+
+The app updates itself. Every main table bumps a per-organization counter (`org_activity`) on any change. `LiveRefresh`, mounted in the signed-in layout, listens to that counter through Supabase Realtime and also checks it every 15 seconds and when the app returns to the front; when it moves, the current page's data is reloaded in place with `router.refresh()`. The check goes from the browser straight to Supabase, so it costs no server requests.
+
+## Who is notified of what
+
+Database triggers write notifications for: being put on a project or given a deliverable (that person); a new notice (everyone except its author); and, for admins, a change waiting for approval, submitted work, attendance to verify, a forgotten password, a new broadcast, and a project being marked completed. A completed project stays under Approvals until an admin gives its team points, or declines to, on the project page (`POST /api/projects/[id]/award`).

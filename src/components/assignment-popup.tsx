@@ -11,7 +11,7 @@ export interface NotificationItem {
   href: string | null;
 }
 
-/** Shown after sign-in while there are unread notifications, such as a newly assigned project or task. */
+/** Shown while there are unread notifications: a new assignment, a notice, or (for admins) something to approve. */
 export function AssignmentPopup({ items }: { items: NotificationItem[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(items.length > 0);
@@ -47,17 +47,26 @@ export function AssignmentPopup({ items }: { items: NotificationItem[] }) {
         <span className="popup-icon" aria-hidden>
           <BellRing size={20} />
         </span>
-        <h2 id="popup-title">{items.length === 1 ? 'You have a new assignment' : `You have ${items.length} new assignments`}</h2>
+        <h2 id="popup-title">{items.length === 1 ? 'Something new for you' : `${items.length} new things for you`}</h2>
         <ul className="popup-list">
           {items.map((item) => (
             <li key={item.id}>
-              <strong>{item.title}</strong>
-              {item.body ? <span>{item.body}</span> : null}
+              {item.href ? (
+                <button type="button" className="popup-link" disabled={busy} onClick={() => done(item.href)}>
+                  <strong>{item.title}</strong>
+                  {item.body ? <span>{item.body}</span> : null}
+                </button>
+              ) : (
+                <>
+                  <strong>{item.title}</strong>
+                  {item.body ? <span>{item.body}</span> : null}
+                </>
+              )}
             </li>
           ))}
         </ul>
         <p className="muted">
-          You can find everything assigned to you under My Tasks. To get these as alerts on your phone or computer,
+          Tap one to open it. Everything assigned to you is under My Tasks. To get these as alerts on your phone or computer,
           turn them on under Profiles &amp; Contacts → My profile.
         </p>
         <div className="popup-actions">
