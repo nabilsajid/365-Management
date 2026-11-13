@@ -527,5 +527,36 @@ select pg_temp.check(
   not exists (select 1 from point_entries where task_id = '00000000-0000-0000-0000-0000000071b2'),
   'an unassigned task holds no points');
 
+-- Password requests are for admins only.
+reset role;
+insert into password_requests (id, org_id, profile_id, email) values
+  ('00000000-0000-0000-0000-00000000fa55', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', 'editor@test.local');
+set local role authenticated;
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from password_requests), 'an employee cannot see password requests, not even their own');
+do $$ begin
+  insert into password_requests (org_id, profile_id, email)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', 'editor@test.local');
+  raise exception 'FAILED: an employee created a password request directly';
+exception when insufficient_privilege then raise notice 'ok - only the server can record a password request';
+end $$;
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+select pg_temp.check((select count(*) = 0 from password_requests), 'another organization''s admin cannot see them');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check((select count(*) = 1 from password_requests), 'the organization''s admin sees password requests');
+update password_requests set status = 'done', resolved_by = auth.uid(), resolved_at = now() where true;
+select pg_temp.check((select status = 'done' from password_requests where id = '00000000-0000-0000-0000-00000000fa55'), 'and can mark one as dealt with');
+
+reset role;
+set local role anon;
+do $$ begin
+  perform count(*) from password_requests;
+  raise exception 'FAILED: a signed-out visitor read password requests';
+exception when insufficient_privilege then raise notice 'ok - signed-out visitors have no access to password requests';
+end $$;
+
 reset role;
 rollback;

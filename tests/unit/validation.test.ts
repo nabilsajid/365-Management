@@ -141,3 +141,17 @@ test('a needed item has a name and a whole positive quantity', () => {
   assert.equal(v.equipmentNeedCreate.safeParse({ item_name: 'Tripod', quantity: 0 }).success, false);
   assert.equal(v.equipmentNeedUpdate.safeParse({ status: 'acquired' }).success, true);
 });
+
+test('a password request needs a real email, compared without regard to case', () => {
+  assert.equal(v.passwordRequestCreate.parse({ email: '  Rafi@Example.com ' }).email, 'rafi@example.com');
+  assert.equal(v.passwordRequestCreate.safeParse({ email: 'not-an-email' }).success, false);
+  assert.equal(v.passwordRequestCreate.safeParse({}).success, false);
+});
+
+test('an admin either sets a long-enough password or dismisses the request', () => {
+  assert.equal(v.passwordRequestResolve.safeParse({ action: 'set', password: 'secret1' }).success, true);
+  assert.equal(v.passwordRequestResolve.safeParse({ action: 'set', password: '12345' }).success, false);
+  assert.equal(v.passwordRequestResolve.safeParse({ action: 'set' }).success, false);
+  assert.equal(v.passwordRequestResolve.safeParse({ action: 'dismiss' }).success, true);
+  assert.equal(v.passwordRequestResolve.safeParse({ action: 'email' }).success, false);
+});

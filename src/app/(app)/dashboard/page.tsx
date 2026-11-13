@@ -81,7 +81,8 @@ export default async function DashboardPage() {
   const { supabase, orgId, isAdmin, userId, profile, can, localDate } = await getPageContext();
 
   const data = await getDashboard(supabase, orgId, await getOrgTimezone(supabase, orgId), userId);
-  const waiting = data.approvals.changes + data.approvals.submissions + data.approvals.attendance + data.approvals.bonuses;
+  const waiting =
+    data.approvals.passwords + data.approvals.changes + data.approvals.submissions + data.approvals.attendance + data.approvals.bonuses;
   const hasCashflow = data.cashflow.some((point) => point.income > 0 || point.expenses > 0);
   const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
   // The summary is a bento grid: the most important figures get bigger tiles,
@@ -127,6 +128,7 @@ export default async function DashboardPage() {
   const busiest = Math.max(1, ...data.cashflow.map((point) => Math.max(point.income, point.expenses)));
 
   const approvals = [
+    { label: 'Password requests', count: data.approvals.passwords },
     { label: 'Change requests to decide', count: data.approvals.changes },
     { label: 'Task submissions to review', count: data.approvals.submissions },
     { label: 'Attendance days to verify', count: data.approvals.attendance },

@@ -232,6 +232,17 @@ export interface ChangeRequest {
   created_at: string;
 }
 
+export interface PasswordRequest {
+  id: string;
+  org_id: string;
+  profile_id: string;
+  email: string;
+  status: 'pending' | 'done' | 'dismissed';
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
 export interface PointSettings {
   org_id: string;
   monthly_target: number;

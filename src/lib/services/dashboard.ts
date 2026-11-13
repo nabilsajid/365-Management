@@ -24,7 +24,7 @@ export interface Dashboard {
   equipment: { count: number; value: number; unpriced: number };
   projects: Record<string, number>;
   tasks: Record<string, number>;
-  approvals: { submissions: number; attendance: number; bonuses: number; changes: number };
+  approvals: { submissions: number; attendance: number; bonuses: number; changes: number; passwords: number };
   cashflow: CashflowPoint[];
   progress: ProjectProgress[];
   deadlines: Deadline[];
@@ -74,7 +74,7 @@ export async function getDashboard(
   const [
     balances, invoices, invoiceBalances, payments, expenses, fixed, equipment,
     projects, tasks, people, pendingSubmissions, pendingAttendance, pendingBonuses,
-    recentSubmissions, recentPayments, recentExpenses, myPoints, settings, openBroadcasts, needed, pendingChanges,
+    recentSubmissions, recentPayments, recentExpenses, myPoints, settings, openBroadcasts, needed, pendingChanges, pendingPasswords,
   ] = await Promise.all([
     supabase.from('account_balances').select('balance').eq('org_id', orgId),
     supabase.from('invoices').select('id, invoice_number, status').eq('org_id', orgId),
@@ -97,6 +97,7 @@ export async function getDashboard(
     supabase.from('broadcasts').select('id, sender_id, message, created_at').eq('org_id', orgId).eq('status', 'open').order('created_at', { ascending: false }).limit(5),
     supabase.from('equipment_needs').select('id').eq('org_id', orgId).eq('status', 'needed'),
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
+    supabase.from('password_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
   ]);
 
   const projectRows = (projects.data ?? []) as { id: string; name: string; status: string; due_date: string | null }[];
@@ -179,6 +180,7 @@ export async function getDashboard(
       attendance: pendingAttendance.data?.length ?? 0,
       bonuses: pendingBonuses.data?.length ?? 0,
       changes: pendingChanges.data?.length ?? 0,
+      passwords: pendingPasswords.data?.length ?? 0,
     },
     cashflow,
     progress: projectProgress(projectRows, taskRows),

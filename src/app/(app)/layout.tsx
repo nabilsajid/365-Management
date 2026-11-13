@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           supabase.from('task_submissions').select('id').eq('org_id', orgId).eq('review_status', 'pending'),
           supabase.from('attendance').select('id').eq('org_id', orgId).eq('status', 'pending'),
           supabase.from('bonuses').select('id').eq('org_id', orgId).eq('status', 'pending'),
+          supabase.from('password_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
         ])
       : Promise.resolve([]),
   ]);

@@ -84,6 +84,12 @@ Automatic behaviour:
 | --- | --- |
 | `broadcasts` | A short urgent message (up to 280 characters) from anyone to the admins. `status` is `open` or `resolved`, with who resolved it and when. |
 
+## Password requests
+
+| Table | Purpose |
+| --- | --- |
+| `password_requests` | A forgotten-password request from the login page: who, their email, `status` (`pending`, `done`, `dismissed`). Only admins can read it; signed-out visitors have no access, and the server records requests on their behalf. Passwords themselves are never stored here. |
+
 ## 5. Admin Dashboard
 
 No tables of its own. `src/lib/services/dashboard.ts` reads from the other modules.

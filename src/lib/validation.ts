@@ -307,3 +307,21 @@ export const pointSettingsUpdate = z
 
 export const bonusCalculate = z.object({ month });
 export const bonusDecision = z.object({ status: z.enum(['pending', 'approved', 'rejected']) });
+
+// --- Forgotten passwords -----------------------------------------------------
+
+export const passwordRequestCreate = z.object({
+  email: z.string().trim().toLowerCase().email('Enter the email you sign in with.'),
+});
+
+export const PASSWORD_MIN = 6;
+export const passwordRequestResolve = z
+  .object({
+    action: z.enum(['set', 'dismiss']),
+    password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters.`).max(72).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.action === 'set' && !value.password) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter the new password.', path: ['password'] });
+    }
+  });

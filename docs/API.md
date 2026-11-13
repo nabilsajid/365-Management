@@ -62,6 +62,13 @@ For every route whose Write column says Admin, a non-admin whose roles include t
 | `/change-requests?status=pending` | Own (admin: all) | n/a | |
 | `/change-requests/[id]` | n/a | Admin | `POST` `{ decision: "approve" \| "deny", note? }`. Approving applies the change. |
 
+## Forgotten passwords
+
+| Route | Who | Notes |
+| --- | --- | --- |
+| `POST /password-requests` | Anyone, signed out | `{ email }`. Always answers `202`, whether or not the email belongs to an account. Records one pending request per active person. Needs the service-role key. |
+| `POST /password-requests/[id]` | Admin | `{ action: "set", password }` sets a new password for the person, or `{ action: "dismiss" }`. |
+
 ## Broadcasts and needed equipment
 
 | Route | Read | Write | Notes |
