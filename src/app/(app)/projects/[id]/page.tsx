@@ -10,8 +10,10 @@ import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, thumbnailState, type Tas
 import { titleTags } from '@/lib/domain/roles';
 import type { Client, Profile, Project, ProjectComment, ProjectMember, Role, Task } from '@/types/database';
 
-export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
   const { id } = await params;
+  // Arriving from the board's Edit button opens the edit form straight away.
+  const startEditing = Boolean((await searchParams).edit);
   const { supabase, orgId, userId, isAdmin, canEdit, localDateTime } = await getPageContext();
 
   const projectResult = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
@@ -209,7 +211,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       </section>
 
       {mayEdit ? (
-        <details className="panel fold">
+        <details className="panel fold" id="edit" open={startEditing}>
           <summary>Edit project details and team</summary>
           <ApiForm
             endpoint={`/api/projects/${project.id}`}

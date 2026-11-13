@@ -1,4 +1,4 @@
-import { Camera, CalendarClock, Link2, ListChecks } from 'lucide-react';
+import { Camera, CalendarClock, Link2, ListChecks, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectOnboardingForm } from '@/components/project-onboarding-form';
 import { ResourceManager } from '@/components/resource-manager';
@@ -152,7 +152,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   {inColumn.map((project, index) => {
                     const overdue = Boolean(project.due_date) && project.due_date! < today && status !== 'completed' && status !== 'archived';
                     return (
-                      <Link key={project.id} href={project.href} className="project-card" style={{ animationDelay: `${index * 50}ms` }}>
+                      <div key={project.id} className="project-card-wrap">
+                      <Link href={project.href} className={canEdit ? 'project-card editable' : 'project-card'} style={{ animationDelay: `${index * 50}ms` }}>
                         <p className="project-name">{project.name}</p>
                         <p className="project-client">{project.client_name ?? 'Internal project'}</p>
 
@@ -212,6 +213,13 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                           </span>
                         </div>
                       </Link>
+                      {canEdit ? (
+                        <Link href={`${project.href}?edit=1#edit`} className="project-edit" aria-label={`Edit ${project.name}`}>
+                          <Pencil size={11} aria-hidden />
+                          Edit
+                        </Link>
+                      ) : null}
+                      </div>
                     );
                   })}
                 </section>

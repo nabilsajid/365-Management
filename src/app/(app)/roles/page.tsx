@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ResourceManager } from '@/components/resource-manager';
 import { RolePreviewPicker } from '@/components/role-preview';
@@ -7,7 +8,18 @@ import { asRows, getPageContext, options, rowsOf } from '@/lib/page';
 import type { Profile, ProfileRole, Role } from '@/types/database';
 
 // Admin only: create and edit roles, choose what each can see, and give roles to people.
-export default async function RolesPage() {
+const TABS = [
+  { key: 'roles', label: 'Roles' },
+  { key: 'people', label: 'People' },
+  { key: 'preview', label: 'View as a role' },
+  { key: 'guide', label: 'What each part opens' },
+] as const;
+type Tab = (typeof TABS)[number]['key'];
+
+// One topic per tab, so roles, people, the role preview and the guide are not stacked on one page.
+export default async function RolesPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const requestedTab = (await searchParams).tab;
+  const tab: Tab = TABS.some((item) => item.key === requestedTab) ? (requestedTab as Tab) : 'roles';
   const { supabase, orgId, isAdmin } = await getPageContext();
   if (!isAdmin) redirect('/dashboard');
 
@@ -83,6 +95,15 @@ export default async function RolesPage() {
         </div>
       </div>
 
+      <nav className="tabs" aria-label="Roles and access sections">
+        {TABS.map((item) => (
+          <Link key={item.key} href={`/roles?tab=${item.key}`} aria-current={tab === item.key ? 'page' : undefined}>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
+      {tab === 'roles' ? (
       <ResourceManager
         title="Roles"
         description="Use Edit to rename a role, change its label colour, or choose which parts it can only view and which it can also edit. The Admin role always has full access and cannot be deleted."
@@ -100,7 +121,9 @@ export default async function RolesPage() {
         addLabel="Create role"
         emptyText="No roles found. If this stays empty, the database update for roles has not been run yet."
       />
+      ) : null}
 
+      {tab === 'people' ? (
       <ResourceManager
         title="People and their roles"
         description="Use Edit to add or remove a person's roles. A person can hold several."
@@ -123,9 +146,13 @@ export default async function RolesPage() {
         canWrite
         allowDelete={false}
       />
+      ) : null}
 
+      {tab === 'preview' ? (
       <RolePreviewPicker roles={roles.filter((role) => !role.is_admin).map((role) => ({ value: role.id, label: role.name }))} />
+      ) : null}
 
+      {tab === 'guide' ? (
       <section className="panel">
         <header className="panel-header">
           <div>
@@ -141,6 +168,7 @@ export default async function RolesPage() {
           ))}
         </dl>
       </section>
+      ) : null}
     </>
   );
 }
