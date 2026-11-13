@@ -248,7 +248,7 @@ function UserMenu({ name, jobTitle, isAdmin }: { name: string; jobTitle: string 
             </p>
           </div>
           <Link
-            href="/profile"
+            href="/profile?tab=me"
             role="menuitem"
             onClick={() => setOpen(false)}
             className="mt-1.5 flex w-full items-center gap-2 rounded-control px-2.5 py-2 text-left text-[13px] text-ink no-underline transition-colors hover:bg-subtle hover:no-underline"

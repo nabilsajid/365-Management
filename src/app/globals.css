@@ -1364,10 +1364,22 @@
     color: var(--color-muted);
   }
 
-  .login-subhead {
-    margin: 1.25rem 0 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
+  /* The offer to give new passwords to people who have none on record. */
+  .login-fill {
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--color-warning) 35%, var(--color-line));
+    border-radius: var(--radius-control);
+    background: color-mix(in srgb, var(--color-warning) 8%, var(--color-card));
+    font-size: 0.8125rem;
+  }
+
+  .login-fill .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
   }
 
   .password-set {

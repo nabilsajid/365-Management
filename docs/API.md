@@ -68,6 +68,8 @@ For every route whose Write column says Admin, a non-admin whose roles include t
 | --- | --- | --- |
 | `POST /password-requests` | Anyone, signed out | `{ email }`. Always answers `202`, whether or not the email belongs to an account. Records one pending request per active person; for an admin account it sends a Supabase verification email with a reset link to `/auth/reset` instead. Needs the service-role key. |
 | `POST /password-requests/[id]` | Admin | `{ action: "set", password }` sets a new password for the person, or `{ action: "dismiss" }`. |
+| `GET /employees/passwords` | Admin | `{ ready, passwords }`: every password on record, by person id. `ready` is false until the login details table exists. |
+| `POST /employees/passwords` | Admin | Gives every active employee without a password on record a new, different one and records it. People who already have one are left alone. |
 | `GET /employees/[id]/password` | Admin | `{ password }`: the password on record for that person, or `null` when none was set through the app. |
 | `POST /employees/[id]/password` | Admin | `{ password }` sets a new password for that person (6 to 72 characters) and closes any pending request from them. Needs the service-role key. |
 | `POST /password-reset` | Anyone with a valid emailed link | `{ access_token, password }`. The last step of an admin's reset email; the token is checked with Supabase Auth and only works for admin accounts. |
