@@ -45,14 +45,7 @@ export function LiveRefresh({ orgId }: { orgId: string }) {
     window.addEventListener('focus', onVisible);
     window.addEventListener('online', onVisible);
 
-    const channel = supabase
-      .channel(`org-activity-${orgId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'org_activity', filter: `org_id=eq.${orgId}` }, (payload) => {
-        const version = Number((payload.new as { version?: number } | null)?.version);
-        if (Number.isFinite(version)) seen(version);
-        else refreshSoon();
-      })
-      .subscribe();
+    const channel = supabase.channel(`org-activity-${orgId}`);
 
     return () => {
       clearTimeout(pending);
