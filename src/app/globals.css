@@ -935,6 +935,20 @@
     }
   }
 
+  /* A plain grid of the same cards, for lists that are not split by status. */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    margin: 1.75rem 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
   .board-col {
     display: grid;
     gap: 0.75rem;
