@@ -17,7 +17,16 @@ import { authorize, authorizeWrite, makeCrud, type Access, type ApiContext } fro
 export const getApiContext = cache(async (): Promise<ApiContext | null> => {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
-  const userId = claims?.claims?.sub;
+  let userId: string | undefined = claims?.claims?.sub;
+  // The quick local check can fail on a hiccup (see the middleware). Before
+  // treating someone as signed out, ask the auth server, which is authoritative.
+  if (!userId) {
+    const { data: stored } = await supabase.auth.getSession();
+    if (stored.session) {
+      const { data: checked } = await supabase.auth.getUser();
+      userId = checked.user?.id;
+    }
+  }
   if (!userId) return null;
 
   const [profileResult, splitRoles, previewResult] = await Promise.all([
