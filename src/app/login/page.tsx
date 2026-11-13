@@ -1,3 +1,4 @@
+import { AppInstall } from '@/components/app-install';
 import { LoginForm } from './login-form';
 
 // The login page always uses the dark look, so the white logo reads clearly.
@@ -21,6 +22,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               : undefined
           }
         />
+        <AppInstall variant="login" />
       </main>
     </div>
   );

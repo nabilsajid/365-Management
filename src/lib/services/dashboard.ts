@@ -1,3 +1,4 @@
+import { isNoticeActive, sortNotices } from '@/lib/domain/notices';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   bucketCashflow,
@@ -31,6 +32,8 @@ export interface Dashboard {
   activity: ActivityItem[];
   /** Open broadcasts: all of them for admins, the viewer's own for everyone else. */
   broadcasts: { id: string; sender: string; message: string; at: string }[];
+  /** Notices still on the board, urgent ones first. */
+  notices: { id: string; title: string; body: string | null; is_urgent: boolean; expires_at: string | null; created_at: string }[];
   /** Items on the urgently-needed list that the viewer can see. */
   neededItems: number;
   /** The viewer's own numbers, shown on everyone's dashboard. */
@@ -74,7 +77,7 @@ export async function getDashboard(
   const [
     balances, invoices, invoiceBalances, payments, expenses, fixed, equipment,
     projects, tasks, people, pendingSubmissions, pendingAttendance, pendingBonuses,
-    recentSubmissions, recentPayments, recentExpenses, myPoints, settings, openBroadcasts, needed, pendingChanges, pendingPasswords,
+    recentSubmissions, recentPayments, recentExpenses, myPoints, settings, openBroadcasts, needed, pendingChanges, pendingPasswords, noticeRows,
   ] = await Promise.all([
     supabase.from('account_balances').select('balance').eq('org_id', orgId),
     supabase.from('invoices').select('id, invoice_number, status').eq('org_id', orgId),
@@ -98,6 +101,7 @@ export async function getDashboard(
     supabase.from('equipment_needs').select('id').eq('org_id', orgId).eq('status', 'needed'),
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
     supabase.from('password_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
+    supabase.from('notices').select('id, title, body, is_urgent, expires_at, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(50),
   ]);
 
   const projectRows = (projects.data ?? []) as { id: string; name: string; status: string; due_date: string | null }[];
@@ -192,6 +196,10 @@ export async function getDashboard(
       message: row.message,
       at: row.created_at,
     })),
+    // Admins are also sent expired notices, so those are dropped here.
+    notices: sortNotices(
+      ((noticeRows.data ?? []) as Dashboard['notices']).filter((notice) => isNoticeActive(notice.expires_at, now)),
+    ).slice(0, 5),
     neededItems: needed.data?.length ?? 0,
     mine: {
       openTasks: taskRows.filter((task) => task.assignee_id === userId && task.status !== 'approved').length,

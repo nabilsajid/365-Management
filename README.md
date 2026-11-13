@@ -38,5 +38,7 @@ The site can be installed like an app, with its own icon and window and no brows
 - **iPhone or iPad (Safari):** open the site, tap Share, then "Add to Home Screen".
 - **Computer (Chrome or Edge):** click "Install app" in the top bar, or the install icon in the address bar.
 
+The login page also has an "Install the app" button. The installed app and the website are the same live system, so they always show the same data.
+
 It is the same site underneath, so it always shows live data and updates itself whenever a new version is deployed. It needs an internet connection; without one it shows an offline page. The pieces are `src/app/manifest.ts`, the icons in `public/icons`, `public/sw.js` and `public/offline.html`.
 

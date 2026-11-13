@@ -558,5 +558,62 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok - signed-out visitors have no access to password requests';
 end $$;
 
+-- Personal profiles.
+reset role;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select update_my_profile('  Editor Ahmed ', 'Eddy', '01700000001', 'House 5, Road 2, Dhaka', '01800000002');
+select pg_temp.check(
+  (select full_name = 'Editor Ahmed' and nickname = 'Eddy' and contact = '01700000001' and profile_completed_at is not null
+          and access_role = 'employee'
+   from profiles where id = '00000000-0000-0000-0000-0000000000e1'),
+  'a person fills in their own profile, and nothing else about them changes');
+select pg_temp.check(
+  (select address = 'House 5, Road 2, Dhaka' and secondary_contact = '01800000002' from profile_private where profile_id = auth.uid()),
+  'and sees their own address and secondary contact');
+do $$ begin
+  perform update_my_profile('', null, '017', null, null);
+  raise exception 'FAILED: profile saved without a name';
+exception when invalid_parameter_value then raise notice 'ok - a profile needs a full name and a contact number';
+end $$;
+do $$
+declare n integer;
+begin
+  update profiles set access_role = 'admin', contact = 'hacked' where id = auth.uid();
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAILED: an employee edited their profile row directly'; end if;
+  raise notice 'ok - an employee cannot edit their profile row directly';
+end $$;
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check(
+  (select contact = '01700000001' from profiles where id = '00000000-0000-0000-0000-0000000000e1'),
+  'colleagues can see a person''s name and contact number');
+select pg_temp.check((select count(*) = 0 from profile_private), 'but not their address or secondary contact');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check((select count(*) = 1 from profile_private), 'an admin can see everyone''s private details');
+update profile_private set address = 'Corrected by admin' where profile_id = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check(
+  (select address = 'Corrected by admin' from profile_private where profile_id = '00000000-0000-0000-0000-0000000000e1'),
+  'and edit them');
+
+-- Notice board.
+insert into notices (org_id, title, expires_at) values
+  ('00000000-0000-0000-0000-000000000001', 'Office closed Friday', now() + interval '3 days'),
+  ('00000000-0000-0000-0000-000000000001', 'Old notice', now() - interval '1 hour'),
+  ('00000000-0000-0000-0000-000000000001', 'House rules', null);
+select pg_temp.check((select count(*) = 3 from notices), 'an admin still sees expired notices');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check(
+  (select count(*) = 2 and bool_and(title <> 'Old notice') from notices),
+  'everyone sees a notice until it expires, and permanent ones until deleted');
+do $$ begin
+  insert into notices (org_id, title) values ('00000000-0000-0000-0000-000000000001', 'From an employee');
+  raise exception 'FAILED: an employee posted a notice';
+exception when insufficient_privilege then raise notice 'ok - only admins post notices';
+end $$;
+
 reset role;
 rollback;

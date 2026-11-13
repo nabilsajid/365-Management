@@ -55,7 +55,7 @@ src/
     shell/                sidebar, top bar, navigation list
     dashboard/            cash flow chart
   app/
-    (app)/                signed-in pages: dashboard, broadcasts, projects, tasks, my-tasks, logistics, cashflow, employees, approvals, requests, roles
+    (app)/                signed-in pages: dashboard, notices, broadcasts, profile, projects, tasks, my-tasks, logistics, cashflow, employees, approvals, requests, roles
     api/                  route handlers
     login/, auth/signout/
 ```
@@ -141,3 +141,15 @@ Anything that takes more than one write goes in `src/lib/services/` with a hand-
 ## Not built yet
 
 Deliberately left out of the foundation: reporting and exports, file uploads (submissions are links or text), notifications, payroll, automatic generation of monthly fixed-expense entries, equipment custody history, and linking equipment to projects.
+
+## First sign-in and profiles
+
+The signed-in layout checks `profiles.profile_completed_at`. While it is empty, the layout shows the profile form in place of the page, so everyone fills in their name and contact details once before using the app. Afterwards the same form lives on the Profiles & Contacts page, next to the team contact list (name, designation and contact number for everyone; every detail, editable, for admins).
+
+## Notice board
+
+Admins post notices on the Notice Board page and choose how long each stays up: 3 days, 1 week, 15 days, 1 month or until deleted. The choice is stored as an expiry time (`src/lib/domain/notices.ts`). Active notices appear at the top of everyone's dashboard, urgent ones first. Nothing has to run to remove a notice: the database simply stops returning it once the expiry passes.
+
+## Web and installed app
+
+The installed app is the same live site in its own window, not a separate copy. Both read and write the same database, so anything saved in one appears in the other on the next page load. The login page and the top bar both offer "Install the app".

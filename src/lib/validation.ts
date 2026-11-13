@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { NOTICE_DURATION_VALUES } from './domain/notices';
 import { ROLE_COLORS, SEGMENT_KEYS } from './domain/roles';
 import { submissionProblem } from './domain/submissions';
 
@@ -123,6 +124,31 @@ export const broadcastCreate = z.object({
   message: z.string().trim().min(1, 'Write a message.').max(BROADCAST_MAX, `Keep it under ${BROADCAST_MAX} characters.`),
 });
 export const broadcastUpdate = z.object({ status: z.enum(['open', 'resolved']) });
+
+// --- Personal profiles and the notice board ------------------------------------
+
+const phone = z
+  .string()
+  .trim()
+  .regex(/^\+?\d[\d\s-]{5,18}$/, 'Enter a phone number, for example 01700000000.');
+
+// The same fields whether a person fills in their own profile or an admin edits it.
+export const profileUpdate = z.object({
+  full_name: text.max(120),
+  nickname: z.string().trim().max(60).nullish(),
+  contact: phone,
+  address: z.string().trim().max(300).nullish(),
+  secondary_contact: phone.nullish(),
+});
+
+const noticeFields = {
+  title: text.max(120, 'Keep the title under 120 characters.'),
+  body: z.string().trim().max(2000, 'Keep the notice under 2000 characters.').nullish(),
+  is_urgent: z.boolean().optional(),
+};
+export const noticeCreate = z.object({ ...noticeFields, duration: z.enum(NOTICE_DURATION_VALUES) });
+// Choosing a duration when editing restarts the clock from now; leaving it out keeps the current expiry.
+export const noticeUpdate = z.object({ ...noticeFields, duration: z.enum(NOTICE_DURATION_VALUES).nullish() }).partial();
 
 export const fixedExpenseCreate = z.object({
   name: text,

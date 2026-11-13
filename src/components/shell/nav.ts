@@ -1,5 +1,7 @@
 import {
   ClipboardCheck,
+  ContactRound,
+  Pin,
   Inbox,
   Megaphone,
   ShieldCheck,
@@ -41,6 +43,7 @@ const GROUPS: NavGroup[] = [
     title: 'Overview',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/notices', label: 'Notice Board', icon: Pin },
       { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone },
     ],
   },
@@ -53,7 +56,13 @@ const GROUPS: NavGroup[] = [
   },
   { title: 'Finance', items: [{ href: '/cashflow', label: 'Cash Flow & Invoices', icon: Wallet, segment: 'cashflow' }] },
   { title: 'Logistics', items: [{ href: '/logistics', label: 'Equipment & Costs', icon: Package }] },
-  { title: 'Team', items: [{ href: '/employees', label: 'Employees & Rewards', icon: Users }] },
+  {
+    title: 'Team',
+    items: [
+      { href: '/employees', label: 'Employees & Rewards', icon: Users },
+      { href: '/profile', label: 'Profiles & Contacts', icon: ContactRound },
+    ],
+  },
   {
     title: 'Management',
     items: [

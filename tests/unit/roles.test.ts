@@ -34,13 +34,13 @@ const hrefs = (isAdmin: boolean, segments: string[]) =>
   navFor({ isAdmin, segments: new Set(segments) }).flatMap((group) => group.items.map((item) => item.href));
 
 test('the sidebar only lists what a person can open', () => {
-  assert.deepEqual(hrefs(false, []), ['/dashboard', '/broadcasts', '/my-tasks', '/logistics', '/employees', '/requests']);
-  assert.deepEqual(hrefs(false, ['cashflow']), ['/dashboard', '/broadcasts', '/my-tasks', '/cashflow', '/logistics', '/employees', '/requests']);
+  assert.deepEqual(hrefs(false, []), ['/dashboard', '/notices', '/broadcasts', '/my-tasks', '/logistics', '/employees', '/profile', '/requests']);
+  assert.deepEqual(hrefs(false, ['cashflow']), ['/dashboard', '/notices', '/broadcasts', '/my-tasks', '/cashflow', '/logistics', '/employees', '/profile', '/requests']);
   assert.ok(hrefs(false, ['projects']).includes('/projects'));
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/approvals'));
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/roles'));
   assert.ok(!hrefs(true, []).includes('/requests'));
-  assert.deepEqual(hrefs(true, []), ['/dashboard', '/broadcasts', '/projects', '/my-tasks', '/cashflow', '/logistics', '/employees', '/approvals', '/roles']);
+  assert.deepEqual(hrefs(true, []), ['/dashboard', '/notices', '/broadcasts', '/projects', '/my-tasks', '/cashflow', '/logistics', '/employees', '/profile', '/approvals', '/roles']);
 });
 
 test('a role needs a name and only known segments', () => {

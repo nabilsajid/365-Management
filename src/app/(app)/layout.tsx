@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { PROFILE_FIELDS } from '@/components/profile-fields';
+import { ApiForm } from '@/components/resource-manager';
 import { AppShell } from '@/components/shell/app-shell';
 import { getPageContext } from '@/lib/page';
 
@@ -30,6 +32,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     ? { '/approvals': changes + otherWaiting, '/broadcasts': openBroadcasts.data?.length ?? 0 }
     : { '/requests': changes };
 
+  // The very first sign-in: everyone fills in their profile before using the app.
+  // The column check keeps the app usable until the profiles database update has been run.
+  const needsProfile = 'profile_completed_at' in profile && !profile.profile_completed_at;
+
   return (
     <AppShell
       orgName={orgName}
@@ -39,7 +45,32 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       segments={[...segments]}
       badges={badges}
     >
-      <div className="page-in">{children}</div>
+      <div className="page-in">
+        {needsProfile ? (
+          <section className="panel mx-auto max-w-2xl">
+            <header className="panel-header">
+              <div>
+                <h2>Welcome to {orgName}</h2>
+                <p className="muted">
+                  Before you start, please fill in your profile. Your name and contact number are visible to the team;
+                  your address and secondary contact are visible only to you and the admins. You can change these any
+                  time under Profiles.
+                </p>
+              </div>
+            </header>
+            <ApiForm
+              endpoint="/api/profile"
+              method="PATCH"
+              submitLabel="Save and continue"
+              resetOnSuccess={false}
+              fields={PROFILE_FIELDS}
+              initial={{ full_name: profile.full_name, contact: profile.contact ?? null, nickname: profile.nickname ?? null }}
+            />
+          </section>
+        ) : (
+          children
+        )}
+      </div>
     </AppShell>
   );
 }

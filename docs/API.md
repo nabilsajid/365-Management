@@ -69,6 +69,15 @@ For every route whose Write column says Admin, a non-admin whose roles include t
 | `POST /password-requests` | Anyone, signed out | `{ email }`. Always answers `202`, whether or not the email belongs to an account. Records one pending request per active person. Needs the service-role key. |
 | `POST /password-requests/[id]` | Admin | `{ action: "set", password }` sets a new password for the person, or `{ action: "dismiss" }`. |
 
+## Profiles and the notice board
+
+| Route | Read | Write | Notes |
+| --- | --- | --- | --- |
+| `/profile` | Own | Member | `GET` returns your profile with your private details. `PATCH` `{ full_name, nickname?, contact, address?, secondary_contact? }` fills in or changes your own profile; the first save also marks the profile as completed. |
+| `/profile/[id]` | — | Admin | `PATCH` with the same fields corrects anyone's profile, private details included. |
+| `/notices` | Member (not expired; admin: all) | Admin | `POST` `{ title, body?, is_urgent?, duration }`; `duration` is `3d`, `1w`, `15d`, `1m` or `forever`. |
+| `/notices/[id]` | Member | Admin | `PATCH` `{ title?, body?, is_urgent?, duration? }` (a new duration counts from now); `DELETE` removes the notice. |
+
 ## Broadcasts and needed equipment
 
 | Route | Read | Write | Notes |

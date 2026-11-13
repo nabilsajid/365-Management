@@ -33,6 +33,32 @@ export interface Profile {
   access_role: AccessRole;
   is_active: boolean;
   created_at: string;
+  /** Shown to everyone in the organization, with the name and roles. */
+  nickname?: string | null;
+  contact?: string | null;
+  /** Set the first time a person fills in their profile; empty means they have not yet. */
+  profile_completed_at?: string | null;
+}
+
+/** Private details: visible to the person themselves and to admins only. */
+export interface ProfilePrivate {
+  profile_id: string;
+  org_id: string;
+  address: string | null;
+  secondary_contact: string | null;
+  updated_at: string;
+}
+
+export interface Notice {
+  id: string;
+  org_id: string;
+  title: string;
+  body: string | null;
+  is_urgent: boolean;
+  /** Empty means the notice stays until an admin deletes it. */
+  expires_at: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface Role {

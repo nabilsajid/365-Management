@@ -187,3 +187,10 @@ export const broadcasts: ResourceConfig = {
       ? { resolved_by: ctx.userId, resolved_at: now() }
       : { resolved_by: null, resolved_at: null },
 };
+
+// Admins post notices (custom POST and PATCH turn a duration into an expiry);
+// everyone reads the ones that have not expired.
+export const notices: ResourceConfig = {
+  table: 'notices',
+  label: 'notice',
+};

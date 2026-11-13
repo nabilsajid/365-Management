@@ -84,6 +84,16 @@ Automatic behaviour:
 | --- | --- |
 | `broadcasts` | A short urgent message (up to 280 characters) from anyone to the admins. `status` is `open` or `resolved`, with who resolved it and when. |
 
+## Profiles and the notice board
+
+| Table | Purpose |
+| --- | --- |
+| `profiles` (added columns) | `nickname`, `contact` and `profile_completed_at`. Everyone in the organization can see a colleague's name, roles and contact number. `profile_completed_at` is empty until the person fills in their profile at their first sign-in. |
+| `profile_private` | One row per person with `address` and `secondary_contact`. Only the person themselves and admins can read it; only admins can write it directly. |
+| `notices` | A notice from an admin to everyone: `title`, `body`, `is_urgent` and `expires_at`. An empty `expires_at` means "until deleted". Row level security stops showing a notice to the team the moment it expires; admins still see it until they delete it. |
+
+A person changes their own profile through the function `update_my_profile`, which touches only the name, nickname, contact, address and secondary contact, so it cannot be used to change roles or access.
+
 ## Password requests
 
 | Table | Purpose |

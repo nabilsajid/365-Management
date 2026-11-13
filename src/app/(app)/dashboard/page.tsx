@@ -24,6 +24,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { CashflowChart } from '@/components/dashboard/cashflow-chart';
 import { CountUp } from '@/components/dashboard/count-up';
 import { PointsTile } from '@/components/dashboard/points-tile';
+import { NoticeList } from '@/components/notice-list';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -149,6 +150,22 @@ export default async function DashboardPage() {
           {profile.job_title ?? 'No role yet'} · {monthLabel(data.month)}
         </p>
       </div>
+
+      {data.notices.length > 0 ? (
+        <Card>
+          <CardHeader
+            title="Notice board"
+            description="Emergency information and updates from the admins."
+            action={<Link href="/notices">{isAdmin ? 'Manage' : 'View all'}</Link>}
+          />
+          <CardContent>
+            <NoticeList
+              now={new Date()}
+              notices={data.notices.map((notice) => ({ ...notice, posted: shortDate(localDate(notice.created_at)) }))}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {data.broadcasts.length > 0 ? (
         <Card className="border-warning">

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown, ChevronRight, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, CircleUserRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -247,7 +247,16 @@ function UserMenu({ name, jobTitle, isAdmin }: { name: string; jobTitle: string 
               {isAdmin ? ' · Full access' : ''}
             </p>
           </div>
-          <form action="/auth/signout" method="post" className="pt-1.5">
+          <Link
+            href="/profile"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="mt-1.5 flex w-full items-center gap-2 rounded-control px-2.5 py-2 text-left text-[13px] text-ink no-underline transition-colors hover:bg-subtle hover:no-underline"
+          >
+            <CircleUserRound size={15} aria-hidden />
+            My profile
+          </Link>
+          <form action="/auth/signout" method="post">
             <button
               type="submit"
               role="menuitem"
