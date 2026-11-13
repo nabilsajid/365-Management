@@ -47,12 +47,18 @@ test('a notice needs a title and a known duration', () => {
   assert.ok(!noticeCreate.safeParse({ title: 'Office closed' }).success);
 });
 
-test('a profile needs a name and a real contact number', () => {
-  const full = { full_name: 'Rafi Ahmed', nickname: 'Rafi', contact: '+880 1700-000001', address: 'Dhaka', secondary_contact: null };
+test('a profile needs a name and a Bangladeshi mobile number', () => {
+  const full = { full_name: 'Rafi Ahmed', nickname: 'Rafi', contact: '01700000001', address: 'Dhaka', secondary_contact: null };
   assert.ok(profileUpdate.safeParse(full).success);
   assert.ok(profileUpdate.safeParse({ full_name: 'Rafi Ahmed', contact: '01700000001' }).success);
+  assert.equal(profileUpdate.parse({ ...full, contact: '017 0000-0001' }).contact, '01700000001');
   assert.ok(!profileUpdate.safeParse({ ...full, full_name: '' }).success);
   assert.ok(!profileUpdate.safeParse({ ...full, contact: null }).success);
   assert.ok(!profileUpdate.safeParse({ ...full, contact: 'call me' }).success);
-  assert.ok(!profileUpdate.safeParse({ ...full, secondary_contact: 'abc' }).success);
+  assert.ok(!profileUpdate.safeParse({ ...full, contact: '0170000000' }).success, '10 digits');
+  assert.ok(!profileUpdate.safeParse({ ...full, contact: '017000000012' }).success, '12 digits');
+  assert.ok(!profileUpdate.safeParse({ ...full, contact: '02700000001' }).success, 'does not start with 01');
+  assert.ok(!profileUpdate.safeParse({ ...full, contact: '+8801700000001' }).success);
+  assert.ok(!profileUpdate.safeParse({ ...full, secondary_contact: '12345' }).success);
+  assert.ok(profileUpdate.safeParse({ ...full, secondary_contact: '01800000002' }).success);
 });

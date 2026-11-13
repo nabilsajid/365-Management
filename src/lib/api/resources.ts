@@ -78,6 +78,8 @@ export const expenses: ResourceConfig = {
   filters: ['category', 'account_id', 'fixed_expense_id'],
   orderBy: { column: 'expense_date', ascending: false },
   onCreate: (ctx) => ({ created_by: ctx.userId }),
+  // Only an admin chooses who travelled. A trip anyone else records is their own.
+  onPropose: (ctx, data) => (data.category === 'transport' ? { traveler_id: ctx.userId } : {}),
 };
 
 export const accounts: ResourceConfig = {

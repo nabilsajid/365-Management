@@ -127,10 +127,12 @@ export const broadcastUpdate = z.object({ status: z.enum(['open', 'resolved']) }
 
 // --- Personal profiles and the notice board ------------------------------------
 
+// A Bangladeshi mobile number: starts with 01 and has 11 digits. Spaces and dashes are dropped.
+export const BD_PHONE = /^01\d{9}$/;
 const phone = z
   .string()
-  .trim()
-  .regex(/^\+?\d[\d\s-]{5,18}$/, 'Enter a phone number, for example 01700000000.');
+  .transform((value) => value.replace(/[\s-]/g, ''))
+  .pipe(z.string().regex(BD_PHONE, 'Enter a valid mobile number: 11 digits starting with 01, for example 01700000000.'));
 
 // The same fields whether a person fills in their own profile or an admin edits it.
 export const profileUpdate = z.object({
@@ -234,10 +236,7 @@ export const expenseUpdate = expenseFields.partial();
 const roleIds = z.array(id).min(1, 'Choose at least one role.').max(20);
 
 const loginPassword = z.string().min(6, 'Use at least 6 characters.').max(72, 'Use at most 72 characters.');
-const phoneNumber = z
-  .string()
-  .trim()
-  .regex(/^\+?\d[\d\s-]{5,18}$/, 'Enter a phone number, for example 01700000000.');
+const phoneNumber = phone;
 
 // An admin adds a person with the email they will sign in with. Leaving the
 // password empty has the server choose one.

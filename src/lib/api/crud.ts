@@ -48,6 +48,8 @@ export interface ResourceConfig {
   /** Extra columns set by the server on create or update (who did it, when). */
   onCreate?: (ctx: ApiContext, data: Row) => Row;
   onUpdate?: (ctx: ApiContext, data: Row) => Row;
+  /** Values the server fixes on a proposed new record before it is stored for approval. */
+  onPropose?: (ctx: ApiContext, data: Row) => Row;
 }
 
 const isAdmin = (ctx: ApiContext) => ctx.profile.access_role === 'admin';
@@ -168,7 +170,7 @@ export function makeCrud(getContext: ContextProvider) {
       if (body.response) return body.response;
 
       if (mode === 'propose') {
-        const input = body.data as Row;
+        const input: Row = { ...(body.data as Row), ...(config.onPropose ? config.onPropose(ctx, body.data as Row) : {}) };
         return proposeChange(ctx, request, input, summarize('Add', config.label ?? config.table, describeRecord(input), input));
       }
 

@@ -2,10 +2,10 @@ import { ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { money } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, options, peopleOptions, rowsOf } from '@/lib/page';
-import type { Account, Client, Equipment, EquipmentNeed, Expense, FixedExpense, Profile, Project } from '@/types/database';
+import type { Client, Equipment, EquipmentNeed, Expense, FixedExpense, Profile, Project } from '@/types/database';
 
 export default async function LogisticsPage() {
-  const { supabase, orgId, isAdmin, can, localDate } = await getPageContext();
+  const { supabase, orgId, userId, isAdmin, can, localDate } = await getPageContext();
   const seesInventory = can('equipment');
   const seesCosts = can('costs');
   // Admins change things directly; other roles with access propose changes for approval.
@@ -14,12 +14,11 @@ export default async function LogisticsPage() {
   // Row level security narrows every query to what the viewer's roles allow:
   // without the equipment segment only the items they hold come back, and
   // without the costs segment the cost tables come back empty.
-  const [equipmentResult, peopleResult, fixedResult, tripsResult, accountsResult, needsResult, projectsResult, clientsResult, purposeProbe] = await Promise.all([
+  const [equipmentResult, peopleResult, fixedResult, tripsResult, needsResult, projectsResult, clientsResult, purposeProbe] = await Promise.all([
     supabase.from('equipment').select('*').eq('org_id', orgId).order('name'),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('fixed_expenses').select('*').eq('org_id', orgId).order('name'),
     supabase.from('expenses').select('*').eq('org_id', orgId).eq('category', 'transport').order('expense_date', { ascending: false }),
-    supabase.from('accounts').select('*').eq('org_id', orgId).order('name'),
     supabase.from('equipment_needs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
     supabase.from('projects').select('id, name, status').eq('org_id', orgId).order('name'),
     supabase.from('clients').select('id, name').eq('org_id', orgId).order('name'),
@@ -35,7 +34,6 @@ export default async function LogisticsPage() {
   const people = rowsOf<Profile>(peopleResult.data);
   const fixed = rowsOf<FixedExpense>(fixedResult.data);
   const trips = rowsOf<Expense>(tripsResult.data);
-  const accounts = rowsOf<Account>(accountsResult.data);
   const needs = rowsOf<EquipmentNeed>(needsResult.data);
   const person = new Map(people.map((profile) => [profile.id, profile]));
   const staff = peopleOptions(people);
@@ -228,15 +226,15 @@ export default async function LogisticsPage() {
             ]}
             fields={[
               { name: 'description', label: 'Trip', required: true, placeholder: 'Client shoot' },
-              { name: 'traveler_id', label: 'Traveller', type: 'select', options: staff },
+              // Only an admin chooses who travelled; for everyone else the trip is their own.
+              ...(isAdmin ? [{ name: 'traveler_id', label: 'Traveller', type: 'select' as const, options: staff }] : []),
               ...purposeFields,
               { name: 'expense_date', label: 'Date', type: 'date', required: true },
               { name: 'trip_origin', label: 'From', required: true },
               { name: 'trip_destination', label: 'To', required: true },
               { name: 'amount', label: 'Cost', type: 'number', required: true },
-              { name: 'account_id', label: 'Paid from', type: 'select', options: options(accounts, (account) => account.name) },
             ]}
-            fixedValues={{ category: 'transport' }}
+            fixedValues={isAdmin ? { category: 'transport' } : { category: 'transport', traveler_id: userId }}
             canWrite={isAdmin || seesCosts}
             needsApproval={needsApproval}
             addLabel="Add trip"
