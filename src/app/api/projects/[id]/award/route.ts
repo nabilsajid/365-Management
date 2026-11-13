@@ -24,9 +24,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const found = await ctx.supabase.from('projects').select('id, name, status, points_awarded_at').eq('id', id).eq('org_id', orgId).maybeSingle();
   if (found.error) return fromDbError(found.error);
-  if (!found.data) return fail(404, 'Not found.');
-  if (found.data.status !== 'completed') return fail(409, 'Points are given once the project is marked completed.');
-  if (found.data.points_awarded_at) return fail(409, 'Points were already given for this project.');
+  const project = found.data as { name: string; status: string; points_awarded_at: string | null } | null;
+  if (!project) return fail(404, 'Not found.');
+  if (project.status !== 'completed') return fail(409, 'Points are given once the project is marked completed.');
+  if (project.points_awarded_at) return fail(409, 'Points were already given for this project.');
+  const reason = `Project completed: ${project.name}`;
 
   const month = monthStart(new Date(), await getOrgTimezone(ctx.supabase, orgId));
   const rows = body.data.awards
@@ -37,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       period_month: month,
       points: award.points,
       source: 'adjustment',
-      reason: `Project completed: ${found.data.name}`,
+      reason,
       created_by: ctx.userId,
     }));
   if (rows.length > 0) {
