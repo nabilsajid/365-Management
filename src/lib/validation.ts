@@ -199,6 +199,10 @@ const expenseFields = z.object({
   trip_origin: optionalText,
   trip_destination: optionalText,
   traveler_id: id.nullish(),
+  // What a trip was for: a project, a client, or a purpose typed in by hand.
+  project_id: id.nullish(),
+  client_id: id.nullish(),
+  purpose: z.string().trim().max(200).nullish(),
 });
 
 export const expenseCreate = expenseFields.superRefine((value, ctx) => {
@@ -229,16 +233,31 @@ export const expenseUpdate = expenseFields.partial();
 // Access is not an input: it follows the roles a person holds.
 const roleIds = z.array(id).min(1, 'Choose at least one role.').max(20);
 
-export const employeeInvite = z.object({
-  email: z.string().trim().email(),
+const loginPassword = z.string().min(6, 'Use at least 6 characters.').max(72, 'Use at most 72 characters.');
+const phoneNumber = z
+  .string()
+  .trim()
+  .regex(/^\+?\d[\d\s-]{5,18}$/, 'Enter a phone number, for example 01700000000.');
+
+// An admin adds a person with the email they will sign in with. Leaving the
+// password empty has the server choose one.
+export const employeeCreate = z.object({
+  email: z.string().trim().toLowerCase().email(),
   full_name: text,
   role_ids: roleIds,
+  password: loginPassword.nullish(),
 });
+// An admin can change anything about a person. `is_active: false` suspends them: they cannot sign in.
 export const employeeUpdate = z
   .object({
     full_name: text,
     role_ids: roleIds,
     is_active: z.boolean(),
+    email: z.string().trim().toLowerCase().email().nullable(),
+    nickname: z.string().trim().max(60).nullable(),
+    contact: phoneNumber.nullable(),
+    secondary_contact: phoneNumber.nullable(),
+    address: z.string().trim().max(300).nullable(),
   })
   .partial();
 

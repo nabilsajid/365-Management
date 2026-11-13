@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SEGMENT_KEYS, canSee, segmentLabel, segmentsFromRoles } from '../../src/lib/domain/roles';
 import { navFor } from '../../src/components/shell/nav';
-import { employeeInvite, employeeUpdate, roleCreate, roleUpdate } from '../../src/lib/validation';
+import { employeeCreate, employeeUpdate, roleCreate, roleUpdate } from '../../src/lib/validation';
 
 const UUID = '11111111-1111-1111-1111-111111111111';
 
@@ -53,9 +53,9 @@ test('a role needs a name and only known segments', () => {
 
 test('people are given one or more roles by id', () => {
   const base = { email: 'rafi@example.com', full_name: 'Rafi' };
-  assert.equal(employeeInvite.safeParse({ ...base, role_ids: [UUID, UUID.replace(/1/g, '2')] }).success, true);
-  assert.equal(employeeInvite.safeParse({ ...base, role_ids: [] }).success, false);
-  assert.equal(employeeInvite.safeParse(base).success, false);
+  assert.equal(employeeCreate.safeParse({ ...base, role_ids: [UUID, UUID.replace(/1/g, '2')] }).success, true);
+  assert.equal(employeeCreate.safeParse({ ...base, role_ids: [] }).success, false);
+  assert.equal(employeeCreate.safeParse(base).success, false);
   assert.equal(employeeUpdate.safeParse({ role_ids: ['not-an-id'] }).success, false);
   assert.ok(!('access_role' in employeeUpdate.parse({ full_name: 'Rafi', access_role: 'admin' })));
 });

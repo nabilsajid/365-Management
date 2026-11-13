@@ -629,5 +629,20 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok - an employee cannot write login details';
 end $$;
 
+-- A trip records what it was for.
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into expenses (org_id, category, description, amount, trip_origin, trip_destination, purpose)
+values ('00000000-0000-0000-0000-000000000001', 'transport', 'Client shoot', 500, 'Office', 'Gulshan', 'New client meeting');
+select pg_temp.check(
+  (select count(*) = 1 from expenses where purpose = 'New client meeting' and project_id is null and client_id is null),
+  'a trip can carry a purpose typed in by hand');
+
+-- Deleting a person removes their account and their own records, and nothing blocks it.
+reset role;
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check(
+  (select count(*) = 0 from profiles where id = '00000000-0000-0000-0000-0000000000e1'),
+  'an employee can be deleted together with their records');
+
 reset role;
 rollback;

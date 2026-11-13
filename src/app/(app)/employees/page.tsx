@@ -108,6 +108,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
       ...profile,
       role_ids: ids,
       role_names: roleTags(ids.map((id) => roleName.get(id)), roleColor),
+      standing: profile.is_active ? 'active' : 'suspended',
     };
   });
   const personFields: Field[] = [
@@ -353,19 +354,22 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
       {tab === 'team' ? (
         <ResourceManager
           title="Team"
-          description={isAdmin ? 'Edit a person to change their roles; create or change the roles themselves under Roles & Access. Adding someone sends them an email invitation.' : undefined}
+          description={isAdmin ? 'Add, edit, suspend or delete people here. Contact details and passwords are under Profiles & Contacts; roles themselves under Roles & Access.' : undefined}
           endpoint="/api/employees"
           rows={asRows(peopleRows)}
           columns={[
             { key: 'full_name', label: 'Name' },
             { key: 'role_names', label: 'Roles', kind: 'tags' },
-            { key: 'is_active', label: 'Active', kind: 'bool' },
+            { key: 'standing', label: 'Status', kind: 'label' },
           ]}
-          fields={[{ name: 'email', label: 'Email', type: 'email', required: true }, ...personFields]}
-          editFields={[...personFields, { name: 'is_active', label: 'Active', type: 'checkbox' }]}
+          fields={[
+            { name: 'email', label: 'Login email', type: 'email', required: true },
+            ...personFields,
+            { name: 'password', label: 'Password', hint: 'Optional. Leave empty and one is chosen for you; find it under Profiles & Contacts, Login details.' },
+          ]}
+          editFields={[...personFields, { name: 'is_active', label: 'Allowed to sign in (untick to suspend)', type: 'checkbox' }]}
           canWrite={isAdmin}
-          allowDelete={false}
-          addLabel="Invite employee"
+          addLabel="Add employee"
         />
       ) : null}
 

@@ -37,7 +37,7 @@ Equipment is never assigned to projects or tasks. There is no link between them.
 | `equipment_needs` | Things the studio urgently needs to get: `item_name`, `quantity`, `note`, `status` (`needed` or `acquired`), `requested_by`. |
 | `fixed_expenses` | Recurring monthly costs: `name`, `kind` (`rent`, `utilities`, `other`), `monthly_amount`, `is_active`. |
 
-Transport expenses are rows in `expenses` with category `transport`, one per trip, with `trip_origin`, `trip_destination` and an optional `traveler_id`.
+Transport expenses are rows in `expenses` with category `transport`, one per trip, with `trip_origin`, `trip_destination` and an optional `traveler_id`. What the trip was for is recorded as a `project_id`, a `client_id`, or a `purpose` typed in by hand.
 
 ## 3. Cash Flow & Invoices
 

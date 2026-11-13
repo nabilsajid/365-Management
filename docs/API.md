@@ -24,7 +24,7 @@ All routes are under `/api`, need a signed-in user, and exchange JSON.
 | --- | --- | --- | --- |
 | `/equipment`, `/equipment/[id]` | Member | Admin | `purchase_price` is optional. Set `current_holder_id` to record who holds an item. Filters: `status`, `current_holder_id`. |
 | `/fixed-expenses`, `/fixed-expenses/[id]` | `costs` or `cashflow` | Admin | |
-| `/expenses?category=transport` | `costs` or `cashflow` | Admin | Transport trips are expenses with `trip_origin` and `trip_destination`. |
+| `/expenses?category=transport` | `costs` or `cashflow` | Admin | Transport trips are expenses with `trip_origin` and `trip_destination`, and what the trip was for: `project_id`, `client_id` or a free-text `purpose`. |
 
 ## 3. Cash Flow & Invoices
 
@@ -40,8 +40,8 @@ All routes are under `/api`, need a signed-in user, and exchange JSON.
 | Route | Read | Write | Notes |
 | --- | --- | --- | --- |
 | `/roles`, `/roles/[id]` | Member | Admin | `{ name, description?, color?, permissions[] }`. The Admin role cannot be deleted. |
-| `/employees` | Member | Admin | `POST` `{ email, full_name, role_ids[] }` invites a new person with one or more roles. Needs the service-role key. |
-| `/employees/[id]` | Member | Admin | `GET` and `PATCH` only. `PATCH` `{ full_name?, role_ids?, is_active? }`; `role_ids` replaces the person's roles. |
+| `/employees` | Member | Admin | `POST` `{ email, full_name, role_ids[], password? }` creates the person's account straight away (no email is sent); an empty password has the server choose one. Needs the service-role key. |
+| `/employees/[id]` | Member | Admin | `PATCH` `{ full_name?, email?, nickname?, contact?, secondary_contact?, address?, role_ids?, is_active? }`; `role_ids` replaces the person's roles and `is_active: false` suspends them. `DELETE` removes the account and the person's own records for good. |
 | `/attendance` | Own (admin: all) | Member | `POST` `{ work_date }` marks your own day as pending. Admins may pass `employee_id` and `status`. |
 | `/attendance/[id]` | Own (admin: all) | Admin | `PATCH` `{ status: "verified" }` verifies the day and awards the points. |
 | `/points` | Own (admin: all) | Admin | Point entries. `POST` records a violation or adjustment: `{ source, employee_id, reason, violation_type_id?, points?, month? }`. Filters: `employee_id`, `period_month`, `source`. |

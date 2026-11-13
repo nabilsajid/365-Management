@@ -2,7 +2,7 @@ import { ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { money } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, options, peopleOptions, rowsOf } from '@/lib/page';
-import type { Account, Equipment, EquipmentNeed, Expense, FixedExpense, Profile } from '@/types/database';
+import type { Account, Client, Equipment, EquipmentNeed, Expense, FixedExpense, Profile, Project } from '@/types/database';
 
 export default async function LogisticsPage() {
   const { supabase, orgId, isAdmin, can, localDate } = await getPageContext();
@@ -14,14 +14,23 @@ export default async function LogisticsPage() {
   // Row level security narrows every query to what the viewer's roles allow:
   // without the equipment segment only the items they hold come back, and
   // without the costs segment the cost tables come back empty.
-  const [equipmentResult, peopleResult, fixedResult, tripsResult, accountsResult, needsResult] = await Promise.all([
+  const [equipmentResult, peopleResult, fixedResult, tripsResult, accountsResult, needsResult, projectsResult, clientsResult, purposeProbe] = await Promise.all([
     supabase.from('equipment').select('*').eq('org_id', orgId).order('name'),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('fixed_expenses').select('*').eq('org_id', orgId).order('name'),
     supabase.from('expenses').select('*').eq('org_id', orgId).eq('category', 'transport').order('expense_date', { ascending: false }),
     supabase.from('accounts').select('*').eq('org_id', orgId).order('name'),
     supabase.from('equipment_needs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
+    supabase.from('projects').select('id, name, status').eq('org_id', orgId).order('name'),
+    supabase.from('clients').select('id, name').eq('org_id', orgId).order('name'),
+    // The trip purpose columns arrive with a database update; until then the form leaves them out.
+    supabase.from('expenses').select('project_id').limit(1),
   ]);
+  const projects = rowsOf<Pick<Project, 'id' | 'name' | 'status'>>(projectsResult.data);
+  const clients = rowsOf<Pick<Client, 'id' | 'name'>>(clientsResult.data);
+  const hasTripPurpose = !purposeProbe.error;
+  const projectName = new Map(projects.map((project) => [project.id, project.name]));
+  const clientName = new Map(clients.map((client) => [client.id, client.name]));
   const equipment = rowsOf<Equipment>(equipmentResult.data);
   const people = rowsOf<Profile>(peopleResult.data);
   const fixed = rowsOf<FixedExpense>(fixedResult.data);
@@ -51,7 +60,23 @@ export default async function LogisticsPage() {
   const tripRows = trips.map((trip) => ({
     ...trip,
     traveler_name: trip.traveler_id ? (person.get(trip.traveler_id)?.full_name ?? '—') : null,
+    // What the trip was for: the project, the client, and anything typed in by hand.
+    travelling_for:
+      [
+        trip.project_id ? `Project: ${projectName.get(trip.project_id) ?? '—'}` : null,
+        trip.client_id ? `Client: ${clientName.get(trip.client_id) ?? '—'}` : null,
+        trip.purpose || null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || null,
   }));
+  const purposeFields: Field[] = hasTripPurpose
+    ? [
+        { name: 'project_id', label: 'For project', type: 'select', options: options(projects, (project) => project.name), hint: 'Choose an existing project, if the trip is for one.' },
+        { name: 'client_id', label: 'For client', type: 'select', options: options(clients, (client) => client.name), hint: 'Choose an existing client, if the trip is for one.' },
+        { name: 'purpose', label: 'Other purpose', placeholder: 'New client meeting, location visit…', hint: 'Type it here when it is not for a listed project or client.' },
+      ]
+    : [];
 
   const equipmentFields: Field[] = [
     { name: 'name', label: 'Name', required: true },
@@ -194,19 +219,21 @@ export default async function LogisticsPage() {
             rows={asRows(tripRows)}
             columns={[
               { key: 'expense_date', label: 'Date' },
-              { key: 'description', label: 'Purpose' },
+              { key: 'description', label: 'Trip' },
+              { key: 'travelling_for', label: 'Travelling for' },
               { key: 'trip_origin', label: 'From' },
               { key: 'trip_destination', label: 'To' },
               { key: 'traveler_name', label: 'Traveller' },
               { key: 'amount', label: 'Cost', kind: 'money' },
             ]}
             fields={[
-              { name: 'description', label: 'Purpose', required: true, placeholder: 'Client shoot' },
+              { name: 'description', label: 'Trip', required: true, placeholder: 'Client shoot' },
+              { name: 'traveler_id', label: 'Traveller', type: 'select', options: staff },
+              ...purposeFields,
               { name: 'expense_date', label: 'Date', type: 'date', required: true },
               { name: 'trip_origin', label: 'From', required: true },
               { name: 'trip_destination', label: 'To', required: true },
               { name: 'amount', label: 'Cost', type: 'number', required: true },
-              { name: 'traveler_id', label: 'Traveller', type: 'select', options: staff },
               { name: 'account_id', label: 'Paid from', type: 'select', options: options(accounts, (account) => account.name) },
             ]}
             fixedValues={{ category: 'transport' }}

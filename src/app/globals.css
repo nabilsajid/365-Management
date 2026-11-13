@@ -3,25 +3,26 @@
 /* Design tokens. Tailwind turns each --color-* into utilities such as
    bg-primary, text-muted and border-line. */
 @theme {
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-strong: #1d4ed8;
-  --color-primary-soft: #eff6ff;
+  /* Light mode is neutral charcoal on soft grey: no blue. */
+  --color-primary: #2b2b2b;
+  --color-primary-hover: #111111;
+  --color-primary-strong: #171717;
+  --color-primary-soft: #ececec;
   --color-on-primary: #ffffff;
-  --color-sidebar: #0f172a;
-  --color-sidebar-hover: #1e293b;
-  --color-sidebar-line: #0f172a;
-  --color-sidebar-text: #cbd5e1;
-  --color-sidebar-muted: #94a3b8;
-  --color-page: #f8fafc;
+  --color-sidebar: #1c1c1c;
+  --color-sidebar-hover: #2e2e2e;
+  --color-sidebar-line: #1c1c1c;
+  --color-sidebar-text: #d4d4d4;
+  --color-sidebar-muted: #9a9a9a;
+  --color-page: #f6f6f5;
   --color-card: #ffffff;
-  --color-subtle: #f1f5f9;
-  --color-hover: #f8fafc;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
-  --color-line: #e2e8f0;
-  --color-line-strong: #cbd5e1;
-  --color-chart-muted: #94a3b8;
+  --color-subtle: #f0f0ef;
+  --color-hover: #f7f7f6;
+  --color-ink: #171717;
+  --color-muted: #6b6b6b;
+  --color-line: #e4e4e2;
+  --color-line-strong: #cfcfcc;
+  --color-chart-muted: #a3a3a3;
   --color-success: #16a34a;
   --color-success-strong: #15803d;
   --color-success-soft: #f0fdf4;
@@ -110,9 +111,9 @@
     text-decoration: underline;
   }
 
-  /* In dark mode the accent is near-white, so links in content are underlined to stay recognisable. */
-  :root[data-theme='dark'] .panel a,
-  :root[data-theme='dark'] .page-header a {
+  /* The accent is charcoal (near-white in dark mode), so links in content are underlined to stay recognisable. */
+  .panel a,
+  .page-header a {
     text-decoration: underline;
     text-decoration-color: var(--color-line-strong);
     text-underline-offset: 3px;
@@ -512,6 +513,7 @@
     color: var(--color-warning-strong);
   }
 
+  .badge-suspended,
   .badge-rejected,
   .badge-denied,
   .badge-weak,

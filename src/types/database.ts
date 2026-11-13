@@ -200,6 +200,9 @@ export interface Expense {
   trip_origin: string | null;
   trip_destination: string | null;
   traveler_id: string | null;
+  project_id?: string | null;
+  client_id?: string | null;
+  purpose?: string | null;
   created_by: string | null;
   created_at: string;
 }
