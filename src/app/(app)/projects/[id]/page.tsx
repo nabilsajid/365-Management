@@ -208,6 +208,38 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         </dl>
       </section>
 
+      {mayEdit ? (
+        <details className="panel fold">
+          <summary>Edit project details and team</summary>
+          <ApiForm
+            endpoint={`/api/projects/${project.id}`}
+            method="PATCH"
+            submitLabel="Save project"
+            resetOnSuccess={false}
+            initial={{
+              name: project.name,
+              client_name: client?.name ?? null,
+              status: project.status,
+              start_date: project.start_date,
+              due_date: project.due_date,
+              brief: project.brief,
+              member_ids: team.map((profile) => profile.id),
+              file_links: links,
+            }}
+            fields={[
+              { name: 'name', label: 'Project name', required: true },
+              { name: 'client_name', label: 'Client', placeholder: 'Optional', hint: 'Type a name, or leave empty for an internal project.' },
+              { name: 'status', label: 'Status', type: 'select', required: true, options: enumOptions(['onboarding', 'active', 'completed', 'archived']) },
+              { name: 'start_date', label: 'Start date', type: 'date' },
+              { name: 'due_date', label: 'Due date', type: 'date' },
+              { name: 'brief', label: 'Project brief', type: 'textarea' },
+              { name: 'member_ids', label: 'Assigned employees', type: 'multiselect', options: peopleOptions(people), hint: 'Tick to add someone, untick to remove them. New people are notified.' },
+              { name: 'file_links', label: 'Links', type: 'links' },
+            ]}
+          />
+        </details>
+      ) : null}
+
       {typesReady && mayEdit ? (
         <section className="panel">
           <header className="panel-header">

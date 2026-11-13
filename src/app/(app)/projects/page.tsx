@@ -26,8 +26,9 @@ function shortDate(date: string): string {
 // Two ways to look at the same projects: a board of cards grouped by status
 // (the default), or the list, which is also where projects are edited.
 export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const view = (await searchParams).view === 'list' ? 'list' : 'board';
-  const { supabase, orgId, isAdmin, canEdit: canEditSegment, localDate } = await getPageContext();
+  const requestedView = (await searchParams).view;
+  const view = requestedView === 'list' ? 'list' : requestedView === 'clients' ? 'clients' : 'board';
+  const { supabase, orgId, isAdmin, can, canEdit: canEditSegment, localDate } = await getPageContext();
   const today = localDate(new Date().toISOString());
   // Everyone can look at projects and comment on them; changing them needs the projects role.
   const canEdit = canEditSegment('projects');
@@ -44,6 +45,9 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     supabase.from('project_members').select('*').eq('org_id', orgId),
   ]);
   const typesReady = !typesProbe.error;
+  // Clients are visible to roles that can view projects or cash flow.
+  const seesClients = can('projects') || can('cashflow');
+  const editsClients = canEditSegment('projects') || canEditSegment('cashflow');
   const needsApproval = !isAdmin && Boolean(directProbe.error);
   const clients = rowsOf<Client>(clientsResult.data);
   const projects = rowsOf<Project>(projectsResult.data);
@@ -108,7 +112,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         <div>
           <h1>Projects</h1>
           <p className="muted">
-            {view === 'board' ? 'Every project as a card, grouped by status. Open one to see its tasks.' : canEdit ? 'Every project in a table. Use Edit here to change a project.' : 'Every project in a table.'}
+            {view === 'clients' ? 'Everyone you work for, with their contact details.' : view === 'board' ? 'Every project as a card, grouped by status. Open one to see its tasks.' : canEdit ? 'Every project in a table. Use Edit here to change a project.' : 'Every project in a table.'}
           </p>
         </div>
       </div>
@@ -122,6 +126,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         <Link href="/projects?view=list" aria-current={view === 'list' ? 'page' : undefined}>
           List
         </Link>
+        {seesClients ? (
+          <Link href="/projects?view=clients" aria-current={view === 'clients' ? 'page' : undefined}>
+            Clients
+          </Link>
+        ) : null}
       </nav>
 
       {view === 'board' ? (
@@ -210,6 +219,34 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
             })}
           </div>
         )
+      ) : view === 'clients' ? (
+        <ResourceManager
+          title="Clients"
+          description="A client is also created when you type a new name on a project."
+          endpoint="/api/clients"
+          rows={asRows(clients.map((client) => ({ ...client, projects: projects.filter((project) => project.client_id === client.id).length })))}
+          columns={[
+            { key: 'name', label: 'Client' },
+            { key: 'contact_name', label: 'Contact person' },
+            { key: 'phone', label: 'Phone' },
+            { key: 'email', label: 'Email' },
+            { key: 'projects', label: 'Projects', kind: 'number' },
+            { key: 'notes', label: 'Notes' },
+          ]}
+          fields={[
+            { name: 'name', label: 'Client name', required: true },
+            { name: 'contact_name', label: 'Contact person' },
+            { name: 'phone', label: 'Phone' },
+            { name: 'email', label: 'Email', type: 'email' },
+            { name: 'notes', label: 'Notes', type: 'textarea' },
+          ]}
+          canWrite={editsClients}
+          needsApproval={!isAdmin}
+          allowDelete={isAdmin}
+          addLabel="Add client"
+          emptyText="No clients yet."
+          pageSize={25}
+        />
       ) : (
         <>
           <ResourceManager

@@ -24,6 +24,10 @@ export interface ApiContext {
   segments: ReadonlySet<string>;
   /** Segments the person may also edit. Left out means the same as `segments`. */
   editSegments?: ReadonlySet<string>;
+  /** True for a real admin, including one who is currently viewing the app as another role. */
+  realAdmin?: boolean;
+  /** Set while an admin is viewing the app as another role. */
+  preview?: { roleId: string; roleName: string };
 }
 
 export type ContextProvider = () => Promise<ApiContext | null>;

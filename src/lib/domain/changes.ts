@@ -103,7 +103,7 @@ const FIELD_LABEL: Record<string, string> = {
 
 const MONEY_KEYS = new Set(['amount', 'monthly_amount', 'purchase_price', 'total', 'opening_balance']);
 const WORD_KEYS = new Set(['category', 'status', 'kind', 'condition', 'source', 'method', 'review_status', 'shoot_status']);
-const HIDDEN_KEYS = new Set(['id', 'org_id', 'position', 'created_by']);
+const HIDDEN_KEYS = new Set(['id', 'org_id', 'position', 'created_by', 'created_at', 'updated_at', 'source_expense_id', 'for_task_id_old']);
 
 const words = (value: string) => {
   const text = value.replace(/_/g, ' ');

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { ResourceManager } from '@/components/resource-manager';
+import { RolePreviewPicker } from '@/components/role-preview';
 import type { Field } from '@/components/types';
 import { ROLE_COLORS, SEGMENTS, roleTags, segmentLabel } from '@/lib/domain/roles';
 import { asRows, getPageContext, options, rowsOf } from '@/lib/page';
@@ -122,6 +123,8 @@ export default async function RolesPage() {
         canWrite
         allowDelete={false}
       />
+
+      <RolePreviewPicker roles={roles.filter((role) => !role.is_admin).map((role) => ({ value: role.id, label: role.name }))} />
 
       <section className="panel">
         <header className="panel-header">

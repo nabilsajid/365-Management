@@ -8,7 +8,7 @@ import { getPageContext } from '@/lib/page';
 export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { supabase, orgId, userId, orgName, profile, isAdmin, segments } = await getPageContext();
+  const { supabase, orgId, userId, orgName, profile, isAdmin, segments, preview } = await getPageContext();
   // Counts for the sidebar badges. Row level security makes them personal:
   // admins get everything waiting for them, everyone else only their own.
   const [pendingChanges, openBroadcasts, pendingOther, unread] = await Promise.all([
@@ -48,6 +48,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       isAdmin={isAdmin}
       segments={[...segments]}
       badges={badges}
+      previewRole={preview?.roleName ?? null}
     >
       <div className="page-in">
         {needsProfile ? (

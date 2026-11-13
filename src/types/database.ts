@@ -256,6 +256,17 @@ export interface Broadcast {
   created_at: string;
 }
 
+export interface DeleteLogEntry {
+  id: string;
+  org_id: string;
+  table_name: string;
+  record_id: string | null;
+  label: string | null;
+  data: Record<string, unknown>;
+  deleted_by: string | null;
+  deleted_at: string;
+}
+
 export interface ProjectComment {
   id: string;
   org_id: string;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppInstall } from '@/components/app-install';
+import { RolePreviewBar } from '@/components/role-preview';
 import { cn } from '@/lib/utils';
 import { locate, navFor, type Viewer } from './nav';
 
@@ -280,6 +281,7 @@ export function AppShell({
   segments,
   notice,
   badges = {},
+  previewRole = null,
   children,
 }: {
   orgName: string;
@@ -290,6 +292,8 @@ export function AppShell({
   /** A message shown above every page, for example a pending database update. */
   notice?: string | null;
   badges?: Record<string, number>;
+  /** Set while an admin is viewing the app as another role. */
+  previewRole?: string | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -416,6 +420,7 @@ export function AppShell({
           <ThemeToggle />
           <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} />
         </header>
+        {previewRole ? <RolePreviewBar roleName={previewRole} /> : null}
         <main className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">
           {notice ? (
             <p role="alert" className="mb-5 rounded-card border border-warning bg-warning-soft px-4 py-3 text-[13px] text-warning-strong">

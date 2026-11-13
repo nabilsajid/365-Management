@@ -20,9 +20,11 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
   const userId = claims?.claims?.sub;
   if (!userId) return null;
 
-  const [profileResult, splitRoles] = await Promise.all([
+  const [profileResult, splitRoles, previewResult] = await Promise.all([
     supabase.from('profiles').select('*, organization:organizations(name, timezone)').eq('id', userId).maybeSingle(),
     supabase.from('profile_roles').select('roles(permissions, edit_permissions)').eq('profile_id', userId),
+    // Set while an admin is viewing the app as another role. Errors (before the database update) mean no preview.
+    supabase.from('role_previews').select('role_id, roles(name, permissions, edit_permissions)').eq('profile_id', userId).maybeSingle(),
   ]);
   // Until the view/edit database update has been run there is no edit column;
   // fall back to the old rule, where seeing a part also meant editing it.
@@ -39,7 +41,27 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
     (Array.isArray(row.roles) ? row.roles : row.roles ? [row.roles] : []) as { permissions: string[] | null; edit_permissions?: string[] | null }[],
   );
 
-  return { supabase, userId, profile, segments: segmentsFromRoles(held), editSegments: editSegmentsFromRoles(held) };
+  const realAdmin = profile.access_role === 'admin';
+  const previewRow = previewResult.data as { role_id: string; roles: unknown } | null;
+  const previewRole = (Array.isArray(previewRow?.roles) ? previewRow?.roles[0] : previewRow?.roles) as
+    | { name: string; permissions: string[] | null; edit_permissions?: string[] | null }
+    | undefined;
+
+  // Viewing as another role: the admin is treated everywhere as an employee
+  // holding only that role. The database applies the same rule to the data.
+  if (realAdmin && previewRow && previewRole) {
+    return {
+      supabase,
+      userId,
+      profile: { ...profile, access_role: 'employee', job_title: previewRole.name },
+      segments: segmentsFromRoles([previewRole]),
+      editSegments: editSegmentsFromRoles([previewRole]),
+      realAdmin,
+      preview: { roleId: previewRow.role_id, roleName: previewRole.name },
+    };
+  }
+
+  return { supabase, userId, profile, segments: segmentsFromRoles(held), editSegments: editSegmentsFromRoles(held), realAdmin };
 });
 
 export const crud = makeCrud(getApiContext);

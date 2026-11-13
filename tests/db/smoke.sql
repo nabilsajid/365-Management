@@ -768,6 +768,53 @@ update tasks set status = 'approved', points_value = 300 where id = '00000000-00
 delete from projects where id = '00000000-0000-0000-0000-00000000f0cc';
 select pg_temp.check((select count(*) = 0 from projects where id = '00000000-0000-0000-0000-00000000f0cc'), 'an admin deletes any project');
 
+-- Delete log.
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+delete from delete_log;
+insert into projects (id, org_id, name) values ('00000000-0000-0000-0000-00000000f0dd', '00000000-0000-0000-0000-000000000001', 'To be removed');
+insert into tasks (org_id, project_id, title) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0dd', 'Child one'),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0dd', 'Child two');
+delete from projects where id = '00000000-0000-0000-0000-00000000f0dd';
+select pg_temp.check(
+  (select count(*) = 1 and bool_and(table_name = 'projects' and label = 'To be removed' and deleted_by = auth.uid()) from delete_log),
+  'a delete is logged once, with what it was and who did it');
+reset role;
+update delete_log set deleted_at = now() - interval '4 days';
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check((select count(*) = 0 from delete_log), 'the log shows only the last 3 days');
+insert into notices (org_id, title) values ('00000000-0000-0000-0000-000000000001', 'Short lived');
+delete from notices where title = 'Short lived';
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from delete_log), 'employees cannot read the delete log');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check((select count(*) = 1 from delete_log), 'older entries are cleared out as new ones arrive');
+delete from delete_log;
+select pg_temp.check((select count(*) = 0 from delete_log), 'an admin can clear the log');
+
+-- Viewing the app as another role.
+do $$ begin
+  set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+  perform start_role_preview((select id from roles where name = 'Trainee' and org_id = '00000000-0000-0000-0000-000000000001'));
+  raise exception 'FAILED: an employee started a role preview';
+exception when insufficient_privilege then raise notice 'ok - only an admin can view the app as another role';
+end $$;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+do $$ begin
+  perform start_role_preview((select id from roles where is_admin and org_id = '00000000-0000-0000-0000-000000000001'));
+  raise exception 'FAILED: previewing the Admin role was accepted';
+exception when invalid_parameter_value then raise notice 'ok - the Admin role itself cannot be previewed';
+end $$;
+select start_role_preview((select id from roles where name = 'Trainee' and org_id = '00000000-0000-0000-0000-000000000001'));
+select pg_temp.check(not is_admin() and not has_segment('cashflow'), 'while viewing as a Trainee an admin is treated as one');
+select pg_temp.check((select count(*) = 0 from expenses) and (select count(*) = 0 from profile_private where profile_id <> auth.uid()), 'and sees only what a Trainee sees');
+select start_role_preview((select id from roles where name = 'Finance Manager' and org_id = '00000000-0000-0000-0000-000000000001'));
+select pg_temp.check(has_segment('cashflow') and not has_segment('equipment') and (select count(*) > 0 from expenses), 'switching role switches what is visible');
+select stop_role_preview();
+select pg_temp.check(is_admin() and (select count(*) > 0 from expenses), 'leaving the preview restores full access');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

@@ -1503,6 +1503,52 @@
     color: var(--color-on-primary);
   }
 
+  /* The bar shown while an admin is viewing the app as another role. */
+  .preview-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.55rem 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-line));
+    background: color-mix(in srgb, var(--color-warning) 14%, var(--color-card));
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+  }
+
+  .preview-bar span {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .preview-bar button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-control);
+    background: var(--color-ink);
+    color: var(--color-page);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  /* A panel that opens when its heading is clicked. */
+  .fold > summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style-position: inside;
+  }
+
+  .fold[open] > summary {
+    margin-bottom: 1rem;
+  }
+
   /* Project comments. */
   .comments {
     display: grid;

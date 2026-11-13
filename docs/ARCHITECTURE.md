@@ -169,3 +169,11 @@ Each role has two lists per part of the app: what it can view and what it can ed
 Roles with editing access to projects create and change projects and deliverables directly, without admin approval. Three things stay with admins and are enforced in the database as well as the API: deleting a project, approving a deliverable, and setting a deliverable's points (a project role asking for either of the last two has the change stored for approval). A deliverable can be assigned to anyone, whether or not they are on the project's team.
 
 Database triggers write a row to `notifications` when someone is put on a project's team or given a deliverable. The signed-in layout loads the unread ones and shows them in a pop-up (`AssignmentPopup`) until the person dismisses it or opens My Tasks; both mark them read through `POST /api/notifications/read`.
+
+## Delete log
+
+A database trigger on every main table records each deleted row in `delete_log` (what it was, the full row, who deleted it). Rows that go only because their parent was deleted, such as a project's deliverables, are not listed separately. Admins read the last 3 days on the Delete Log page and can clear it; entries older than 3 days are hidden and removed as new ones arrive.
+
+## View as a role
+
+On Roles & Access an admin can view the app as any other role. `start_role_preview` stores the choice in `role_previews`; while a row exists, `is_admin()`, `has_segment()` and `has_edit_segment()` answer for that role alone, so row level security returns exactly what the role would get, and `getApiContext` presents the admin to every page and API route as an employee holding only that role. A bar on every page leads back (`stop_role_preview`, which always works). Changes made while viewing are real.

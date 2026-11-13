@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  History,
   ContactRound,
   Pin,
   Inbox,
@@ -69,6 +70,7 @@ const GROUPS: NavGroup[] = [
       { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, adminOnly: true },
       { href: '/requests', label: 'My Requests', icon: Inbox, nonAdminOnly: true },
       { href: '/roles', label: 'Roles & Access', icon: ShieldCheck, adminOnly: true },
+      { href: '/delete-log', label: 'Delete Log', icon: History, adminOnly: true },
     ],
   },
 ];

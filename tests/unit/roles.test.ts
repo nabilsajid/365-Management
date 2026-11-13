@@ -40,7 +40,7 @@ test('the sidebar only lists what a person can open', () => {
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/approvals'));
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/roles'));
   assert.ok(!hrefs(true, []).includes('/requests'));
-  assert.deepEqual(hrefs(true, []), ['/dashboard', '/notices', '/broadcasts', '/projects', '/my-tasks', '/cashflow', '/logistics', '/employees', '/profile', '/approvals', '/roles']);
+  assert.deepEqual(hrefs(true, []), ['/dashboard', '/notices', '/broadcasts', '/projects', '/my-tasks', '/cashflow', '/logistics', '/employees', '/profile', '/approvals', '/roles', '/delete-log']);
 });
 
 test('a role needs a name and only known segments', () => {

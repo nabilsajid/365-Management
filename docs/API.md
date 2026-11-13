@@ -74,6 +74,14 @@ For every route whose Write column says Admin, a non-admin whose roles include t
 | `POST /employees/[id]/password` | Admin | `{ password }` sets a new password for that person (6 to 72 characters) and closes any pending request from them. Needs the service-role key. |
 | `POST /password-reset` | Anyone with a valid emailed link | `{ access_token, password }`. The last step of an admin's reset email; the token is checked with Supabase Auth and only works for admin accounts. |
 
+## Admin tools
+
+| Route | Who | Notes |
+| --- | --- | --- |
+| `GET /delete-log` | Admin | Everything deleted in the last 3 days. |
+| `DELETE /delete-log` | Admin | Clears the whole log. |
+| `POST /role-preview` | Admin | `{ role_id }` views the app as that role; `{ role_id: null }` goes back to admin. |
+
 ## Project comments
 
 | Route | Read | Write | Notes |
