@@ -1549,6 +1549,59 @@
     margin-bottom: 1rem;
   }
 
+  /* Save buttons: every form's save button is green with a soft glow. */
+  .panel .form button[type='submit'].primary {
+    border-color: var(--color-success);
+    background: var(--color-success);
+    color: #ffffff;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-success) 35%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-success) 55%, transparent);
+    animation: save-glow 2.4s ease-in-out infinite;
+  }
+
+  .panel .form button[type='submit'].primary:hover:not(:disabled) {
+    border-color: var(--color-success-strong);
+    background: color-mix(in srgb, var(--color-success) 88%, #000000);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-success) 50%, transparent),
+      0 0 22px color-mix(in srgb, var(--color-success) 75%, transparent);
+  }
+
+  .panel .form button[type='submit'].primary:disabled {
+    animation: none;
+    box-shadow: none;
+    opacity: 0.6;
+  }
+
+  /* The two values an admin copies into Vercel to set up device alerts. */
+  .alert-keys {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.8rem;
+  }
+
+  .alert-keys > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .alert-keys span {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .alert-keys code {
+    max-width: 100%;
+    padding: 0.15rem 0.45rem;
+    border-radius: 6px;
+    background: var(--color-subtle);
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+  }
+
   /* Project comments. */
   .comments {
     display: grid;
@@ -1622,6 +1675,14 @@
 @keyframes pulse {
   50% {
     opacity: 0.5;
+  }
+}
+
+@keyframes save-glow {
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-success) 45%, transparent),
+      0 0 24px color-mix(in srgb, var(--color-success) 80%, transparent);
   }
 }
 

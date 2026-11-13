@@ -56,7 +56,10 @@ export function AssignmentPopup({ items }: { items: NotificationItem[] }) {
             </li>
           ))}
         </ul>
-        <p className="muted">You can find everything assigned to you under My Tasks.</p>
+        <p className="muted">
+          You can find everything assigned to you under My Tasks. To get these as alerts on your phone or computer,
+          turn them on under Profiles &amp; Contacts → My profile.
+        </p>
         <div className="popup-actions">
           <button type="button" className="primary" disabled={busy} onClick={() => done('/my-tasks')}>
             Open My Tasks

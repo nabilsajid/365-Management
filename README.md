@@ -42,3 +42,6 @@ The login page also has an "Install the app" button. The installed app and the w
 
 It is the same site underneath, so it always shows live data and updates itself whenever a new version is deployed. It needs an internet connection; without one it shows an offline page. The pieces are `src/app/manifest.ts`, the icons in `public/icons`, `public/sw.js` and `public/offline.html`.
 
+## Device alerts (optional)
+
+To send assignment alerts to phones and computers, set `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. An admin can generate the pair under Profiles & Contacts, My profile, Alerts on this device.

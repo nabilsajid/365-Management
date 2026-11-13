@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { ApiForm, ResourceManager } from '@/components/resource-manager';
+import { DeviceAlerts } from '@/components/device-alerts';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { SetPassword } from '@/components/set-password';
 import type { Field } from '@/components/types';
 import { roleTags } from '@/lib/domain/roles';
 import { asRows, getPageContext, options, rowsOf } from '@/lib/page';
+import { pushConfigured } from '@/lib/server/push';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Profile, ProfilePrivate, ProfileRole, Role } from '@/types/database';
 
@@ -143,6 +145,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         />
       </section>
       ) : null}
+
+      {tab === 'me' ? <DeviceAlerts serverReady={pushConfigured()} isAdmin={isAdmin} /> : null}
 
       {tab === 'team' && isAdmin ? (
         <ResourceManager

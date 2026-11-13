@@ -177,3 +177,7 @@ A database trigger on every main table records each deleted row in `delete_log` 
 ## View as a role
 
 On Roles & Access an admin can view the app as any other role. `start_role_preview` stores the choice in `role_previews`; while a row exists, `is_admin()`, `has_segment()` and `has_edit_segment()` answer for that role alone, so row level security returns exactly what the role would get, and `getApiContext` presents the admin to every page and API route as an employee holding only that role. A bar on every page leads back (`stop_role_preview`, which always works). Changes made while viewing are real.
+
+## Alerts on the device
+
+People turn alerts on per device under Profiles & Contacts, My profile; the browser's push address is stored in `push_subscriptions`. After a request that can assign work (creating or changing a project or deliverable), the server sends each new notification's owner a push (`src/lib/server/push.ts`). The push carries no text: it wakes the service worker (`public/sw.js`), which asks `GET /api/notifications` what is new and shows it. Needs `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (generated once from that page by an admin) and the service-role key. On iPhone and iPad alerts work only in the installed app.

@@ -1,7 +1,9 @@
+import { after } from 'next/server';
 import { crud, requireWriter } from '@/lib/api/context';
 import { proposeChange, summarize } from '@/lib/api/crud';
 import { fromDbError, ok, readJson } from '@/lib/api/http';
 import { directProjectsReady, projects } from '@/lib/api/resources';
+import { dispatchPushes } from '@/lib/server/push';
 import { createProjectWithDeliverables } from '@/lib/services/projects';
 import { projectCreate } from '@/lib/validation';
 
@@ -26,5 +28,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await createProjectWithDeliverables(ctx.supabase, ctx.profile.org_id, body.data);
   if (result.error) return fromDbError(result.error);
+  // The team and assignees were notified; send the alerts to their devices once the reply is out.
+  after(dispatchPushes);
   return ok(result.data, 201);
 }

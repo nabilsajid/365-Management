@@ -1,7 +1,9 @@
+import { after } from 'next/server';
 import { crud, requireContext, requireWriter } from '@/lib/api/context';
 import { describeRecord, proposeChange, summarize } from '@/lib/api/crud';
 import { fail, fromDbError, ok, readJson } from '@/lib/api/http';
 import { directProjectsReady, projects } from '@/lib/api/resources';
+import { dispatchPushes } from '@/lib/server/push';
 import { resolveClient } from '@/lib/services/projects';
 import { projectUpdate } from '@/lib/validation';
 
@@ -64,6 +66,8 @@ export async function PATCH(request: Request, route: RouteParams): Promise<Respo
   if (memberIds !== undefined) {
     const team = await ctx.supabase.rpc('set_project_members', { p_project: id, p_members: memberIds });
     if (team.error) return fromDbError(team.error);
+    // Newly added people were notified; send the alerts to their devices once the reply is out.
+    after(dispatchPushes);
   }
 
   const { data, error } = await ctx.supabase.from('projects').select('*').eq('id', id).single();
