@@ -2,12 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent } from 'react';
-import { parseFileLinks } from '@/lib/domain/deliverables';
+import { TASK_KINDS, TASK_KIND_SINGLE, parseFileLinks } from '@/lib/domain/deliverables';
 import { toast } from './resource-manager';
 import type { Option } from './types';
 
 interface DeliverableDraft {
   key: number;
+  kind: string;
   title: string;
   description: string;
   links: string;
@@ -18,6 +19,7 @@ interface DeliverableDraft {
 
 const blank = (key: number): DeliverableDraft => ({
   key,
+  kind: 'video',
   title: `Video ${key}`,
   description: '',
   links: '',
@@ -27,7 +29,16 @@ const blank = (key: number): DeliverableDraft => ({
 });
 
 /** Add a project: details, links, the people assigned to it, and optional deliverables. */
-export function ProjectOnboardingForm({ people, needsApproval = false }: { people: Option[]; needsApproval?: boolean }) {
+export function ProjectOnboardingForm({
+  people,
+  needsApproval = false,
+  typesReady = false,
+}: {
+  people: Option[];
+  needsApproval?: boolean;
+  /** Whether deliverables can carry a type (after the database update). */
+  typesReady?: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -90,6 +101,7 @@ export function ProjectOnboardingForm({ people, needsApproval = false }: { peopl
         assignee_id: item.assignee_id || null,
         points_value: item.points_value ? Number(item.points_value) : null,
         due_date: item.due_date || null,
+        ...(typesReady ? { kind: item.kind } : {}),
       });
     }
 
@@ -226,6 +238,18 @@ export function ProjectOnboardingForm({ people, needsApproval = false }: { peopl
                 <span>Title *</span>
                 <input value={item.title} onChange={(event) => update(item.key, { title: event.target.value })} />
               </label>
+              {typesReady ? (
+                <label className="field">
+                  <span>Type</span>
+                  <select value={item.kind} onChange={(event) => update(item.key, { kind: event.target.value })}>
+                    {TASK_KINDS.map((kind) => (
+                      <option key={kind} value={kind}>
+                        {TASK_KIND_SINGLE[kind]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               <label className="field">
                 <span>Assignee</span>
                 <select value={item.assignee_id} onChange={(event) => update(item.key, { assignee_id: event.target.value })}>
@@ -253,7 +277,7 @@ export function ProjectOnboardingForm({ people, needsApproval = false }: { peopl
                 <input type="date" value={item.due_date} onChange={(event) => update(item.key, { due_date: event.target.value })} />
               </label>
               <label className="field wide">
-                <span>Description</span>
+                <span>Quick notes</span>
                 <textarea rows={2} value={item.description} onChange={(event) => update(item.key, { description: event.target.value })} />
               </label>
               <label className="field wide">
@@ -286,7 +310,7 @@ export function ProjectOnboardingForm({ people, needsApproval = false }: { peopl
             {busy ? 'Creating…' : 'Create project'}
           </button>
           <button type="button" onClick={addDeliverable} disabled={busy}>
-            Add a deliverable (Video 1, Video 2…)
+            Add a deliverable (shoot, video, thumbnail…)
           </button>
           <button type="button" onClick={() => setOpen(false)} disabled={busy}>
             Cancel

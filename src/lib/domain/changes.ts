@@ -80,6 +80,10 @@ const FIELD_LABEL: Record<string, string> = {
   account_id: 'Paid from',
   fixed_expense_id: 'Fixed cost',
   assignee_id: 'Assignee',
+  kind: 'Type',
+  for_task_id: 'Thumbnail for',
+  shoot_status: 'Shoot',
+  shoot_date: 'Shoot date',
   employee_id: 'Employee',
   current_holder_id: 'Held by',
   member_ids: 'Team',
@@ -98,7 +102,7 @@ const FIELD_LABEL: Record<string, string> = {
 };
 
 const MONEY_KEYS = new Set(['amount', 'monthly_amount', 'purchase_price', 'total', 'opening_balance']);
-const WORD_KEYS = new Set(['category', 'status', 'kind', 'condition', 'source', 'method', 'review_status']);
+const WORD_KEYS = new Set(['category', 'status', 'kind', 'condition', 'source', 'method', 'review_status', 'shoot_status']);
 const HIDDEN_KEYS = new Set(['id', 'org_id', 'position', 'created_by']);
 
 const words = (value: string) => {

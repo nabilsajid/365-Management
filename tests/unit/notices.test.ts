@@ -78,3 +78,21 @@ test('view access and editing access are separate', async () => {
   // Before the database update there is no edit list: seeing a part still means editing it.
   assert.ok(editSegmentsFromRoles([{ permissions: ['bonuses'] }]).has('bonuses'));
 });
+
+test('a video knows where its thumbnail stands', async () => {
+  const { buildDeliverableTasks, thumbnailState } = await import('../../src/lib/domain/deliverables');
+  const tasks = [
+    { id: 'v1', kind: 'video', status: 'todo' },
+    { id: 'v2', kind: 'video', status: 'todo' },
+    { id: 'v3', kind: 'video', status: 'todo' },
+    { id: 't1', kind: 'thumbnail', for_task_id: 'v1', status: 'approved' },
+    { id: 't2', kind: 'thumbnail', for_task_id: 'v2', status: 'in_progress' },
+  ];
+  assert.equal(thumbnailState('v1', tasks), 'approved');
+  assert.equal(thumbnailState('v2', tasks), 'in_progress');
+  assert.equal(thumbnailState('v3', tasks), 'missing');
+
+  const rows = buildDeliverableTasks('org', 'project', [{ title: 'Shoot', kind: 'shoot' }, { title: 'Old style' }]);
+  assert.equal(rows[0].kind, 'shoot');
+  assert.ok(!('kind' in rows[1]), 'no type is sent when none was chosen');
+});

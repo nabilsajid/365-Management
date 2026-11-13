@@ -98,6 +98,10 @@ A person changes their own profile through the function `update_my_profile`, whi
 
 `roles.permissions` lists the parts of the app a role can view; `roles.edit_permissions` lists the parts it can also edit (non-admin edits still wait for admin approval). Editing a part always includes viewing it; a trigger keeps the two lists consistent. `has_segment()` answers "can view" and `has_edit_segment()` answers "can edit". The Trainee role starts with neither.
 
+## Deliverable types and the shoot
+
+`tasks.kind` says what a deliverable is: `shoot`, `video`, `thumbnail`, `graphic` or `other`. A thumbnail's `for_task_id` points at the video it belongs to, so a project can show which videos still have none. `projects.shoot_status` is `none`, `waiting` (for the client to confirm) or `confirmed`, with `shoot_date` once known. A client's scope is simply the list of deliverables on the project; "Copy as new project" starts the next batch from the same list.
+
 ## Project comments
 
 | Table | Purpose |

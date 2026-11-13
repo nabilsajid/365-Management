@@ -1,4 +1,4 @@
-import { CalendarClock, Link2, ListChecks } from 'lucide-react';
+import { Camera, CalendarClock, Link2, ListChecks } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectOnboardingForm } from '@/components/project-onboarding-form';
 import { ResourceManager } from '@/components/resource-manager';
@@ -32,13 +32,16 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   // Everyone can look at projects and comment on them; changing them needs the projects role.
   const canEdit = canEditSegment('projects');
 
-  const [clientsResult, projectsResult, tasksResult, peopleResult, membersResult] = await Promise.all([
+  const [clientsResult, projectsResult, tasksResult, typesProbe, peopleResult, membersResult] = await Promise.all([
     supabase.from('clients').select('*').eq('org_id', orgId),
     supabase.from('projects').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
     supabase.from('tasks').select('id, project_id, status').eq('org_id', orgId),
+    // Deliverable types arrive with a database update; until then the form leaves them out.
+    supabase.from('tasks').select('kind').limit(1),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('project_members').select('*').eq('org_id', orgId),
   ]);
+  const typesReady = !typesProbe.error;
   const clients = rowsOf<Client>(clientsResult.data);
   const projects = rowsOf<Project>(projectsResult.data);
   const tasks = rowsOf<Pick<Task, 'id' | 'project_id' | 'status'>>(tasksResult.data);
@@ -66,12 +69,31 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     };
   });
 
+  // The shoot status arrives with a database update; until then the fields are left out.
+  const shootReady = projects.some((project) => 'shoot_status' in project);
+  const shootFields: Field[] = shootReady
+    ? [
+        {
+          name: 'shoot_status',
+          label: 'Shoot',
+          type: 'select',
+          options: [
+            { value: 'none', label: 'No shoot planned' },
+            { value: 'waiting', label: 'Waiting for client confirmation' },
+            { value: 'confirmed', label: 'Confirmed' },
+          ],
+        },
+        { name: 'shoot_date', label: 'Shoot date', type: 'date' },
+      ]
+    : [];
+
   const projectFields: Field[] = [
     { name: 'name', label: 'Project name', required: true },
     { name: 'client_name', label: 'Client', placeholder: 'Optional', hint: 'Type a name, or leave empty for an internal project.' },
     { name: 'status', label: 'Status', type: 'select', options: enumOptions(['onboarding', 'active', 'completed', 'archived']), required: true },
     { name: 'start_date', label: 'Start date', type: 'date' },
     { name: 'due_date', label: 'Due date', type: 'date' },
+    ...shootFields,
     { name: 'brief', label: 'Project brief', type: 'textarea' },
     { name: 'member_ids', label: 'Assigned employees', type: 'multiselect', options: staff },
     { name: 'file_links', label: 'Links', type: 'links' },
@@ -88,7 +110,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
-      {canEdit ? <ProjectOnboardingForm people={staff} needsApproval={!isAdmin} /> : null}
+      {canEdit ? <ProjectOnboardingForm people={staff} needsApproval={!isAdmin} typesReady={typesReady} /> : null}
 
       <nav className="tabs" aria-label="Project views">
         <Link href="/projects" aria-current={view === 'board' ? 'page' : undefined}>
@@ -150,6 +172,18 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                             {project.team.length === 0 ? <span className="project-meta">Nobody assigned</span> : null}
                           </span>
                           <span className="project-tags">
+                            {project.shoot_status === 'waiting' ? (
+                              <span className="badge badge-pending" title="The shoot date is waiting for the client to confirm">
+                                <Camera size={12} aria-hidden className="mr-1" />
+                                Awaiting shoot date
+                              </span>
+                            ) : null}
+                            {project.shoot_status === 'confirmed' ? (
+                              <span className="badge badge-approved" title="Shoot confirmed">
+                                <Camera size={12} aria-hidden className="mr-1" />
+                                {project.shoot_date ? `Shoot ${shortDate(project.shoot_date)}` : 'Shoot confirmed'}
+                              </span>
+                            ) : null}
                             {(project.file_links ?? []).length > 0 ? (
                               <span className="project-meta" title="Links attached">
                                 <Link2 size={13} aria-hidden />

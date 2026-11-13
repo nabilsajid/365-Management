@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { CopyProject } from '@/components/copy-project';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { label } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, peopleOptions, rowsOf } from '@/lib/page';
+import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, thumbnailState, type TaskKind } from '@/lib/domain/deliverables';
 import { titleTags } from '@/lib/domain/roles';
 import type { Client, Profile, Project, ProjectComment, ProjectMember, Role, Task } from '@/types/database';
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, orgId, userId, isAdmin, can, canEdit, localDateTime } = await getPageContext();
+  const { supabase, orgId, userId, isAdmin, canEdit, localDateTime } = await getPageContext();
 
   const projectResult = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const project = projectResult.data as Project | null;
@@ -38,25 +40,98 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const links = project.file_links ?? [];
   const roleColor = new Map(rowsOf<Pick<Role, 'name' | 'color'>>(rolesResult.data).map((role) => [role.name, role.color]));
 
+  // Deliverable types, thumbnail pairing and the shoot status arrive with a database update.
+  const typesReady = 'shoot_status' in project;
+  const mayEdit = canEdit('projects');
+  const titleOf = new Map(tasks.map((task) => [task.id, task.title]));
+  const videos = tasks.filter((task) => task.kind === 'video');
+
   const taskRows = tasks.map((task) => {
     const assignee = task.assignee_id ? person.get(task.assignee_id) : undefined;
     return {
       ...task,
+      kind: (task.kind ?? 'other') as TaskKind,
       assignee_name: assignee?.full_name ?? 'Unassigned',
       assignee_role: assignee?.job_title ?? null,
       href: `/tasks/${task.id}`,
+      // On a video: where its thumbnail stands. On a thumbnail: which video it is for.
+      thumbnail: task.kind === 'video' ? thumbnailState(task.id, tasks) : null,
+      for_video: task.for_task_id ? (titleOf.get(task.for_task_id) ?? '—') : null,
     };
   });
 
-  const taskFields: Field[] = [
+  const kindField: Field = {
+    name: 'kind',
+    label: 'Type',
+    type: 'select',
+    required: true,
+    options: TASK_KINDS.map((kind) => ({ value: kind, label: TASK_KIND_SINGLE[kind] })),
+  };
+  const forVideoField: Field = {
+    name: 'for_task_id',
+    label: 'Thumbnail for',
+    type: 'select',
+    options: videos.map((video) => ({ value: video.id, label: video.title })),
+    hint: 'The video this thumbnail belongs to.',
+  };
+  const baseFields: Field[] = [
     { name: 'title', label: 'Title', required: true, placeholder: 'Video 1' },
     { name: 'assignee_id', label: 'Assignee', type: 'select', options: peopleOptions(people) },
     { name: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'todo', options: enumOptions(['todo', 'in_progress', 'submitted', 'changes_requested', 'approved']) },
     { name: 'points_value', label: 'Points on approval', type: 'number', hint: 'Leave empty to use the organization default.' },
     { name: 'due_date', label: 'Due date', type: 'date' },
-    { name: 'description', label: 'Description', type: 'textarea' },
+    { name: 'description', label: 'Quick notes', type: 'textarea', placeholder: 'Longer than the rest, about 10 minutes.' },
     { name: 'file_links', label: 'File links', type: 'links' },
   ];
+  /** The form for one type of deliverable; thumbnails also choose their video. */
+  const fieldsFor = (kind: TaskKind | null, editing: boolean): Field[] => {
+    if (!typesReady) return baseFields;
+    const [title, ...rest] = baseFields;
+    return [
+      title,
+      ...(editing || kind === null ? [kindField] : []),
+      ...(kind === 'thumbnail' || kind === null ? [forVideoField] : []),
+      ...rest,
+    ];
+  };
+  const columnsFor = (kind: TaskKind | null) => [
+    { key: 'title', label: 'Task', kind: 'nav' as const, hrefKey: 'href' },
+    ...(kind === 'video' ? [{ key: 'thumbnail', label: 'Thumbnail', kind: 'label' as const }] : []),
+    ...(kind === 'thumbnail' ? [{ key: 'for_video', label: 'For video' }] : []),
+    { key: 'description', label: 'Notes' },
+    { key: 'assignee_name', label: 'Assignee' },
+    { key: 'status', label: 'Status', kind: 'label' as const },
+    { key: 'points_value', label: 'Points', kind: 'number' as const },
+    { key: 'due_date', label: 'Due' },
+    { key: 'file_links', label: 'Files', kind: 'links' as const },
+  ];
+  const groups = typesReady ? TASK_KINDS.filter((kind) => taskRows.some((task) => task.kind === kind)) : [];
+  const missingThumbnails = taskRows.filter((task) => task.thumbnail === 'missing').length;
+
+  const shootText =
+    project.shoot_status === 'waiting'
+      ? 'Waiting for the client to confirm'
+      : project.shoot_status === 'confirmed'
+        ? `Confirmed${project.shoot_date ? ` for ${project.shoot_date}` : ''}`
+        : 'No shoot planned';
+
+  // The next batch for the same client: same scope, no dates, links or progress.
+  const copyPayload = {
+    name: `${project.name} (copy)`,
+    client_name: client?.name ?? null,
+    brief: project.brief,
+    member_ids: team.map((profile) => profile.id),
+    deliverables: tasks.map((task) => ({
+      title: task.title,
+      description: task.description,
+      assignee_id: task.assignee_id,
+      points_value: task.points_value,
+      ...(typesReady ? { kind: task.kind ?? 'other' } : {}),
+      ...(task.for_task_id && tasks.some((other) => other.id === task.for_task_id)
+        ? { for_index: tasks.findIndex((other) => other.id === task.for_task_id) }
+        : {}),
+    })),
+  };
 
   return (
     <>
@@ -68,6 +143,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </p>
           <h1>{project.name}</h1>
         </div>
+        {mayEdit ? <CopyProject payload={copyPayload} /> : null}
       </div>
 
       <section className="panel">
@@ -105,6 +181,16 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </dd>
           <dt>Status</dt>
           <dd>{label(project.status)}</dd>
+          {typesReady ? (
+            <>
+              <dt>Shoot</dt>
+              <dd>
+                <span className={project.shoot_status === 'waiting' ? 'badge badge-pending' : project.shoot_status === 'confirmed' ? 'badge badge-approved' : 'badge'}>
+                  {shootText}
+                </span>
+              </dd>
+            </>
+          ) : null}
           <dt>Dates</dt>
           <dd>
             {project.start_date ?? '—'} to {project.due_date ?? '—'}
@@ -114,27 +200,99 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         </dl>
       </section>
 
-      <ResourceManager
-        title="Deliverables"
-        description={can('projects') ? 'One task per deliverable, each with its own description, file links and assignee.' : 'The deliverables in this project.'}
-        endpoint="/api/tasks"
-        rows={asRows(taskRows)}
-        columns={[
-          { key: 'title', label: 'Task', kind: 'nav', hrefKey: 'href' },
-          { key: 'assignee_name', label: 'Assignee' },
-          { key: 'assignee_role', label: 'Role' },
-          { key: 'status', label: 'Status', kind: 'label' },
-          { key: 'points_value', label: 'Points', kind: 'number' },
-          { key: 'due_date', label: 'Due' },
-          { key: 'file_links', label: 'Files', kind: 'links' },
-        ]}
-        fields={taskFields}
-        fixedValues={{ project_id: project.id, position: tasks.length }}
-        canWrite={canEdit('projects')}
-        needsApproval={!isAdmin}
-        addLabel="Add deliverable"
-        emptyText="No deliverables yet."
-      />
+      {typesReady && mayEdit ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>Shoot</h2>
+              <p className="muted">
+                No fixed date yet? Mark it as waiting, then set the date once the client confirms.
+                {isAdmin ? '' : ' Your change goes to an admin for approval.'}
+              </p>
+            </div>
+          </header>
+          <ApiForm
+            endpoint={`/api/projects/${project.id}`}
+            method="PATCH"
+            submitLabel="Save shoot"
+            resetOnSuccess={false}
+            initial={{ shoot_status: project.shoot_status ?? 'none', shoot_date: project.shoot_date ?? null }}
+            fields={[
+              {
+                name: 'shoot_status',
+                label: 'Shoot',
+                type: 'select',
+                required: true,
+                options: [
+                  { value: 'none', label: 'No shoot planned' },
+                  { value: 'waiting', label: 'Waiting for client confirmation' },
+                  { value: 'confirmed', label: 'Confirmed' },
+                ],
+              },
+              { name: 'shoot_date', label: 'Shoot date', type: 'date', hint: 'Fill in once confirmed.' },
+            ]}
+          />
+        </section>
+      ) : null}
+
+      {typesReady && missingThumbnails > 0 ? (
+        <p role="status" className="mb-5 rounded-card border border-warning bg-warning-soft px-4 py-3 text-[13px] text-warning-strong">
+          {missingThumbnails} {missingThumbnails === 1 ? 'video has' : 'videos have'} no thumbnail yet. Add a thumbnail and choose the video it is for.
+        </p>
+      ) : null}
+
+      {groups.map((kind) => (
+        <ResourceManager
+          key={kind}
+          title={TASK_KIND_LABEL[kind]}
+          endpoint="/api/tasks"
+          rows={asRows(taskRows.filter((task) => task.kind === kind))}
+          columns={columnsFor(kind)}
+          fields={fieldsFor(kind, false)}
+          editFields={fieldsFor(kind, true)}
+          fixedValues={{ project_id: project.id, position: tasks.length, kind }}
+          canWrite={mayEdit}
+          needsApproval={!isAdmin}
+          addLabel={`Add ${TASK_KIND_SINGLE[kind].toLowerCase()}`}
+          pageSize={25}
+        />
+      ))}
+
+      {typesReady ? (
+        mayEdit || groups.length === 0 ? (
+          <ResourceManager
+            title={groups.length === 0 ? 'Deliverables' : 'Add another type'}
+            description={
+              groups.length === 0
+                ? 'Everything this client gets, one line each: a shoot, videos, thumbnails, graphics. They are grouped by type.'
+                : 'A shoot, a video, a thumbnail, a graphic or anything else. It joins its own group above.'
+            }
+            endpoint="/api/tasks"
+            rows={[]}
+            columns={columnsFor(null)}
+            fields={fieldsFor(null, false)}
+            fixedValues={{ project_id: project.id, position: tasks.length }}
+            canWrite={mayEdit}
+            needsApproval={!isAdmin}
+            addLabel="Add deliverable"
+            emptyText={groups.length === 0 ? 'No deliverables yet.' : 'Choose a type when adding.'}
+          />
+        ) : null
+      ) : (
+        <ResourceManager
+          title="Deliverables"
+          description="One task per deliverable, each with its own notes, file links and assignee."
+          endpoint="/api/tasks"
+          rows={asRows(taskRows)}
+          columns={columnsFor(null)}
+          fields={baseFields}
+          fixedValues={{ project_id: project.id, position: tasks.length }}
+          canWrite={mayEdit}
+          needsApproval={!isAdmin}
+          addLabel="Add deliverable"
+          emptyText="No deliverables yet."
+        />
+      )}
 
       {commentsReady ? (
         <section className="panel">

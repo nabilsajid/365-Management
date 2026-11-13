@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TASK_KINDS } from './domain/deliverables';
 import { NOTICE_DURATION_VALUES } from './domain/notices';
 import { ROLE_COLORS, SEGMENT_KEYS } from './domain/roles';
 import { submissionProblem } from './domain/submissions';
@@ -35,9 +36,11 @@ const taskFields = {
   assignee_id: id.nullish(),
   points_value: points.nullish(),
   due_date: date.nullish(),
+  kind: z.enum(TASK_KINDS).optional(),
 };
 
-export const deliverable = z.object(taskFields);
+// In a new project a thumbnail points at its video by position in the list.
+export const deliverable = z.object({ ...taskFields, for_index: z.number().int().nonnegative().nullish() });
 
 export const projectStatus = z.enum(['onboarding', 'active', 'completed', 'archived']);
 
@@ -50,6 +53,9 @@ const projectFields = {
   status: projectStatus.optional(),
   start_date: date.nullish(),
   due_date: date.nullish(),
+  // Whether the shoot is still waiting for the client, and its date once confirmed.
+  shoot_status: z.enum(['none', 'waiting', 'confirmed']).optional(),
+  shoot_date: date.nullish(),
   file_links: z.array(fileLink).max(50).optional(),
   member_ids: z.array(id).max(100).optional(),
 };
@@ -69,11 +75,12 @@ export const taskStatus = z.enum(['todo', 'in_progress', 'submitted', 'changes_r
 export const taskCreate = z.object({
   ...taskFields,
   project_id: id,
+  for_task_id: id.nullish(),
   status: taskStatus.optional(),
   position: z.number().int().nonnegative().optional(),
 });
 export const taskUpdate = z
-  .object({ ...taskFields, status: taskStatus, position: z.number().int().nonnegative() })
+  .object({ ...taskFields, for_task_id: id.nullable(), status: taskStatus, position: z.number().int().nonnegative() })
   .partial();
 
 export const submissionCreate = z

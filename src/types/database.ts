@@ -103,6 +103,9 @@ export interface Project {
   start_date: string | null;
   due_date: string | null;
   created_at: string;
+  /** none, waiting (for the client to confirm) or confirmed. Missing until the database update. */
+  shoot_status?: string;
+  shoot_date?: string | null;
 }
 
 export interface ProjectMember {
@@ -129,6 +132,10 @@ export interface Task {
   due_date: string | null;
   position: number;
   created_at: string;
+  /** shoot, video, thumbnail, graphic or other. Missing until the deliverable types database update. */
+  kind?: string;
+  /** For a thumbnail: the video it belongs to. */
+  for_task_id?: string | null;
 }
 
 export interface TaskSubmission {

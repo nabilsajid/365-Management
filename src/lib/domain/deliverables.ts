@@ -12,6 +12,34 @@ export interface DeliverableInput {
   assignee_id?: string | null;
   points_value?: number | null;
   due_date?: string | null;
+  kind?: string | null;
+  /** For a thumbnail: the position, in the same list, of the video it belongs to. */
+  for_index?: number | null;
+}
+
+/** What a deliverable is. The order here is the order the groups appear on a project. */
+export const TASK_KINDS = ['shoot', 'video', 'thumbnail', 'graphic', 'other'] as const;
+export type TaskKind = (typeof TASK_KINDS)[number];
+export const TASK_KIND_LABEL: Record<TaskKind, string> = {
+  shoot: 'Shoots',
+  video: 'Videos',
+  thumbnail: 'Thumbnails',
+  graphic: 'Graphics',
+  other: 'Other deliverables',
+};
+export const TASK_KIND_SINGLE: Record<TaskKind, string> = {
+  shoot: 'Shoot',
+  video: 'Video',
+  thumbnail: 'Thumbnail',
+  graphic: 'Graphic',
+  other: 'Other',
+};
+
+/** Where a video's thumbnail stands: "Missing" when no thumbnail is tied to it. */
+export function thumbnailState(videoId: string, tasks: { kind?: string; for_task_id?: string | null; status: string }[]): string {
+  const thumbnails = tasks.filter((task) => task.kind === 'thumbnail' && task.for_task_id === videoId);
+  if (thumbnails.length === 0) return 'missing';
+  return thumbnails.every((task) => task.status === 'approved') ? 'approved' : thumbnails[0].status;
 }
 
 export interface TaskInsert {
@@ -24,6 +52,7 @@ export interface TaskInsert {
   points_value: number | null;
   due_date: string | null;
   position: number;
+  kind?: string;
 }
 
 /** One task row per deliverable, in the order given. */
@@ -42,6 +71,8 @@ export function buildDeliverableTasks(
     points_value: deliverable.points_value ?? null,
     due_date: deliverable.due_date ?? null,
     position: index,
+    // Left out when not given, so projects still save before the deliverable types database update.
+    ...(deliverable.kind ? { kind: deliverable.kind } : {}),
   }));
 }
 

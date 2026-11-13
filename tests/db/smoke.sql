@@ -702,6 +702,29 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
 update equipment_needs set status = 'acquired' where item_name = 'Tripod';
 select pg_temp.check((select count(*) = 1 from equipment_needs where item_name = 'Tripod' and status = 'acquired'), 'a role with editing access can');
 
+-- Deliverable types, thumbnails tied to videos, and the shoot status.
+reset role;
+insert into projects (id, org_id, name, shoot_status) values
+  ('00000000-0000-0000-0000-00000000f0aa', '00000000-0000-0000-0000-000000000001', 'November content', 'waiting');
+insert into tasks (id, org_id, project_id, title, kind) values
+  ('00000000-0000-0000-0000-00000000f0b1', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0aa', 'Video 1', 'video');
+insert into tasks (org_id, project_id, title, kind, for_task_id) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0aa', 'Thumbnail 1', 'thumbnail', '00000000-0000-0000-0000-00000000f0b1');
+select pg_temp.check(
+  (select count(*) = 1 from tasks where kind = 'thumbnail' and for_task_id = '00000000-0000-0000-0000-00000000f0b1'),
+  'a thumbnail is tied to its video');
+select pg_temp.check((select kind = 'other' from tasks where title <> 'Video 1' and kind <> 'thumbnail' limit 1), 'older deliverables count as other');
+do $$ begin
+  update tasks set kind = 'podcast' where title = 'Video 1';
+  raise exception 'FAILED: an unknown deliverable type was accepted';
+exception when check_violation then raise notice 'ok - a deliverable type must be one of the known ones';
+end $$;
+update projects set shoot_status = 'confirmed', shoot_date = '2026-11-20' where id = '00000000-0000-0000-0000-00000000f0aa';
+delete from tasks where id = '00000000-0000-0000-0000-00000000f0b1';
+select pg_temp.check(
+  (select count(*) = 1 from tasks where title = 'Thumbnail 1' and for_task_id is null),
+  'deleting a video keeps its thumbnail, untied');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

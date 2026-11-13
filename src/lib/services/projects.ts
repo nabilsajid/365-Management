@@ -9,6 +9,8 @@ export interface ProjectInput {
   status?: string;
   start_date?: string | null;
   due_date?: string | null;
+  shoot_status?: string;
+  shoot_date?: string | null;
   file_links?: FileLinkInput[];
   member_ids?: string[];
   deliverables?: DeliverableInput[];
@@ -78,6 +80,16 @@ export async function createProjectWithDeliverables(
 
   const tasks = await supabase.from('tasks').insert(rows).select('*');
   if (tasks.error) return undo(tasks.error);
+
+  // Tie each thumbnail to its video, now that the videos have ids.
+  const idAt = new Map((tasks.data as { id: string; position: number }[]).map((task) => [task.position, task.id]));
+  for (const [index, item] of deliverables.entries()) {
+    const target = typeof item.for_index === 'number' ? idAt.get(item.for_index) : undefined;
+    const own = idAt.get(index);
+    if (!target || !own || target === own) continue;
+    const tied = await supabase.from('tasks').update({ for_task_id: target }).eq('id', own).eq('org_id', orgId);
+    if (tied.error) return undo(tied.error);
+  }
 
   return { data: { ...created.data, tasks: tasks.data } };
 }
