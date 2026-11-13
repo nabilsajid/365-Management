@@ -27,6 +27,14 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
 
+// A colour per expense category, used for the small dots beside their names.
+const CATEGORY_COLOR: Record<string, string> = {
+  general: 'slate',
+  equipment: 'blue',
+  fixed: 'amber',
+  transport: 'purple',
+};
+
 const CATEGORY_LABEL: Record<string, string> = {
   general: 'General',
   equipment: 'Equipment purchases',
@@ -187,24 +195,27 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
       {tab === 'overview' && !monthIsEmpty ? (
         <>
           <div className="cards">
-            <div className="card">
+            <div className="card tone-green">
               <span className="value">{money(funds)}</span>
               <span className="caption">Available funds, all accounts</span>
             </div>
-            <div className="card">
+            <div className={dues > 0 ? 'card tone-yellow' : 'card'}>
               <span className="value">{money(dues)}</span>
               <span className="caption">Client dues outstanding</span>
             </div>
-            <div className="card">
+            <div className={moneyIn > 0 ? 'card tone-green' : 'card'}>
               <span className="value">{money(moneyIn)}</span>
               <span className="caption">Money in, {monthName}</span>
             </div>
-            <div className="card">
+            <div className={moneyOut > 0 ? 'card tone-red' : 'card'}>
               <span className="value">{money(moneyOut)}</span>
               <span className="caption">Money out, {monthName}</span>
             </div>
-            <div className="card">
-              <span className="value">{money(moneyIn - moneyOut)}</span>
+            <div className={moneyIn - moneyOut >= 0 ? 'card tone-green' : 'card tone-red'}>
+              <span className="value">
+                {moneyIn - moneyOut < 0 ? '−' : ''}
+                {money(Math.abs(moneyIn - moneyOut))}
+              </span>
               <span className="caption">Net for {monthName}</span>
             </div>
           </div>
@@ -229,9 +240,12 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
                 <tbody>
                   {byCategory.map((row) => (
                     <tr key={row.category}>
-                      <td>{CATEGORY_LABEL[row.category]}</td>
+                      <td>
+                        <span className={`dot tag-${CATEGORY_COLOR[row.category]}`} aria-hidden />
+                        {CATEGORY_LABEL[row.category]}
+                      </td>
                       <td className="num">{row.count}</td>
-                      <td className="num">{money(row.total)}</td>
+                      <td className={row.total > 0 ? 'num amount-out' : 'num muted'}>{money(row.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -264,7 +278,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
                       <tr key={account.id}>
                         <td>{account.name}</td>
                         <td>{label(account.kind)}</td>
-                        <td className="num">{money(account.balance)}</td>
+                        <td className={account.balance < 0 ? 'num amount-out' : 'num amount-in'}>{money(account.balance)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -334,9 +348,10 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
         <>
           <div className="cards" hidden={expenses.length === 0}>
             {byCategory.map((row) => (
-              <div key={row.category} className="card">
+              <div key={row.category} className={row.total > 0 ? 'card tone-red' : 'card'}>
                 <span className="value">{money(row.total)}</span>
                 <span className="caption">
+                  <span className={`dot tag-${CATEGORY_COLOR[row.category]}`} aria-hidden />
                   {CATEGORY_LABEL[row.category]} · {row.count} {row.count === 1 ? 'entry' : 'entries'}
                 </span>
               </div>
