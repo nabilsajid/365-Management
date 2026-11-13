@@ -60,6 +60,10 @@ export const projectCreate = z.object({
 });
 export const projectUpdate = z.object(projectFields).partial();
 
+export const projectCommentCreate = z.object({
+  body: z.string().trim().min(1, 'Write a comment.').max(2000, 'Keep the comment under 2000 characters.'),
+});
+
 export const taskStatus = z.enum(['todo', 'in_progress', 'submitted', 'changes_requested', 'approved']);
 
 export const taskCreate = z.object({

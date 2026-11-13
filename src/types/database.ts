@@ -246,6 +246,15 @@ export interface Broadcast {
   created_at: string;
 }
 
+export interface ProjectComment {
+  id: string;
+  org_id: string;
+  project_id: string;
+  author_id: string | null;
+  body: string;
+  created_at: string;
+}
+
 export interface ChangeRequest {
   id: string;
   org_id: string;

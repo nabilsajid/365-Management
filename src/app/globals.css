@@ -1366,6 +1366,88 @@
     color: var(--color-muted);
   }
 
+  /* A change request: a heading, then one labelled field per line in a tidy grid. */
+  .change {
+    min-width: 16rem;
+  }
+
+  .change-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.45rem;
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  .change-name {
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: var(--color-subtle);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .change-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 0.4rem 1.25rem;
+    margin-top: 0.55rem;
+  }
+
+  .change-fields dt {
+    color: var(--color-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .change-fields dd {
+    margin: 0;
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+  }
+
+  /* Project comments. */
+  .comments {
+    display: grid;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .comment {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: var(--color-subtle);
+  }
+
+  .comment .avatar {
+    margin-left: 0;
+    flex-shrink: 0;
+  }
+
+  .comment-meta {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+  }
+
+  .comment-meta strong {
+    color: var(--color-ink);
+    font-weight: 600;
+  }
+
+  .comment-body {
+    margin-top: 0.15rem;
+    font-size: 0.8125rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
   /* The offer to give new passwords to people who have none on record. */
   .login-fill {
     margin-bottom: 1rem;

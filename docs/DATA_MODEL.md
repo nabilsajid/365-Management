@@ -94,6 +94,14 @@ Automatic behaviour:
 
 A person changes their own profile through the function `update_my_profile`, which touches only the name, nickname, contact, address and secondary contact, so it cannot be used to change roles or access.
 
+## Project comments
+
+| Table | Purpose |
+| --- | --- |
+| `project_comments` | A comment on a project: `project_id`, `author_id`, `body`. Everyone in the organization can read and add comments; people delete their own and admins delete any. |
+
+Since this update every member can read every project, its deliverables and its team. Changing them still needs an admin, or the projects role with admin approval.
+
 ## Login details
 
 | Table | Purpose |

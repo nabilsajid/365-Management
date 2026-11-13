@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { MonthPicker } from '@/components/month-picker';
 import { PasswordRequests } from '@/components/password-requests';
 import { ActionButton, ResourceManager } from '@/components/resource-manager';
-import { sectionOf } from '@/lib/domain/changes';
+import { ChangeSummary } from '@/components/change-summary';
+import { changeDetails, sectionOf } from '@/lib/domain/changes';
 import { nextMonth, parseMonth } from '@/lib/domain/points';
 import { money, monthLabel } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, rowsOf } from '@/lib/page';
@@ -16,7 +17,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const { supabase, orgId, isAdmin, localDate, localDateTime } = await getPageContext();
   if (!isAdmin) redirect('/dashboard');
 
-  const [submissionsR, attendanceR, bonusesR, peopleR, tasksR, changesR, passwordsR] = await Promise.all([
+  const [submissionsR, attendanceR, bonusesR, peopleR, tasksR, changesR, passwordsR, ...namedR] = await Promise.all([
     supabase.from('task_submissions').select('*').eq('org_id', orgId).eq('review_status', 'pending').order('created_at'),
     month
       ? supabase.from('attendance').select('*').eq('org_id', orgId).eq('status', 'pending').gte('work_date', month).lt('work_date', nextMonth(month)).order('work_date')
@@ -26,12 +27,20 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     supabase.from('tasks').select('id, title').eq('org_id', orgId),
     supabase.from('change_requests').select('*').eq('org_id', orgId).eq('status', 'pending').order('created_at'),
     supabase.from('password_requests').select('*').eq('org_id', orgId).eq('status', 'pending').order('created_at'),
+    // Names for the ids a change request can mention.
+    supabase.from('projects').select('id, name').eq('org_id', orgId),
+    supabase.from('clients').select('id, name').eq('org_id', orgId),
+    supabase.from('accounts').select('id, name').eq('org_id', orgId),
+    supabase.from('fixed_expenses').select('id, name').eq('org_id', orgId),
+    supabase.from('violation_types').select('id, name').eq('org_id', orgId),
   ]);
+  const named = new Map(namedR.flatMap((result) => rowsOf<{ id: string; name: string }>(result.data).map((row) => [row.id, row.name] as const)));
   const person = new Map(rowsOf<Profile>(peopleR.data).map((profile) => [profile.id, profile]));
   const taskTitle = new Map(rowsOf<Pick<Task, 'id' | 'title'>>(tasksR.data).map((task) => [task.id, task.title]));
   const who = (id: string) => person.get(id)?.full_name ?? '—';
   const role = (id: string) => person.get(id)?.job_title ?? null;
 
+  const nameOf = (id: string) => person.get(id)?.full_name ?? named.get(id) ?? taskTitle.get(id);
   const changes = rowsOf<ChangeRequest>(changesR.data);
   const passwordRows = rowsOf<PasswordRequest>(passwordsR.data).map((row) => ({
     id: row.id,
@@ -110,7 +119,9 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                       {role(change.requested_by) ? <span className="muted"> · {role(change.requested_by)}</span> : null}
                     </td>
                     <td>{sectionOf(change.path)}</td>
-                    <td>{change.summary}</td>
+                    <td>
+                      <ChangeSummary details={changeDetails(change, nameOf)} />
+                    </td>
                     <td className="row-actions">
                       <ActionButton endpoint={`/api/change-requests/${change.id}`} body={{ decision: 'approve' }} primary>
                         Approve

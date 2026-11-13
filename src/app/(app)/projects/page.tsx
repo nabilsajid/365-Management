@@ -1,6 +1,5 @@
 import { CalendarClock, Link2, ListChecks } from 'lucide-react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { ProjectOnboardingForm } from '@/components/project-onboarding-form';
 import { ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
@@ -30,7 +29,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const view = (await searchParams).view === 'list' ? 'list' : 'board';
   const { supabase, orgId, isAdmin, can, localDate } = await getPageContext();
   const today = localDate(new Date().toISOString());
-  if (!can('projects')) redirect('/my-tasks');
+  // Everyone can look at projects and comment on them; changing them needs the projects role.
+  const canEdit = can('projects');
 
   const [clientsResult, projectsResult, tasksResult, peopleResult, membersResult] = await Promise.all([
     supabase.from('clients').select('*').eq('org_id', orgId),
@@ -83,12 +83,12 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         <div>
           <h1>Projects</h1>
           <p className="muted">
-            {view === 'board' ? 'Every project as a card, grouped by status. Open one to see its tasks.' : 'Every project in a table. Use Edit here to change a project.'}
+            {view === 'board' ? 'Every project as a card, grouped by status. Open one to see its tasks.' : canEdit ? 'Every project in a table. Use Edit here to change a project.' : 'Every project in a table.'}
           </p>
         </div>
       </div>
 
-      <ProjectOnboardingForm people={staff} needsApproval={!isAdmin} />
+      {canEdit ? <ProjectOnboardingForm people={staff} needsApproval={!isAdmin} /> : null}
 
       <nav className="tabs" aria-label="Project views">
         <Link href="/projects" aria-current={view === 'board' ? 'page' : undefined}>
@@ -189,7 +189,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
               { key: 'file_links', label: 'Links', kind: 'links' },
             ]}
             editFields={projectFields}
-            canWrite
+            canWrite={canEdit}
             needsApproval={!isAdmin}
             allowCreate={false}
             emptyText='No projects yet. Use "Add project" above to create the first one.'

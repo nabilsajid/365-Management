@@ -74,6 +74,13 @@ For every route whose Write column says Admin, a non-admin whose roles include t
 | `POST /employees/[id]/password` | Admin | `{ password }` sets a new password for that person (6 to 72 characters) and closes any pending request from them. Needs the service-role key. |
 | `POST /password-reset` | Anyone with a valid emailed link | `{ access_token, password }`. The last step of an admin's reset email; the token is checked with Supabase Auth and only works for admin accounts. |
 
+## Project comments
+
+| Route | Read | Write | Notes |
+| --- | --- | --- | --- |
+| `/projects/[id]/comments` | Member | Member | `POST` `{ body }` adds a comment as the signed-in person (up to 2000 characters). |
+| `/project-comments/[id]` | — | Author or admin | `DELETE` removes a comment. |
+
 ## Profiles and the notice board
 
 | Route | Read | Write | Notes |

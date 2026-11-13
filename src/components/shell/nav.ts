@@ -50,7 +50,7 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Workspace',
     items: [
-      { href: '/projects', label: 'Projects', icon: FolderKanban, segment: 'projects' },
+      { href: '/projects', label: 'Projects', icon: FolderKanban },
       { href: '/my-tasks', label: 'My Tasks', icon: ListChecks },
     ],
   },
@@ -87,7 +87,8 @@ export function navFor(viewer: Viewer): NavGroup[] {
 export function locate(pathname: string, viewer?: Viewer): { group: string; label: string; href: string } | null {
   const canSeeProjects = !viewer || viewer.isAdmin || viewer.segments.has('projects');
   let path = pathname;
-  if (pathname.startsWith('/tasks') || (pathname.startsWith('/projects/') && !canSeeProjects)) {
+  // Everyone can open Projects; a task page sits under My Tasks for people without the projects role.
+  if (pathname.startsWith('/tasks')) {
     path = canSeeProjects ? '/projects' : '/my-tasks';
   }
   for (const group of GROUPS) {

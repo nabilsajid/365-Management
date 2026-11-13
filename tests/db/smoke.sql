@@ -312,8 +312,7 @@ select pg_temp.check((select count(*) = 1 from invoices), 'a role with the cashf
 select pg_temp.check(
   (select count(distinct employee_id) = 2 from point_entries),
   'a role with the team_points segment sees everyone''s points');
-select pg_temp.check((select count(*) = 0 from tasks), 'without the projects segment, other people''s tasks are hidden');
-select pg_temp.check((select count(*) = 0 from projects), 'without the projects segment, projects are hidden');
+select pg_temp.check((select count(*) > 0 from projects), 'without the projects segment, projects can still be seen');
 select pg_temp.check(
   (select count(*) = 1 from equipment),
   'without the equipment segment, only equipment you hold is visible');
@@ -431,9 +430,9 @@ select set_project_members('00000000-0000-0000-0000-00000000f002', array['000000
 
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
 select pg_temp.check(
-  (select count(*) = 1 and bool_and(name = 'Internal reel') from projects),
-  'someone assigned to a project sees that project and no others');
-select pg_temp.check((select count(*) = 1 from tasks), 'and sees its deliverables');
+  (select count(*) = 1 from projects where name = 'Internal reel'),
+  'someone assigned to a project sees that project');
+select pg_temp.check((select count(*) = 1 from project_members where profile_id = auth.uid()), 'and that they are on its team');
 do $$ begin
   perform set_project_members('00000000-0000-0000-0000-00000000f002', array[]::uuid[]);
   raise exception 'FAILED: employee changed a project team';
@@ -443,7 +442,7 @@ end $$;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 select set_project_members('00000000-0000-0000-0000-00000000f002', array[]::uuid[]);
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
-select pg_temp.check((select count(*) = 0 from projects), 'removing someone from a project hides it again');
+select pg_temp.check((select count(*) = 0 from project_members where profile_id = auth.uid()), 'removing someone from a project takes them off its team');
 
 -- Change requests and role colours.
 select pg_temp.check(
@@ -636,6 +635,38 @@ values ('00000000-0000-0000-0000-000000000001', 'transport', 'Client shoot', 500
 select pg_temp.check(
   (select count(*) = 1 from expenses where purpose = 'New client meeting' and project_id is null and client_id is null),
   'a trip can carry a purpose typed in by hand');
+
+-- Everyone can open any project and comment on it.
+reset role;
+select set_config('test.projects', (select count(*)::text from projects), true);
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check(
+  (select count(*)::text from projects) = current_setting('test.projects'),
+  'every employee can see every project');
+insert into project_comments (org_id, project_id, author_id, body)
+select org_id, id, auth.uid(), 'Looks good' from projects limit 1;
+select pg_temp.check((select count(*) = 1 from project_comments), 'an employee can comment on any project');
+do $$ begin
+  insert into project_comments (org_id, project_id, author_id, body)
+  select org_id, id, '00000000-0000-0000-0000-0000000000a1', 'As someone else' from projects limit 1;
+  raise exception 'FAILED: a comment was posted under another name';
+exception when insufficient_privilege then raise notice 'ok - nobody can comment under another name';
+end $$;
+do $$
+declare n integer;
+begin
+  update projects set name = 'Hacked';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAILED: an employee without the projects role changed a project'; end if;
+  raise notice 'ok - seeing projects does not allow changing them';
+end $$;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+delete from project_comments;
+select pg_temp.check((select count(*) = 1 from project_comments), 'a comment cannot be deleted by another employee');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+delete from project_comments;
+select pg_temp.check((select count(*) = 0 from project_comments), 'an admin can delete any comment');
 
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
