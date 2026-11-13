@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { MonthPicker } from '@/components/month-picker';
 import { PasswordRequests } from '@/components/password-requests';
@@ -29,7 +28,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     supabase.from('change_requests').select('*').eq('org_id', orgId).eq('status', 'pending').order('created_at'),
     supabase.from('password_requests').select('*').eq('org_id', orgId).eq('status', 'pending').order('created_at'),
     // Names for the ids a change request can mention.
-    supabase.from('projects').select('*').eq('org_id', orgId),
+    supabase.from('projects').select('id, name').eq('org_id', orgId),
     supabase.from('clients').select('id, name').eq('org_id', orgId),
     supabase.from('accounts').select('id, name').eq('org_id', orgId),
     supabase.from('fixed_expenses').select('id, name').eq('org_id', orgId),
@@ -42,10 +41,6 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const role = (id: string) => person.get(id)?.job_title ?? null;
 
   const nameOf = (id: string) => person.get(id)?.full_name ?? named.get(id) ?? taskTitle.get(id);
-  // Finished projects whose team has not been given points yet.
-  const finished = rowsOf<{ id: string; name: string; status: string; points_awarded_at?: string | null }>(namedR[0]?.data).filter(
-    (project) => project.status === 'completed' && 'points_awarded_at' in project && !project.points_awarded_at,
-  );
   const changes = rowsOf<ChangeRequest>(changesR.data);
   const passwordRows = rowsOf<PasswordRequest>(passwordsR.data).map((row) => ({
     id: row.id,
@@ -88,34 +83,6 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
       </div>
 
       {passwordRows.length > 0 ? <PasswordRequests rows={passwordRows} /> : null}
-
-      {finished.length > 0 ? (
-        <section className="panel">
-          <header className="panel-header">
-            <div>
-              <h2>
-                Completed projects: give points
-                <span className="count">{finished.length}</span>
-              </h2>
-              <p className="muted">These projects are finished and their teams have not been given points yet.</p>
-            </div>
-          </header>
-          <div className="table-wrap">
-            <table>
-              <tbody>
-                {finished.map((project) => (
-                  <tr key={project.id}>
-                    <td>{project.name}</td>
-                    <td className="row-actions">
-                      <Link href={`/projects/${project.id}#award`}>Give points</Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
 
       <section className="panel">
         <header className="panel-header">
