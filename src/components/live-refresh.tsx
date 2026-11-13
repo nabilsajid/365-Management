@@ -21,17 +21,33 @@ export function LiveRefresh({ orgId }: { orgId: string }) {
     let last: number | null = null;
     let pending: ReturnType<typeof setTimeout> | undefined;
 
-    // Several changes close together cause one reload, not many.
+    // Several changes close together cause one reload, not many. While someone
+    // is typing in a field the reload waits, so nothing shifts under their hands;
+    // it happens as soon as they pause or leave the field (at most 20 seconds).
+    let waitingSince = 0;
+    const typing = () => {
+      const active = document.activeElement;
+      return active instanceof HTMLElement && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+    };
     const refreshSoon = () => {
       clearTimeout(pending);
-      pending = setTimeout(() => router.refresh(), 500);
+      if (!waitingSince) waitingSince = Date.now();
+      pending = setTimeout(() => {
+        if (document.hidden) return; // Caught up when the app comes back to the front.
+        if (typing() && Date.now() - waitingSince < 20000) {
+          refreshSoon();
+          return;
+        }
+        waitingSince = 0;
+        router.refresh();
+      }, 600);
     };
     const seen = (version: number) => {
       if (last !== null && version !== last) refreshSoon();
       last = version;
     };
     const check = async () => {
-      if (document.hidden) return;
+      if (document.hidden || !navigator.onLine) return;
       const { data, error } = await supabase.from('org_activity').select('version').eq('org_id', orgId).maybeSingle();
       if (!error && data) seen(Number(data.version));
     };
@@ -39,7 +55,10 @@ export function LiveRefresh({ orgId }: { orgId: string }) {
     void check();
     const poll = setInterval(check, 15000);
     const onVisible = () => {
-      if (!document.hidden) void check();
+      if (document.hidden) return;
+      // A change that arrived while the app was in the background is applied now.
+      if (waitingSince) refreshSoon();
+      void check();
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);

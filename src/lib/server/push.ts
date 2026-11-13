@@ -70,7 +70,12 @@ async function sendPush(endpoint: string, key: KeyObject, publicKey: string): Pr
  * devices. Safe to call often: it does nothing when alerts are not set up or
  * there is nothing new. Never throws.
  */
+let lastDispatch = 0;
+
 export async function dispatchPushes(): Promise<void> {
+  // Pages ask for this often; a couple of seconds between checks is plenty.
+  if (Date.now() - lastDispatch < 2000) return;
+  lastDispatch = Date.now();
   try {
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;

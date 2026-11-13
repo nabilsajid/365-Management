@@ -129,7 +129,11 @@
   html {
     -webkit-tap-highlight-color: transparent;
     scroll-behavior: smooth;
+    /* Keeps the page from jumping sideways when a scrollbar appears or disappears. */
+    scrollbar-gutter: stable;
+    text-rendering: optimizeLegibility;
   }
+
 
   /* No 300ms tap delay, and no accidental double-tap zoom on controls. */
   a,
@@ -1679,6 +1683,25 @@
     overflow-wrap: anywhere;
   }
 
+  /* The thin bar at the top while the next page loads. */
+  .nav-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 70;
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(90deg, var(--color-success), color-mix(in srgb, var(--color-success) 55%, var(--color-primary)));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 60%, transparent);
+    transform-origin: left;
+    animation: nav-progress 2.5s cubic-bezier(0.1, 0.7, 0.2, 1) both;
+    pointer-events: none;
+  }
+
+  .nav-progress-done {
+    animation: nav-progress-done 0.3s ease-out both;
+  }
+
   /* Project comments. */
   .comments {
     display: grid;
@@ -1760,6 +1783,26 @@
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--color-success) 45%, transparent),
       0 0 24px color-mix(in srgb, var(--color-success) 80%, transparent);
+  }
+}
+
+@keyframes nav-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.85);
+  }
+}
+
+@keyframes nav-progress-done {
+  from {
+    transform: scaleX(0.85);
+    opacity: 1;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 0;
   }
 }
 

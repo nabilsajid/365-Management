@@ -2,9 +2,10 @@
 
 import { Check, ChevronDown, ChevronRight, CircleUserRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppInstall } from '@/components/app-install';
+import { NavProgress } from '@/components/nav-progress';
 import { RolePreviewBar } from '@/components/role-preview';
 import { cn } from '@/lib/utils';
 import { locate, navFor, type Viewer } from './nav';
@@ -36,6 +37,11 @@ function SidebarNav({
   onNavigate?: () => void;
 }) {
   // Highlight the tapped link straight away instead of waiting for the page to load.
+  const router = useRouter();
+  // Start loading a page the moment a finger or the pointer reaches its link, so it opens faster.
+  const warm = (href: string) => {
+    if (href !== pathname) router.prefetch(href);
+  };
   const [tapped, setTapped] = useState<string | null>(null);
   useEffect(() => setTapped(null), [pathname]);
   const current = tapped ?? locate(pathname, viewer)?.href;
@@ -59,6 +65,10 @@ function SidebarNav({
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    prefetch={false}
+                    onPointerEnter={() => warm(item.href)}
+                    onTouchStart={() => warm(item.href)}
+                    onFocus={() => warm(item.href)}
                     onClick={() => {
                       setTapped(item.href);
                       onNavigate?.();
@@ -335,6 +345,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen">
+      <NavProgress />
       {/* Desktop sidebar */}
       <aside
         className={cn(
