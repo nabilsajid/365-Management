@@ -153,3 +153,7 @@ Admins post notices on the Notice Board page and choose how long each stays up: 
 ## Web and installed app
 
 The installed app is the same live site in its own window, not a separate copy. Both read and write the same database, so anything saved in one appears in the other on the next page load. The login page and the top bar both offer "Install the app".
+
+## Passwords
+
+Passwords live only in Supabase Auth, encrypted; the app never stores or shows one. Admins give each person their own password on the Profiles & Contacts page (typed or generated), or answer a forgotten-password request under Approvals. An admin who forgets their own password gets a verification email from Supabase Auth with a link to `/auth/reset`. For that link to work, the site address followed by `/auth/reset` has to be listed under Authentication, URL Configuration, Redirect URLs in Supabase.

@@ -341,6 +341,12 @@ export const passwordRequestCreate = z.object({
 });
 
 export const PASSWORD_MIN = 6;
+const password = z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters.`).max(72, 'Use at most 72 characters.');
+
+// An admin sets a password for one person.
+export const passwordSet = z.object({ password });
+// An admin chooses a new password from the reset link emailed to them.
+export const passwordReset = z.object({ access_token: z.string().min(20).max(4096), password });
 export const passwordRequestResolve = z
   .object({
     action: z.enum(['set', 'dismiss']),

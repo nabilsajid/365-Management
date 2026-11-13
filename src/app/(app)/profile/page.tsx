@@ -1,5 +1,6 @@
 import { ApiForm, ResourceManager } from '@/components/resource-manager';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
+import { SetPassword } from '@/components/set-password';
 import { asRows, getPageContext, rowsOf } from '@/lib/page';
 import type { Profile, ProfilePrivate } from '@/types/database';
 
@@ -116,6 +117,14 @@ export default async function ProfilePage() {
         emptyText="No one here yet."
         pageSize={25}
       />
+
+      {isAdmin ? (
+        <SetPassword
+          people={people
+            .filter((person) => person.is_active)
+            .map((person) => ({ value: person.id, label: person.job_title === '—' ? person.full_name : `${person.full_name} (${person.job_title})` }))}
+        />
+      ) : null}
     </>
   );
 }

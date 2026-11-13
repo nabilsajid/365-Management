@@ -62,7 +62,8 @@ export function LoginForm({ notice }: { notice?: string }) {
         <h1>Request sent</h1>
         <p className="muted">
           If <strong>{email}</strong> belongs to an account, your admin has been notified. They will set a new password and
-          share it with you.
+          share it with you. If it is an admin account, a verification email with a reset link is on its way to that
+          address instead.
         </p>
         <button type="button" className="primary" onClick={() => switchTo('signin')}>
           Back to sign in
@@ -76,7 +77,7 @@ export function LoginForm({ notice }: { notice?: string }) {
       <form className="form" onSubmit={askAdmin}>
         <div>
           <h1>Forgot your password?</h1>
-          <p className="muted">Enter your email and your admin will be asked to set a new password for you.</p>
+          <p className="muted">Enter your email and your admin will be asked to set a new password for you. Admins get a verification email instead.</p>
         </div>
         <label className="field wide">
           <span>Email</span>
@@ -88,7 +89,7 @@ export function LoginForm({ notice }: { notice?: string }) {
           </p>
         ) : null}
         <button type="submit" className="primary" disabled={busy}>
-          {busy ? 'Sending…' : 'Ask admin for a new password'}
+          {busy ? 'Sending…' : 'Send request'}
         </button>
         <button type="button" className="link" onClick={() => switchTo('signin')}>
           <ArrowLeft size={14} aria-hidden /> Back to sign in
