@@ -27,10 +27,10 @@ function shortDate(date: string): string {
 // (the default), or the list, which is also where projects are edited.
 export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const view = (await searchParams).view === 'list' ? 'list' : 'board';
-  const { supabase, orgId, isAdmin, can, localDate } = await getPageContext();
+  const { supabase, orgId, isAdmin, canEdit: canEditSegment, localDate } = await getPageContext();
   const today = localDate(new Date().toISOString());
   // Everyone can look at projects and comment on them; changing them needs the projects role.
-  const canEdit = can('projects');
+  const canEdit = canEditSegment('projects');
 
   const [clientsResult, projectsResult, tasksResult, peopleResult, membersResult] = await Promise.all([
     supabase.from('clients').select('*').eq('org_id', orgId),

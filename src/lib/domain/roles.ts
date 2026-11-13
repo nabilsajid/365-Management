@@ -1,6 +1,7 @@
 // Roles are tags an admin creates and gives to people; a person can hold
-// several. Each role lists the segments its holders can see. What someone can
-// see is the union across their roles. A role flagged is_admin sees and edits
+// several. Each role lists the segments its holders can view, and which of
+// those they can also edit (through admin approval). What someone can do is
+// the union across their roles. A role flagged is_admin sees and edits
 // everything. Mirrors supabase/migrations/20261112000006_roles.sql.
 
 export const SEGMENTS = [
@@ -25,6 +26,18 @@ export function segmentsFromRoles(roles: { permissions: string[] | null }[]): Se
   const segments = new Set<string>();
   for (const role of roles) for (const key of role.permissions ?? []) segments.add(key);
   return segments;
+}
+
+/** Every segment the given roles may edit. Before the view/edit split, seeing a part meant editing it. */
+export function editSegmentsFromRoles(roles: { permissions: string[] | null; edit_permissions?: string[] | null }[]): Set<string> {
+  const segments = new Set<string>();
+  for (const role of roles) for (const key of role.edit_permissions ?? role.permissions ?? []) segments.add(key);
+  return segments;
+}
+
+/** Admins edit everything; everyone else needs a role with editing access to the segment. */
+export function canEdit(viewer: { isAdmin: boolean; editSegments: ReadonlySet<string> }, segment: Segment): boolean {
+  return viewer.isAdmin || viewer.editSegments.has(segment);
 }
 
 /** Admins see everything; everyone else needs a role that includes the segment. */

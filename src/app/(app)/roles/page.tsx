@@ -28,7 +28,9 @@ export default async function RolesPage() {
     return {
       ...role,
       tag: [{ label: role.name, color: role.color }],
-      sees: role.is_admin ? ['Everything, with full editing'] : role.permissions.map(segmentLabel),
+      sees: role.is_admin ? ['Everything'] : role.permissions.map(segmentLabel),
+      edits: role.is_admin ? ['Everything'] : (role.edit_permissions ?? role.permissions).map(segmentLabel),
+      edit_permissions: role.edit_permissions ?? role.permissions,
       holder_names: holders.filter(Boolean).sort(),
     };
   });
@@ -36,6 +38,9 @@ export default async function RolesPage() {
     const ids = held.filter((row) => row.profile_id === profile.id).map((row) => row.role_id);
     return { ...profile, role_ids: ids, role_names: roleTags(ids.map((id) => roleName.get(id)), roleColor) };
   });
+
+  // The separate editing column arrives with a database update; until then viewing a part also means editing it.
+  const splitReady = roles.some((role) => role.edit_permissions !== undefined);
 
   const roleFields: Field[] = [
     { name: 'name', label: 'Role name', required: true, placeholder: 'Content Writer' },
@@ -50,11 +55,22 @@ export default async function RolesPage() {
     },
     {
       name: 'permissions',
-      label: 'What this role can see',
+      label: 'Can view',
       type: 'multiselect',
       options: SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label })),
-      hint: 'Leave everything off for a role that only sees its own tasks, points and equipment. Holders can also edit these parts, but each change waits for an admin to approve it.',
+      hint: 'View only: holders can look but not change anything. Leave everything off for a role that only sees projects and its own tasks, points and equipment.',
     },
+    ...(splitReady
+      ? [
+          {
+            name: 'edit_permissions',
+            label: 'Can edit',
+            type: 'multiselect' as const,
+            options: SEGMENTS.map((segment) => ({ value: segment.key, label: segment.label })),
+            hint: 'Holders can also add and change things in these parts; each change waits for an admin to approve it. Ticking a part here also lets the role view it.',
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -62,19 +78,20 @@ export default async function RolesPage() {
       <div className="page-header">
         <div>
           <h1>Roles &amp; Access</h1>
-          <p className="muted">Create roles, decide what each one can see, and give people one or more roles.</p>
+          <p className="muted">Create roles, decide what each one can view and what it can edit, and give people one or more roles.</p>
         </div>
       </div>
 
       <ResourceManager
         title="Roles"
-        description="Use Edit to rename a role, change its label colour or change what it can see. The Admin role always has full access and cannot be deleted."
+        description="Use Edit to rename a role, change its label colour, or choose which parts it can only view and which it can also edit. The Admin role always has full access and cannot be deleted."
         endpoint="/api/roles"
         rows={asRows(roleRows)}
         columns={[
           { key: 'tag', label: 'Role', kind: 'tags' },
           { key: 'description', label: 'Description' },
-          { key: 'sees', label: 'Can see', kind: 'tags' },
+          { key: 'sees', label: 'Can view', kind: 'tags' },
+          { key: 'edits', label: 'Can edit', kind: 'tags' },
           { key: 'holder_names', label: 'Held by', kind: 'tags' },
         ]}
         fields={roleFields}

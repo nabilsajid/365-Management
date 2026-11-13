@@ -23,7 +23,7 @@ export async function POST(request: Request): Promise<Response> {
   // Recording a day for someone else, or as already verified, is an admin's
   // call. A role with team points can ask for it; an admin then approves.
   if (!isAdmin && (employeeId !== ctx.userId || wantsStatus !== 'pending')) {
-    if (!ctx.segments.has('team_points')) {
+    if (!(ctx.editSegments ?? ctx.segments).has('team_points')) {
       if (employeeId !== ctx.userId) return fail(403, 'You can only mark your own attendance.');
     } else {
       const person = await ctx.supabase.from('profiles').select('full_name').eq('id', employeeId).eq('org_id', ctx.profile.org_id).maybeSingle();

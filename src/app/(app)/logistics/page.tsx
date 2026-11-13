@@ -5,9 +5,12 @@ import { asRows, enumOptions, getPageContext, options, peopleOptions, rowsOf } f
 import type { Client, Equipment, EquipmentNeed, Expense, FixedExpense, Profile, Project } from '@/types/database';
 
 export default async function LogisticsPage() {
-  const { supabase, orgId, userId, isAdmin, can, localDate } = await getPageContext();
+  const { supabase, orgId, userId, isAdmin, can, canEdit, localDate } = await getPageContext();
   const seesInventory = can('equipment');
   const seesCosts = can('costs');
+  // Viewing a part and changing it are separate: these say what this person may change.
+  const editsInventory = canEdit('equipment');
+  const editsCosts = canEdit('costs');
   // Admins change things directly; other roles with access propose changes for approval.
   const needsApproval = !isAdmin;
 
@@ -126,7 +129,7 @@ export default async function LogisticsPage() {
           { key: 'origin', label: 'Source' },
         ]}
         fields={equipmentFields}
-        canWrite={isAdmin || seesInventory}
+        canWrite={editsInventory}
         needsApproval={needsApproval}
         addLabel="Register equipment"
         emptyText={seesInventory ? 'No equipment registered yet.' : 'You are not holding any equipment.'}
@@ -154,7 +157,7 @@ export default async function LogisticsPage() {
           { name: 'note', label: 'Note', placeholder: 'Needed for Friday\'s shoot' },
         ]}
         editFields={
-          seesInventory
+          editsInventory
             ? [
                 { name: 'item_name', label: 'Item', required: true },
                 { name: 'quantity', label: 'Quantity', type: 'number', required: true },
@@ -164,7 +167,7 @@ export default async function LogisticsPage() {
             : []
         }
         canWrite
-        allowDelete={seesInventory}
+        allowDelete={editsInventory}
         addLabel="Add needed item"
         emptyText="Nothing is urgently needed right now."
       />
@@ -181,7 +184,7 @@ export default async function LogisticsPage() {
             { key: 'status', label: 'Status', kind: 'label' },
           ]}
           editFields={[{ name: 'status', label: 'Status', type: 'select', required: true, options: enumOptions(['needed', 'acquired']) }]}
-          canWrite
+          canWrite={editsInventory}
         />
       ) : null}
 
@@ -204,7 +207,7 @@ export default async function LogisticsPage() {
               { name: 'monthly_amount', label: 'Monthly amount', type: 'number', required: true },
               { name: 'is_active', label: 'Active', type: 'checkbox' },
             ]}
-            canWrite={isAdmin || seesCosts}
+            canWrite={editsCosts}
             needsApproval={needsApproval}
             addLabel="Add fixed expense"
             emptyText="No fixed expenses yet."
@@ -235,7 +238,7 @@ export default async function LogisticsPage() {
               { name: 'amount', label: 'Cost', type: 'number', required: true },
             ]}
             fixedValues={isAdmin ? { category: 'transport' } : { category: 'transport', traveler_id: userId }}
-            canWrite={isAdmin || seesCosts}
+            canWrite={editsCosts}
             needsApproval={needsApproval}
             addLabel="Add trip"
             emptyText="No trips recorded yet."

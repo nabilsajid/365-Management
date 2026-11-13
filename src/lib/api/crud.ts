@@ -22,6 +22,8 @@ export interface ApiContext {
   profile: Profile;
   /** Segments the person's roles open up. Admins see everything regardless. */
   segments: ReadonlySet<string>;
+  /** Segments the person may also edit. Left out means the same as `segments`. */
+  editSegments?: ReadonlySet<string>;
 }
 
 export type ContextProvider = () => Promise<ApiContext | null>;
@@ -54,6 +56,9 @@ export interface ResourceConfig {
 
 const isAdmin = (ctx: ApiContext) => ctx.profile.access_role === 'admin';
 const holdsAny = (ctx: ApiContext, segments: readonly string[]) => segments.some((segment) => ctx.segments.has(segment));
+/** Writing needs editing access, not just view access. */
+const editsAny = (ctx: ApiContext, segments: readonly string[]) =>
+  segments.some((segment) => (ctx.editSegments ?? ctx.segments).has(segment));
 
 export async function authorize(
   getContext: ContextProvider,
@@ -80,9 +85,9 @@ export async function authorizeWrite(
   const ctx = await getContext();
   if (!ctx) return { response: fail(401, 'Please sign in.') };
   const write = rules.write ?? 'admin';
-  if (isAdmin(ctx) || write === 'member' || (write !== 'admin' && holdsAny(ctx, write))) return { ctx, mode: 'apply' };
-  if (rules.propose && holdsAny(ctx, rules.propose)) return { ctx, mode: 'propose' };
-  return { response: fail(403, rules.propose ? 'Your role does not include this section.' : 'Only an admin can do that.') };
+  if (isAdmin(ctx) || write === 'member' || (write !== 'admin' && editsAny(ctx, write))) return { ctx, mode: 'apply' };
+  if (rules.propose && editsAny(ctx, rules.propose)) return { ctx, mode: 'propose' };
+  return { response: fail(403, rules.propose ? 'Your role can view this section but not change it.' : 'Only an admin can do that.') };
 }
 
 const NAME_KEYS = ['name', 'item_name', 'title', 'description', 'invoice_number', 'full_name', 'work_date', 'reason'];

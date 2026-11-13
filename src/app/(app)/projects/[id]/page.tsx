@@ -9,7 +9,7 @@ import type { Client, Profile, Project, ProjectComment, ProjectMember, Role, Tas
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, orgId, userId, isAdmin, can, localDateTime } = await getPageContext();
+  const { supabase, orgId, userId, isAdmin, can, canEdit, localDateTime } = await getPageContext();
 
   const projectResult = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const project = projectResult.data as Project | null;
@@ -130,7 +130,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         ]}
         fields={taskFields}
         fixedValues={{ project_id: project.id, position: tasks.length }}
-        canWrite={isAdmin || can('projects')}
+        canWrite={canEdit('projects')}
         needsApproval={!isAdmin}
         addLabel="Add deliverable"
         emptyText="No deliverables yet."

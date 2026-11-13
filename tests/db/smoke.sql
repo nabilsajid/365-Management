@@ -279,8 +279,8 @@ select pg_temp.check(
 
 -- Roles as tags and per-segment visibility.
 select pg_temp.check(
-  (select count(*) = 10 from roles where org_id = '00000000-0000-0000-0000-000000000001'),
-  'a new organization gets the ten starting roles');
+  (select count(*) = 11 from roles where org_id = '00000000-0000-0000-0000-000000000001'),
+  'a new organization gets the eleven starting roles, Trainee included');
 
 insert into roles (id, org_id, name, permissions) values
   ('00000000-0000-0000-0000-0000000070a1', '00000000-0000-0000-0000-000000000001', 'Bookkeeper', '{cashflow}');
@@ -667,6 +667,40 @@ select pg_temp.check((select count(*) = 1 from project_comments), 'a comment can
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 delete from project_comments;
 select pg_temp.check((select count(*) = 0 from project_comments), 'an admin can delete any comment');
+
+-- View access and editing access are separate.
+reset role;
+select pg_temp.check(
+  (select count(*) = 1 from roles where org_id = '00000000-0000-0000-0000-000000000001' and name = 'Trainee' and cardinality(permissions) = 0 and cardinality(edit_permissions) = 0),
+  'there is a Trainee role that edits nothing');
+insert into roles (id, org_id, name, permissions, edit_permissions) values
+  ('00000000-0000-0000-0000-00000000aa01', '00000000-0000-0000-0000-000000000001', 'Stock viewer', '{equipment}', '{}'),
+  ('00000000-0000-0000-0000-00000000aa02', '00000000-0000-0000-0000-000000000001', 'Stock keeper', '{}', '{equipment}');
+select pg_temp.check(
+  (select permissions = array['equipment'] from roles where name = 'Stock keeper'),
+  'a role that can edit a part can also view it');
+insert into equipment_needs (org_id, item_name, requested_by) values
+  ('00000000-0000-0000-0000-000000000001', 'Tripod', '00000000-0000-0000-0000-0000000000a1');
+delete from profile_roles where profile_id = '00000000-0000-0000-0000-0000000000e2';
+insert into profile_roles (profile_id, role_id, org_id) values
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-00000000aa01', '00000000-0000-0000-0000-000000000001');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check((select count(*) >= 1 from equipment_needs where item_name = 'Tripod'), 'a view-only role sees the part');
+do $$
+declare n integer;
+begin
+  update equipment_needs set status = 'acquired' where item_name = 'Tripod';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAILED: a view-only role changed a record'; end if;
+  raise notice 'ok - a view-only role cannot change it';
+end $$;
+reset role;
+update profile_roles set role_id = '00000000-0000-0000-0000-00000000aa02' where profile_id = '00000000-0000-0000-0000-0000000000e2';
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+update equipment_needs set status = 'acquired' where item_name = 'Tripod';
+select pg_temp.check((select count(*) = 1 from equipment_needs where item_name = 'Tripod' and status = 'acquired'), 'a role with editing access can');
 
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;

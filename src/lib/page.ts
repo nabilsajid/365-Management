@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getApiContext } from '@/lib/api/context';
 import { dateInZone, dateTimeInZone } from '@/lib/domain/points';
-import { canSee, type Segment } from '@/lib/domain/roles';
+import { canEdit, canSee, type Segment } from '@/lib/domain/roles';
 import { getOrg } from '@/lib/services/rewards';
 import type { Profile } from '@/types/database';
 import type { Option, Row } from '@/components/types';
@@ -23,6 +23,8 @@ export async function getPageContext() {
     localDateTime: (iso: string) => dateTimeInZone(new Date(iso), org.timezone),
     /** Whether this person's roles (or admin access) include a segment. */
     can: (segment: Segment) => canSee({ isAdmin, segments: ctx.segments }, segment),
+    /** Whether this person may also change things in a segment (through admin approval unless they are an admin). */
+    canEdit: (segment: Segment) => canEdit({ isAdmin, editSegments: ctx.editSegments ?? ctx.segments }, segment),
   };
 }
 

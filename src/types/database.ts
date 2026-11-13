@@ -66,7 +66,10 @@ export interface Role {
   org_id: string;
   name: string;
   description: string | null;
+  /** Segments the role can view. */
   permissions: string[];
+  /** Segments the role can also edit. Missing until the view/edit database update has been run. */
+  edit_permissions?: string[];
   color: string;
   is_admin: boolean;
   created_at: string;

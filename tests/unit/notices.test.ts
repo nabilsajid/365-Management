@@ -62,3 +62,19 @@ test('a profile needs a name and a Bangladeshi mobile number', () => {
   assert.ok(!profileUpdate.safeParse({ ...full, secondary_contact: '12345' }).success);
   assert.ok(profileUpdate.safeParse({ ...full, secondary_contact: '01800000002' }).success);
 });
+
+test('view access and editing access are separate', async () => {
+  const { canEdit, canSee, editSegmentsFromRoles, segmentsFromRoles } = await import('../../src/lib/domain/roles');
+  const roles = [
+    { permissions: ['equipment', 'costs'], edit_permissions: ['costs'] },
+    { permissions: ['projects'], edit_permissions: [] },
+  ];
+  const viewer = { isAdmin: false, segments: segmentsFromRoles(roles), editSegments: editSegmentsFromRoles(roles) };
+  assert.ok(canSee(viewer, 'equipment') && !canEdit(viewer, 'equipment'), 'view only');
+  assert.ok(canSee(viewer, 'costs') && canEdit(viewer, 'costs'), 'view and edit');
+  assert.ok(canSee(viewer, 'projects') && !canEdit(viewer, 'projects'));
+  assert.ok(!canSee(viewer, 'cashflow') && !canEdit(viewer, 'cashflow'));
+  assert.ok(canEdit({ isAdmin: true, editSegments: new Set() }, 'cashflow'), 'admins edit everything');
+  // Before the database update there is no edit list: seeing a part still means editing it.
+  assert.ok(editSegmentsFromRoles([{ permissions: ['bonuses'] }]).has('bonuses'));
+});

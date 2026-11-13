@@ -94,6 +94,10 @@ Automatic behaviour:
 
 A person changes their own profile through the function `update_my_profile`, which touches only the name, nickname, contact, address and secondary contact, so it cannot be used to change roles or access.
 
+## View access and editing access
+
+`roles.permissions` lists the parts of the app a role can view; `roles.edit_permissions` lists the parts it can also edit (non-admin edits still wait for admin approval). Editing a part always includes viewing it; a trigger keeps the two lists consistent. `has_segment()` answers "can view" and `has_edit_segment()` answers "can edit". The Trainee role starts with neither.
+
 ## Project comments
 
 | Table | Purpose |

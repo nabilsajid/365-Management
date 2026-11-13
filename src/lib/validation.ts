@@ -274,6 +274,7 @@ export const roleCreate = z.object({
   description: optionalText,
   color: z.enum(ROLE_COLORS).optional(),
   permissions: z.array(z.enum(SEGMENT_KEYS)).max(SEGMENT_KEYS.length).default([]),
+  edit_permissions: z.array(z.enum(SEGMENT_KEYS)).max(SEGMENT_KEYS.length).optional(),
 });
 export const roleUpdate = z
   .object({
@@ -281,6 +282,7 @@ export const roleUpdate = z
     description: optionalText,
     color: z.enum(ROLE_COLORS),
     permissions: z.array(z.enum(SEGMENT_KEYS)).max(SEGMENT_KEYS.length),
+    edit_permissions: z.array(z.enum(SEGMENT_KEYS)).max(SEGMENT_KEYS.length),
   })
   .partial();
 

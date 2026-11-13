@@ -159,3 +159,7 @@ The installed app is the same live site in its own window, not a separate copy. 
 Passwords live only in Supabase Auth, encrypted; the app never stores or shows one. Admins give each person their own password on the Profiles & Contacts page (typed or generated), or answer a forgotten-password request under Approvals. An admin who forgets their own password gets a verification email from Supabase Auth with a link to `/auth/reset`. For that link to work, the site address followed by `/auth/reset` has to be listed under Authentication, URL Configuration, Redirect URLs in Supabase.
 
 Admins can also look up each person's login ID (their sign-in email) and the password they were given, in Login details on the Profiles & Contacts page. Supabase Auth cannot return a password, so the app keeps its own copy, encrypted with a key derived from the service-role key (`src/lib/server/secret-box.ts`). A database copy alone does not reveal passwords. If the service-role key is replaced, stored passwords become unreadable and are simply set again.
+
+## View only or edit
+
+Each role has two lists per part of the app: what it can view and what it can edit. Pages use `can(segment)` to decide what to show and `canEdit(segment)` to decide whether to show add, edit and delete; the API checks editing access again before storing a change request (`authorizeWrite` in `src/lib/api/crud.ts`). Admins set both lists under Roles & Access.

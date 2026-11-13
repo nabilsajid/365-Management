@@ -31,9 +31,12 @@ type Tab = (typeof TABS)[number]['key'];
 // stacked on a single long page.
 export default async function EmployeesPage({ searchParams }: { searchParams: Promise<{ month?: string; tab?: string }> }) {
   const { month: requested, tab: requestedTab } = await searchParams;
-  const { supabase, orgId, isAdmin, userId, can, localDate } = await getPageContext();
+  const { supabase, orgId, isAdmin, userId, can, canEdit, localDate } = await getPageContext();
   const seesTeamPoints = can('team_points');
   const seesTeamBonuses = can('bonuses');
+  // Viewing and changing are separate: these say what this person may change.
+  const editsTeamPoints = canEdit('team_points');
+  const editsTeamBonuses = canEdit('bonuses');
 
   const timeZone = await getOrgTimezone(supabase, orgId);
   const now = new Date();
@@ -45,7 +48,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const tabs = TABS.filter((item) => item.key !== 'settings' || isAdmin || seesTeamPoints);
   const tab: Tab = tabs.some((item) => item.key === requestedTab) ? (requestedTab as Tab) : 'points';
   const href = (next: Tab) => `/employees?tab=${next}&month=${month.slice(0, 7)}`;
-  const canGivePoints = isAdmin || seesTeamPoints;
+  const canGivePoints = editsTeamPoints;
 
   // Everything the page needs is fetched in one parallel round.
   const [rules, peopleR, attendanceR, entriesR, violationsR, settingsR, bonusesR, rolesR, heldR, totalsR] = await Promise.all([
@@ -298,7 +301,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               { name: 'status', label: 'Status', type: 'select', required: true, options: enumOptions(['pending', 'verified', 'rejected']) },
               { name: 'note', label: 'Note' },
             ]}
-            canWrite={isAdmin || seesTeamPoints}
+            canWrite={editsTeamPoints}
             needsApproval={needsApproval}
             addLabel="Record attendance"
             emptyText="No data found."
@@ -344,7 +347,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             editFields={[
               { name: 'status', label: 'Decision', type: 'select', required: true, options: enumOptions(['pending', 'approved', 'rejected']) },
             ]}
-            canWrite={isAdmin || seesTeamBonuses}
+            canWrite={editsTeamBonuses}
             needsApproval={needsApproval}
             emptyText="No data found."
           />
@@ -415,7 +418,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               { name: 'deduction_points', label: 'Points deducted', type: 'number', required: true },
               { name: 'is_active', label: 'Active', type: 'checkbox' },
             ]}
-            canWrite
+            canWrite={editsTeamPoints}
             needsApproval={needsApproval}
             addLabel="Add violation type"
             emptyText="No violation types yet."

@@ -47,7 +47,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 // calculated from every entry, so they stay accurate.
 export default async function CashFlowPage({ searchParams }: { searchParams: Promise<{ month?: string; tab?: string }> }) {
   const query = await searchParams;
-  const { supabase, orgId, isAdmin, can } = await getPageContext();
+  const { supabase, orgId, isAdmin, can, canEdit } = await getPageContext();
   if (!can('cashflow')) redirect('/dashboard');
 
   const timeZone = await getOrgTimezone(supabase, orgId);
@@ -59,6 +59,8 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   const tab: Tab = TABS.some((item) => item.key === query.tab) ? (query.tab as Tab) : 'overview';
   const monthName = monthLabel(month);
   const needsApproval = !isAdmin;
+  // A role may be allowed to view cash flow without being allowed to change it.
+  const editsCashflow = canEdit('cashflow');
 
   const [accountsR, balancesR, invoicesR, invoiceBalancesR, paymentsR, expensesR, clientsR, projectsR, fixedR] =
     await Promise.all([
@@ -312,7 +314,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
               { name: 'method', label: 'Method', placeholder: 'Bank transfer, bKash, cash…' },
               { name: 'note', label: 'Note', type: 'textarea' },
             ]}
-            canWrite
+            canWrite={editsCashflow}
             needsApproval={needsApproval}
             addLabel="Record payment"
             emptyText="No data found."
@@ -324,7 +326,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
             rows={asRows(issuedThisMonth)}
             columns={invoiceColumns}
             fields={invoiceFields}
-            canWrite
+            canWrite={editsCashflow}
             needsApproval={needsApproval}
             addLabel="Add invoice"
             emptyText={clients.length === 0 ? 'Add a client under Accounts & clients before invoicing.' : 'No data found.'}
@@ -337,7 +339,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
             rows={asRows(unpaidEarlier)}
             columns={invoiceColumns}
             editFields={invoiceFields}
-            canWrite
+            canWrite={editsCashflow}
             needsApproval={needsApproval}
             emptyText="Nothing outstanding from earlier months."
           />
@@ -371,7 +373,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
               { key: 'amount', label: 'Amount', kind: 'money' },
             ]}
             fields={expenseFields}
-            canWrite
+            canWrite={editsCashflow}
             needsApproval={needsApproval}
             addLabel="Add expense"
             emptyText="No data found."
@@ -397,7 +399,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
               { name: 'kind', label: 'Type', type: 'select', required: true, defaultValue: 'cash', options: enumOptions(['cash', 'bank', 'mobile_wallet']) },
               { name: 'opening_balance', label: 'Opening balance', type: 'number', required: true, defaultValue: '0' },
             ]}
-            canWrite
+            canWrite={editsCashflow}
             needsApproval={needsApproval}
             addLabel="Add account"
             emptyText="No accounts yet. Add one to start recording payments."
@@ -421,7 +423,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
               { name: 'phone', label: 'Phone' },
               { name: 'notes', label: 'Notes', type: 'textarea' },
             ]}
-            canWrite
+            canWrite={editsCashflow}
             needsApproval={needsApproval}
             addLabel="Add client"
             emptyText="No clients yet."

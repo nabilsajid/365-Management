@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import type { Profile } from '@/types/database';
-import { segmentsFromRoles } from '@/lib/domain/roles';
+import { editSegmentsFromRoles, segmentsFromRoles } from '@/lib/domain/roles';
 import { primeOrg } from '@/lib/services/rewards';
 import { createClient } from '@/lib/supabase/server';
 import { authorize, authorizeWrite, makeCrud, type Access, type ApiContext } from './crud';
@@ -20,10 +20,15 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
   const userId = claims?.claims?.sub;
   if (!userId) return null;
 
-  const [profileResult, rolesResult] = await Promise.all([
+  const [profileResult, splitRoles] = await Promise.all([
     supabase.from('profiles').select('*, organization:organizations(name, timezone)').eq('id', userId).maybeSingle(),
-    supabase.from('profile_roles').select('roles(permissions)').eq('profile_id', userId),
+    supabase.from('profile_roles').select('roles(permissions, edit_permissions)').eq('profile_id', userId),
   ]);
+  // Until the view/edit database update has been run there is no edit column;
+  // fall back to the old rule, where seeing a part also meant editing it.
+  const rolesResult = splitRoles.error
+    ? await supabase.from('profile_roles').select('roles(permissions)').eq('profile_id', userId)
+    : splitRoles;
   const loaded = profileResult.data as (Profile & { organization?: { name: string; timezone: string } | null }) | null;
   if (!loaded || !loaded.is_active) return null;
   const { organization, ...profile } = loaded;
@@ -31,10 +36,10 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
 
   // Each row carries the joined role; tolerate either an object or a one-item list.
   const held = ((rolesResult.data ?? []) as unknown as { roles: unknown }[]).flatMap((row) =>
-    (Array.isArray(row.roles) ? row.roles : row.roles ? [row.roles] : []) as { permissions: string[] | null }[],
+    (Array.isArray(row.roles) ? row.roles : row.roles ? [row.roles] : []) as { permissions: string[] | null; edit_permissions?: string[] | null }[],
   );
 
-  return { supabase, userId, profile, segments: segmentsFromRoles(held) };
+  return { supabase, userId, profile, segments: segmentsFromRoles(held), editSegments: editSegmentsFromRoles(held) };
 });
 
 export const crud = makeCrud(getApiContext);
