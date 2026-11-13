@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronRight, LogOut, Menu, Moon, PanelLeftClose, P
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppInstall } from '@/components/app-install';
 import { cn } from '@/lib/utils';
 import { locate, navFor, type Viewer } from './nav';
 
@@ -402,6 +403,7 @@ export function AppShell({
               <span className="font-medium text-ink">365 Management</span>
             )}
           </nav>
+          <AppInstall />
           <ThemeToggle />
           <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} />
         </header>

@@ -29,3 +29,14 @@ Built with Next.js (App Router, TypeScript) and Supabase (Postgres, Auth, row le
 - [docs/DATA_MODEL.md](docs/DATA_MODEL.md): tables, views and the automatic behaviours in the database
 - [docs/POINTS_AND_BONUSES.md](docs/POINTS_AND_BONUSES.md): the monthly points rules
 - [docs/API.md](docs/API.md): API routes and who may call them
+
+## Installing it as an app
+
+The site can be installed like an app, with its own icon and window and no browser bars:
+
+- **Android (Chrome):** open the site, tap the menu, then "Install app" or "Add to Home screen".
+- **iPhone or iPad (Safari):** open the site, tap Share, then "Add to Home Screen".
+- **Computer (Chrome or Edge):** click "Install app" in the top bar, or the install icon in the address bar.
+
+It is the same site underneath, so it always shows live data and updates itself whenever a new version is deployed. It needs an internet connection; without one it shows an offline page. The pieces are `src/app/manifest.ts`, the icons in `public/icons`, `public/sw.js` and `public/offline.html`.
+

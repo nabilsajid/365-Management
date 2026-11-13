@@ -118,6 +118,13 @@
     text-underline-offset: 3px;
   }
 
+  /* No pull-to-refresh bounce inside the installed app. */
+  @media (display-mode: standalone) {
+    body {
+      overscroll-behavior-y: none;
+    }
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     scroll-behavior: smooth;

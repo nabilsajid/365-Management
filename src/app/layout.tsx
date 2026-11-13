@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 export const metadata: Metadata = {
   title: '365 Management',
   description: 'Projects, logistics, cash flow and team rewards in one place.',
+  applicationName: '365 Frames',
+  // On iPhone and iPad: open full screen from the home screen, with this name under the icon.
+  appleWebApp: { capable: true, title: '365 Frames', statusBarStyle: 'black' },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
