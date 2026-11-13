@@ -5,6 +5,7 @@ import {
   bonusAmount,
   dateInZone,
   dateTimeInZone,
+  pointReason,
   monthStart,
   nextMonth,
   parseMonth,
@@ -84,4 +85,11 @@ test('timestamps are shown in the organization timezone, including the date', ()
   assert.equal(dateTimeInZone(at, 'Asia/Dhaka'), '2026-11-13 04:16');
   assert.equal(dateTimeInZone(at, 'UTC'), '2026-11-12 22:16');
   assert.equal(dateTimeInZone(new Date('2026-11-12T18:00:00Z'), 'Asia/Dhaka'), '2026-11-13 00:00');
+});
+
+test('a point reason is the chosen reason plus any details', () => {
+  assert.equal(pointReason('Extra time', ''), 'Extra time');
+  assert.equal(pointReason('Good client feedback', '  Acme loved the cut '), 'Good client feedback: Acme loved the cut');
+  assert.equal(pointReason('Other', 'Covered the weekend shoot'), 'Covered the weekend shoot');
+  assert.equal(pointReason('Other', '  '), '');
 });

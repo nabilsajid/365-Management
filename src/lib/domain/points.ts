@@ -90,3 +90,20 @@ export function summarizeEntries(entries: { points: number }[]): MonthSummary {
   }
   return { total: earned + deducted, earned, deducted };
 }
+
+/** Ready-made reasons offered when giving points. "Other" asks for the reason in words. */
+export const POINT_REASONS = [
+  'Extra time',
+  'Client onboarded',
+  'Good client feedback',
+  'Finished ahead of deadline',
+  'Helped a teammate',
+  'Other',
+] as const;
+
+/** The reason stored with a point entry: the chosen reason, plus any details. */
+export function pointReason(preset: string, details: string): string {
+  const note = details.trim();
+  if (preset === 'Other' || !preset) return note;
+  return note ? `${preset}: ${note}` : preset;
+}

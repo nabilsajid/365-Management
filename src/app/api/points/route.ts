@@ -26,9 +26,15 @@ export async function POST(request: Request): Promise<Response> {
     if (input.employee_id === ctx.userId) return fail(403, 'You cannot give or deduct your own points.');
     const person = await ctx.supabase.from('profiles').select('full_name').eq('id', input.employee_id).eq('org_id', orgId).maybeSingle();
     if (!person.data) return fail(400, 'That employee does not exist.');
-    const what = input.source === 'violation' ? 'Deduct points from' : 'Adjust points for';
-    const amount = input.points ? ` (${input.source === 'violation' ? -Math.abs(input.points) : input.points} points)` : '';
-    return proposeChange(ctx, request, input, `${what} ${person.data.full_name}${amount}: ${input.reason}`);
+    const name = person.data.full_name as string;
+    const amount = Math.abs(input.points ?? 0).toLocaleString('en-US');
+    const summary =
+      input.source === 'violation'
+        ? `Deduct ${input.points ? `${amount} points` : 'points'} from ${name}: ${input.reason}`
+        : (input.points ?? 0) > 0
+          ? `Give ${amount} points to ${name}: ${input.reason}`
+          : `Take ${amount} points from ${name}: ${input.reason}`;
+    return proposeChange(ctx, request, input, summary);
   }
 
   const month = parseMonth(input.month) ?? monthStart(new Date(), await getOrgTimezone(ctx.supabase, orgId));
