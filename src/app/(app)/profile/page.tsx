@@ -2,6 +2,7 @@ import { ApiForm, ResourceManager } from '@/components/resource-manager';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { SetPassword } from '@/components/set-password';
 import { asRows, getPageContext, rowsOf } from '@/lib/page';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Profile, ProfilePrivate } from '@/types/database';
 
 export default async function ProfilePage() {
@@ -32,6 +33,13 @@ export default async function ProfilePage() {
     );
   }
 
+  // Login IDs (sign-in emails) live in Supabase Auth and are shown to admins only.
+  const emails = new Map<string, string>();
+  if (isAdmin) {
+    const listed = await createAdminClient()?.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    for (const user of listed?.data?.users ?? []) if (user.email) emails.set(user.id, user.email);
+  }
+
   const details = new Map(rowsOf<ProfilePrivate>(privateR.data).map((row) => [row.profile_id, row]));
   const mine = details.get(userId);
 
@@ -47,6 +55,7 @@ export default async function ProfilePage() {
       secondary_contact: details.get(person.id)?.secondary_contact ?? null,
       filled: Boolean(person.profile_completed_at),
       is_active: person.is_active,
+      is_admin: person.access_role === 'admin',
     }));
 
   return (
@@ -123,6 +132,13 @@ export default async function ProfilePage() {
           people={people
             .filter((person) => person.is_active)
             .map((person) => ({ value: person.id, label: person.job_title === '—' ? person.full_name : `${person.full_name} (${person.job_title})` }))}
+          logins={people.map((person) => ({
+            id: person.id,
+            name: person.full_name,
+            role: person.job_title === '—' ? null : person.job_title,
+            loginId: emails.get(person.id) ?? null,
+            isAdmin: person.is_admin,
+          }))}
         />
       ) : null}
     </>

@@ -94,6 +94,12 @@ Automatic behaviour:
 
 A person changes their own profile through the function `update_my_profile`, which touches only the name, nickname, contact, address and secondary contact, so it cannot be used to change roles or access.
 
+## Login details
+
+| Table | Purpose |
+| --- | --- |
+| `profile_credentials` | The password an admin gave a person, encrypted by the server before it is stored (`password_cipher`), so admins can look it up later. Admin-only: employees cannot read or write it. Never kept for admin accounts. Supabase Auth remains the place that checks passwords. |
+
 ## Password requests
 
 | Table | Purpose |

@@ -1,5 +1,6 @@
 import { requireContext } from '@/lib/api/context';
 import { fail, fromDbError, ok, readJson } from '@/lib/api/http';
+import { rememberPassword } from '@/lib/server/login-details';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { passwordRequestResolve } from '@/lib/validation';
 import type { PasswordRequest } from '@/types/database';
@@ -34,6 +35,8 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
     if (!admin) return fail(501, 'Setting passwords needs SUPABASE_SERVICE_ROLE_KEY to be set on the server.');
     const changed = await admin.auth.admin.updateUserById(pending.profile_id, { password: body.data.password });
     if (changed.error) return fail(400, changed.error.message);
+    const person = await ctx.supabase.from('profiles').select('id, org_id, access_role').eq('id', pending.profile_id).maybeSingle();
+    if (person.data && body.data.password) await rememberPassword(ctx.supabase, person.data, body.data.password, ctx.userId);
   }
 
   const { data, error } = await ctx.supabase

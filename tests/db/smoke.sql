@@ -615,5 +615,19 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok - only admins post notices';
 end $$;
 
+-- Login details: admins only.
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into profile_credentials (profile_id, org_id, password_cipher)
+values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001', 'v1.sealed');
+select pg_temp.check((select count(*) = 1 from profile_credentials), 'an admin can keep and read login details');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from profile_credentials), 'an employee cannot read login details, not even their own');
+do $$ begin
+  insert into profile_credentials (profile_id, org_id, password_cipher)
+  values ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-000000000001', 'x');
+  raise exception 'FAILED: an employee wrote login details';
+exception when insufficient_privilege then raise notice 'ok - an employee cannot write login details';
+end $$;
+
 reset role;
 rollback;
