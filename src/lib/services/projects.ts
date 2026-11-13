@@ -66,9 +66,8 @@ export async function createProjectWithDeliverables(
     return { error };
   };
 
-  // Anyone given a deliverable is on the project's team too.
-  const assignees = deliverables.map((item) => item.assignee_id).filter((value): value is string => Boolean(value));
-  const teamIds = [...new Set([...memberIds, ...assignees])];
+  // A deliverable can go to anyone, including people who are not on the project's team.
+  const teamIds = [...new Set(memberIds)];
 
   if (teamIds.length > 0) {
     const team = await supabase.rpc('set_project_members', { p_project: projectId, p_members: teamIds });

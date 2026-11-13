@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AssignmentPopup, type NotificationItem } from '@/components/assignment-popup';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { ApiForm } from '@/components/resource-manager';
 import { AppShell } from '@/components/shell/app-shell';
@@ -7,10 +8,10 @@ import { getPageContext } from '@/lib/page';
 export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { supabase, orgId, orgName, profile, isAdmin, segments } = await getPageContext();
+  const { supabase, orgId, userId, orgName, profile, isAdmin, segments } = await getPageContext();
   // Counts for the sidebar badges. Row level security makes them personal:
   // admins get everything waiting for them, everyone else only their own.
-  const [pendingChanges, openBroadcasts, pendingOther] = await Promise.all([
+  const [pendingChanges, openBroadcasts, pendingOther, unread] = await Promise.all([
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
     isAdmin ? supabase.from('broadcasts').select('id').eq('org_id', orgId).eq('status', 'open') : Promise.resolve({ data: [] }),
     isAdmin
@@ -21,7 +22,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           supabase.from('password_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
         ])
       : Promise.resolve([]),
+    // New assignments, shown in a pop-up until the person has seen them.
+    supabase.from('notifications').select('id, title, body, href').eq('profile_id', userId).is('read_at', null).order('created_at', { ascending: false }).limit(8),
   ]);
+  const notifications = ((unread.data ?? []) as NotificationItem[]);
 
   const changes = pendingChanges.data?.length ?? 0;
   const otherWaiting = (pendingOther as { data: unknown[] | null }[]).reduce(
@@ -70,6 +74,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         ) : (
           children
         )}
+        {!needsProfile && notifications.length > 0 ? (
+          <AssignmentPopup key={notifications.map((item) => item.id).join()} items={notifications} />
+        ) : null}
       </div>
     </AppShell>
   );

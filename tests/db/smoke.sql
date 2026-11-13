@@ -725,6 +725,49 @@ select pg_temp.check(
   (select count(*) = 1 from tasks where title = 'Thumbnail 1' and for_task_id is null),
   'deleting a video keeps its thumbnail, untied');
 
+-- Project roles work directly; points and deleting stay with admins; assignments notify.
+reset role;
+insert into roles (id, org_id, name, permissions, edit_permissions) values
+  ('00000000-0000-0000-0000-00000000aa03', '00000000-0000-0000-0000-000000000001', 'Producer', '{projects}', '{projects}');
+delete from profile_roles where profile_id = '00000000-0000-0000-0000-0000000000e2';
+insert into profile_roles (profile_id, role_id, org_id) values
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-00000000aa03', '00000000-0000-0000-0000-000000000001');
+delete from notifications;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+insert into projects (id, org_id, name) values
+  ('00000000-0000-0000-0000-00000000f0cc', '00000000-0000-0000-0000-000000000001', 'Made by a producer');
+select pg_temp.check((select count(*) = 1 from projects where name = 'Made by a producer'), 'a project role creates a project without approval');
+select set_project_members('00000000-0000-0000-0000-00000000f0cc', array['00000000-0000-0000-0000-0000000000a1']::uuid[]);
+insert into tasks (id, org_id, project_id, title, assignee_id) values
+  ('00000000-0000-0000-0000-00000000f0c1', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0cc', 'Edit reel', '00000000-0000-0000-0000-0000000000a1');
+select pg_temp.check(
+  (select count(*) = 1 from tasks where id = '00000000-0000-0000-0000-00000000f0c1'),
+  'and gives a deliverable to someone, on the team or not');
+do $$ begin
+  update tasks set status = 'approved' where id = '00000000-0000-0000-0000-00000000f0c1';
+  raise exception 'FAILED: a project role approved a deliverable';
+exception when insufficient_privilege then raise notice 'ok - only an admin approves a deliverable';
+end $$;
+do $$ begin
+  update tasks set points_value = 900 where id = '00000000-0000-0000-0000-00000000f0c1';
+  raise exception 'FAILED: a project role set points';
+exception when insufficient_privilege then raise notice 'ok - only an admin sets points';
+end $$;
+delete from projects where id = '00000000-0000-0000-0000-00000000f0cc';
+select pg_temp.check((select count(*) = 1 from projects where id = '00000000-0000-0000-0000-00000000f0cc'), 'a project role cannot delete a project');
+select pg_temp.check((select count(*) = 0 from notifications), 'nobody reads someone else''s notifications');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check(
+  (select count(*) = 2 and bool_and(read_at is null) from notifications),
+  'being put on a project and being given a task each send a notification');
+update notifications set read_at = now();
+select pg_temp.check((select count(*) = 0 from notifications where read_at is null), 'and they can be marked as read');
+update tasks set status = 'approved', points_value = 300 where id = '00000000-0000-0000-0000-00000000f0c1';
+delete from projects where id = '00000000-0000-0000-0000-00000000f0cc';
+select pg_temp.check((select count(*) = 0 from projects where id = '00000000-0000-0000-0000-00000000f0cc'), 'an admin deletes any project');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

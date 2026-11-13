@@ -1,7 +1,7 @@
 import { crud, requireWriter } from '@/lib/api/context';
 import { proposeChange, summarize } from '@/lib/api/crud';
 import { fromDbError, ok, readJson } from '@/lib/api/http';
-import { projects } from '@/lib/api/resources';
+import { directProjectsReady, projects } from '@/lib/api/resources';
 import { createProjectWithDeliverables } from '@/lib/services/projects';
 import { projectCreate } from '@/lib/validation';
 
@@ -16,7 +16,10 @@ export async function POST(request: Request): Promise<Response> {
   const body = await readJson(request, projectCreate);
   if (body.response) return body.response;
 
-  if (mode === 'propose') {
+  // Roles with editing access to projects create them directly. A project that
+  // sets points on its deliverables still goes to an admin, who decides points.
+  const setsPoints = body.data.deliverables.some((item) => item.points_value !== null && item.points_value !== undefined);
+  if (mode === 'propose' && (setsPoints || !(await directProjectsReady(ctx)))) {
     const { name, client_name: client, due_date: due } = body.data;
     return proposeChange(ctx, request, body.data, summarize('Add', 'project', name, { client, due_date: due }));
   }

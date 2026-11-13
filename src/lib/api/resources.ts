@@ -1,4 +1,4 @@
-import type { ResourceConfig } from './crud';
+import type { ApiContext, ResourceConfig } from './crud';
 import * as v from '../validation';
 
 // One entry per table exposed through the generic CRUD handlers.
@@ -27,10 +27,21 @@ export const projects: ResourceConfig = {
   filters: ['client_id', 'status'],
 };
 
+/** Whether the database lets project roles write directly (it does after the project rules update). */
+export async function directProjectsReady(ctx: { supabase: ApiContext['supabase'] }): Promise<boolean> {
+  const probe = await ctx.supabase.from('notifications').select('id').limit(1);
+  return !probe.error;
+}
+
+// Roles with editing access to projects add and change deliverables directly.
+// Approving one, or setting its points, stays an admin's decision.
 export const tasks: ResourceConfig = {
   table: 'tasks',
   label: 'task',
+  write: ['projects'],
   propose: ['projects'],
+  approvalWhen: async (ctx, data) =>
+    data.status === 'approved' || (data.points_value !== undefined && data.points_value !== null) || !(await directProjectsReady(ctx)),
   select: '*, assignee:profiles(id, full_name, job_title)',
   createSchema: v.taskCreate,
   updateSchema: v.taskUpdate,

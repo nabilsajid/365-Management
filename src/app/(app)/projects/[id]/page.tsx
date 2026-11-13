@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CopyProject } from '@/components/copy-project';
+import { DeleteProject } from '@/components/delete-project';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { label } from '@/lib/format';
@@ -17,7 +18,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const project = projectResult.data as Project | null;
   if (!project) notFound();
 
-  const [clientResult, tasksResult, peopleResult, membersResult, rolesResult, commentsResult] = await Promise.all([
+  const [clientResult, tasksResult, peopleResult, membersResult, rolesResult, commentsResult, directProbe] = await Promise.all([
     project.client_id
       ? supabase.from('clients').select('*').eq('id', project.client_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -26,7 +27,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     supabase.from('project_members').select('*').eq('project_id', id),
     supabase.from('roles').select('name, color').eq('org_id', orgId),
     supabase.from('project_comments').select('*').eq('project_id', id).eq('org_id', orgId).order('created_at'),
+    // After the project rules database update, project roles change things without admin approval.
+    supabase.from('notifications').select('id').limit(1),
   ]);
+  const needsApproval = !isAdmin && Boolean(directProbe.error);
   // Comments arrive with a database update; until then the section is left out.
   const commentsReady = !commentsResult.error;
   const comments = rowsOf<ProjectComment>(commentsResult.data);
@@ -76,9 +80,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   };
   const baseFields: Field[] = [
     { name: 'title', label: 'Title', required: true, placeholder: 'Video 1' },
-    { name: 'assignee_id', label: 'Assignee', type: 'select', options: peopleOptions(people) },
-    { name: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'todo', options: enumOptions(['todo', 'in_progress', 'submitted', 'changes_requested', 'approved']) },
-    { name: 'points_value', label: 'Points on approval', type: 'number', hint: 'Leave empty to use the organization default.' },
+    { name: 'assignee_id', label: 'Assignee', type: 'select', options: peopleOptions(people), hint: 'Anyone on the team, including people not assigned to this project. They are notified.' },
+    { name: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'todo', options: enumOptions(isAdmin ? ['todo', 'in_progress', 'submitted', 'changes_requested', 'approved'] : ['todo', 'in_progress', 'submitted', 'changes_requested']) },
+    // Points are an admin's decision.
+    ...(isAdmin ? [{ name: 'points_value', label: 'Points on approval', type: 'number' as const, hint: 'Leave empty to use the organization default.' }] : []),
     { name: 'due_date', label: 'Due date', type: 'date' },
     { name: 'description', label: 'Quick notes', type: 'textarea', placeholder: 'Longer than the rest, about 10 minutes.' },
     { name: 'file_links', label: 'File links', type: 'links' },
@@ -125,7 +130,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       title: task.title,
       description: task.description,
       assignee_id: task.assignee_id,
-      points_value: task.points_value,
+      ...(isAdmin ? { points_value: task.points_value } : {}),
       ...(typesReady ? { kind: task.kind ?? 'other' } : {}),
       ...(task.for_task_id && tasks.some((other) => other.id === task.for_task_id)
         ? { for_index: tasks.findIndex((other) => other.id === task.for_task_id) }
@@ -143,7 +148,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </p>
           <h1>{project.name}</h1>
         </div>
-        {mayEdit ? <CopyProject payload={copyPayload} /> : null}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {mayEdit ? <CopyProject payload={copyPayload} /> : null}
+          {isAdmin ? <DeleteProject id={project.id} name={project.name} /> : null}
+        </div>
       </div>
 
       <section className="panel">
@@ -207,7 +215,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <h2>Shoot</h2>
               <p className="muted">
                 No fixed date yet? Mark it as waiting, then set the date once the client confirms.
-                {isAdmin ? '' : ' Your change goes to an admin for approval.'}
+                {needsApproval ? ' Your change goes to an admin for approval.' : ''}
               </p>
             </div>
           </header>
@@ -252,7 +260,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           editFields={fieldsFor(kind, true)}
           fixedValues={{ project_id: project.id, position: tasks.length, kind }}
           canWrite={mayEdit}
-          needsApproval={!isAdmin}
+          needsApproval={needsApproval}
           addLabel={`Add ${TASK_KIND_SINGLE[kind].toLowerCase()}`}
           pageSize={25}
         />
@@ -273,7 +281,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             fields={fieldsFor(null, false)}
             fixedValues={{ project_id: project.id, position: tasks.length }}
             canWrite={mayEdit}
-            needsApproval={!isAdmin}
+            needsApproval={needsApproval}
             addLabel="Add deliverable"
             emptyText={groups.length === 0 ? 'No deliverables yet.' : 'Choose a type when adding.'}
           />
@@ -288,7 +296,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           fields={baseFields}
           fixedValues={{ project_id: project.id, position: tasks.length }}
           canWrite={mayEdit}
-          needsApproval={!isAdmin}
+          needsApproval={needsApproval}
           addLabel="Add deliverable"
           emptyText="No deliverables yet."
         />

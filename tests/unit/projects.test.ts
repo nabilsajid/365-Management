@@ -59,15 +59,15 @@ test('wildcards in a client name are matched literally', async () => {
   assert.deepEqual(db.called('ilike')[0], ['ilike', 'name', '100\\%\\_Studio']);
 });
 
-test('deliverables become one task each, and their assignees join the team', async () => {
-  const db = fakeSupabase([ok({ id: 'project-1' }), ok(null), ok([{ id: 't1' }, { id: 't2' }])]);
+test('deliverables become one task each, and an assignee need not be on the team', async () => {
+  const db = fakeSupabase([ok({ id: 'project-1' }), ok([{ id: 't1' }, { id: 't2' }])]);
   const result = await createProjectWithDeliverables(db.client, 'org-1', {
     name: 'Launch',
     deliverables: [{ title: 'Video 1', assignee_id: 'user-1' }, { title: 'Video 2' }],
   });
 
   assert.deepEqual(tables(db), ['projects', 'tasks']);
-  assert.deepEqual(db.called('rpc')[0], ['rpc', 'set_project_members', { p_project: 'project-1', p_members: ['user-1'] }]);
+  assert.equal(db.called('rpc').length, 0, 'the assignee is not added to the team');
   const rows = db.called('insert')[1][1] as Record<string, unknown>[];
   assert.deepEqual(rows.map((task) => task.title), ['Video 1', 'Video 2']);
   assert.ok(rows.every((task) => task.project_id === 'project-1' && task.org_id === 'org-1'));

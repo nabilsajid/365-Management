@@ -32,16 +32,19 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   // Everyone can look at projects and comment on them; changing them needs the projects role.
   const canEdit = canEditSegment('projects');
 
-  const [clientsResult, projectsResult, tasksResult, typesProbe, peopleResult, membersResult] = await Promise.all([
+  const [clientsResult, projectsResult, tasksResult, typesProbe, directProbe, peopleResult, membersResult] = await Promise.all([
     supabase.from('clients').select('*').eq('org_id', orgId),
     supabase.from('projects').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
     supabase.from('tasks').select('id, project_id, status').eq('org_id', orgId),
     // Deliverable types arrive with a database update; until then the form leaves them out.
     supabase.from('tasks').select('kind').limit(1),
+    // After the project rules database update, project roles change things without admin approval.
+    supabase.from('notifications').select('id').limit(1),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('project_members').select('*').eq('org_id', orgId),
   ]);
   const typesReady = !typesProbe.error;
+  const needsApproval = !isAdmin && Boolean(directProbe.error);
   const clients = rowsOf<Client>(clientsResult.data);
   const projects = rowsOf<Project>(projectsResult.data);
   const tasks = rowsOf<Pick<Task, 'id' | 'project_id' | 'status'>>(tasksResult.data);
@@ -110,7 +113,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
-      {canEdit ? <ProjectOnboardingForm people={staff} needsApproval={!isAdmin} typesReady={typesReady} /> : null}
+      {canEdit ? <ProjectOnboardingForm people={staff} needsApproval={needsApproval} typesReady={typesReady} showPoints={isAdmin} /> : null}
 
       <nav className="tabs" aria-label="Project views">
         <Link href="/projects" aria-current={view === 'board' ? 'page' : undefined}>
@@ -224,7 +227,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
             ]}
             editFields={projectFields}
             canWrite={canEdit}
-            needsApproval={!isAdmin}
+            needsApproval={needsApproval}
+            allowDelete={isAdmin}
             allowCreate={false}
             emptyText='No projects yet. Use "Add project" above to create the first one.'
           />

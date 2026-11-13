@@ -102,6 +102,12 @@ A person changes their own profile through the function `update_my_profile`, whi
 
 `tasks.kind` says what a deliverable is: `shoot`, `video`, `thumbnail`, `graphic` or `other`. A thumbnail's `for_task_id` points at the video it belongs to, so a project can show which videos still have none. `projects.shoot_status` is `none`, `waiting` (for the client to confirm) or `confirmed`, with `shoot_date` once known. A client's scope is simply the list of deliverables on the project; "Copy as new project" starts the next batch from the same list.
 
+## Notifications
+
+| Table | Purpose |
+| --- | --- |
+| `notifications` | One line per thing a person should know: `title`, `body`, `href`, `read_at`. Written only by database triggers (being added to a project, being given a deliverable). People read and mark their own. |
+
 ## Project comments
 
 | Table | Purpose |

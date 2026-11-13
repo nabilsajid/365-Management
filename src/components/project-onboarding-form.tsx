@@ -33,11 +33,14 @@ export function ProjectOnboardingForm({
   people,
   needsApproval = false,
   typesReady = false,
+  showPoints = true,
 }: {
   people: Option[];
   needsApproval?: boolean;
   /** Whether deliverables can carry a type (after the database update). */
   typesReady?: boolean;
+  /** Points are an admin's decision, so only admins set them here. */
+  showPoints?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -99,7 +102,7 @@ export function ProjectOnboardingForm({
         description: item.description.trim() || null,
         file_links: parsed.links,
         assignee_id: item.assignee_id || null,
-        points_value: item.points_value ? Number(item.points_value) : null,
+        points_value: showPoints && item.points_value ? Number(item.points_value) : null,
         due_date: item.due_date || null,
         ...(typesReady ? { kind: item.kind } : {}),
       });
@@ -216,7 +219,7 @@ export function ProjectOnboardingForm({
                 ))}
               </div>
             )}
-            <small>Assigned people can open this project and see its deliverables.</small>
+            <small>They are notified. A deliverable can also go to someone who is not on this list.</small>
           </div>
 
           <label className="field wide">
@@ -261,7 +264,8 @@ export function ProjectOnboardingForm({
                   ))}
                 </select>
               </label>
-              <label className="field">
+{showPoints ? (
+                            <label className="field">
                 <span>Points on approval</span>
                 <input
                   type="number"
@@ -272,6 +276,7 @@ export function ProjectOnboardingForm({
                   onChange={(event) => update(item.key, { points_value: event.target.value })}
                 />
               </label>
+              ) : null}
               <label className="field">
                 <span>Due date</span>
                 <input type="date" value={item.due_date} onChange={(event) => update(item.key, { due_date: event.target.value })} />

@@ -440,11 +440,13 @@
     border-color: var(--color-primary-hover);
   }
 
-  .panel button.danger {
+  .panel button.danger,
+  .page-header button.danger {
     color: var(--color-danger);
   }
 
-  .panel button.danger:hover:not(:disabled) {
+  .panel button.danger:hover:not(:disabled),
+  .page-header button.danger:hover:not(:disabled) {
     background: var(--color-danger-soft);
     border-color: var(--color-danger);
   }
@@ -1408,6 +1410,97 @@
     margin: 0;
     font-size: 0.8125rem;
     overflow-wrap: anywhere;
+  }
+
+  /* The pop-up that tells someone about new assignments after they sign in. */
+  .popup-back {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(0 0 0 / 0.55);
+    animation: fade-in 0.2s ease-out both;
+  }
+
+  .popup {
+    width: 100%;
+    max-width: 26rem;
+    padding: 1.5rem;
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+    background: var(--color-card);
+    box-shadow: 0 24px 60px rgb(0 0 0 / 0.35);
+    animation: card-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .popup-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-bottom: 0.75rem;
+    border-radius: 999px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+  }
+
+  .popup h2 {
+    font-size: 1.05rem;
+    font-weight: 650;
+  }
+
+  .popup-list {
+    display: grid;
+    gap: 0.5rem;
+    max-height: 40vh;
+    margin: 0.85rem 0;
+    overflow-y: auto;
+  }
+
+  .popup-list li {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: var(--color-subtle);
+    font-size: 0.8125rem;
+  }
+
+  .popup-list span {
+    color: var(--color-muted);
+  }
+
+  .popup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .popup-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.35rem;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: var(--color-card);
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  .popup-actions button.primary {
+    flex: 1;
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
   }
 
   /* Project comments. */

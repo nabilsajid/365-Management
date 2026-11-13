@@ -1,7 +1,7 @@
-import { crud, requireWriter } from '@/lib/api/context';
+import { crud, requireContext, requireWriter } from '@/lib/api/context';
 import { describeRecord, proposeChange, summarize } from '@/lib/api/crud';
 import { fail, fromDbError, ok, readJson } from '@/lib/api/http';
-import { projects } from '@/lib/api/resources';
+import { directProjectsReady, projects } from '@/lib/api/resources';
 import { resolveClient } from '@/lib/services/projects';
 import { projectUpdate } from '@/lib/validation';
 
@@ -10,9 +10,27 @@ type RouteParams = { params: Promise<{ id: string }> };
 const handlers = crud.item(projects);
 
 export const GET = handlers.GET;
-export const DELETE = handlers.DELETE;
 
-// Admin edits a project: its details, links, client (by name) and team.
+// Only an admin deletes a project. Its deliverables, team and comments go with it.
+export async function DELETE(_request: Request, route: RouteParams): Promise<Response> {
+  const auth = await requireContext('admin');
+  if (auth.response) return auth.response;
+  const { ctx } = auth;
+  const { id } = await route.params;
+  const { data, error } = await ctx.supabase
+    .from('projects')
+    .delete()
+    .eq('id', id)
+    .eq('org_id', ctx.profile.org_id)
+    .select('id')
+    .maybeSingle();
+  if (error) return fromDbError(error);
+  if (!data) return fail(404, 'Not found.');
+  return ok({ id });
+}
+
+// Admins and roles with editing access to projects change a project directly:
+// its details, links, client (by name), team and shoot.
 export async function PATCH(request: Request, route: RouteParams): Promise<Response> {
   const auth = await requireWriter(['projects']);
   if (auth.response) return auth.response;
@@ -29,7 +47,7 @@ export async function PATCH(request: Request, route: RouteParams): Promise<Respo
   if (existing.error) return fromDbError(existing.error);
   if (!existing.data) return fail(404, 'Not found.');
 
-  if (mode === 'propose') {
+  if (mode === 'propose' && !(await directProjectsReady(ctx))) {
     return proposeChange(ctx, request, body.data, summarize('Change', 'project', describeRecord(existing.data), fields));
   }
 

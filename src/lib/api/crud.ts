@@ -52,6 +52,11 @@ export interface ResourceConfig {
   onUpdate?: (ctx: ApiContext, data: Row) => Row;
   /** Values the server fixes on a proposed new record before it is stored for approval. */
   onPropose?: (ctx: ApiContext, data: Row) => Row;
+  /**
+   * For people who normally write directly: true sends this particular change
+   * to an admin for approval instead (for example approving a deliverable).
+   */
+  approvalWhen?: (ctx: ApiContext, data: Row) => boolean | Promise<boolean>;
 }
 
 const isAdmin = (ctx: ApiContext) => ctx.profile.access_role === 'admin';
@@ -144,6 +149,12 @@ export async function proposeChange(
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** A direct write by someone who is not an admin can still be sent for approval by the resource's own rule. */
+async function settle(config: ResourceConfig, ctx: ApiContext, mode: WriteMode, data: Row): Promise<WriteMode> {
+  if (mode !== 'apply' || isAdmin(ctx) || !config.approvalWhen) return mode;
+  return (await config.approvalWhen(ctx, data)) ? 'propose' : 'apply';
+}
+
 export function makeCrud(getContext: ContextProvider) {
   function collection(config: ResourceConfig) {
     const select = config.select ?? '*';
@@ -169,10 +180,11 @@ export function makeCrud(getContext: ContextProvider) {
       if (!config.createSchema) return fail(405, 'Creating is not supported here.');
       const auth = await authorizeWrite(getContext, config);
       if (auth.response) return auth.response;
-      const { ctx, mode } = auth;
+      const { ctx } = auth;
 
       const body = await readJson(request, config.createSchema);
       if (body.response) return body.response;
+      const mode = await settle(config, ctx, auth.mode, body.data as Row);
 
       if (mode === 'propose') {
         const input: Row = { ...(body.data as Row), ...(config.onPropose ? config.onPropose(ctx, body.data as Row) : {}) };
@@ -228,13 +240,14 @@ export function makeCrud(getContext: ContextProvider) {
       if (!config.updateSchema) return fail(405, 'Editing is not supported here.');
       const auth = await authorizeWrite(getContext, config);
       if (auth.response) return auth.response;
-      const { ctx, mode } = auth;
+      const { ctx } = auth;
       const { id } = await params;
       if (!UUID.test(id)) return fail(404, 'Not found.');
 
       const body = await readJson(request, config.updateSchema);
       if (body.response) return body.response;
       if (Object.keys(body.data as Row).length === 0) return fail(400, 'Nothing to update.');
+      const mode = await settle(config, ctx, auth.mode, body.data as Row);
 
       if (mode === 'propose') {
         const current = await visibleRecord(ctx, id);

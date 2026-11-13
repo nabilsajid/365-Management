@@ -163,3 +163,9 @@ Admins can also look up each person's login ID (their sign-in email) and the pas
 ## View only or edit
 
 Each role has two lists per part of the app: what it can view and what it can edit. Pages use `can(segment)` to decide what to show and `canEdit(segment)` to decide whether to show add, edit and delete; the API checks editing access again before storing a change request (`authorizeWrite` in `src/lib/api/crud.ts`). Admins set both lists under Roles & Access.
+
+## Project rules and notifications
+
+Roles with editing access to projects create and change projects and deliverables directly, without admin approval. Three things stay with admins and are enforced in the database as well as the API: deleting a project, approving a deliverable, and setting a deliverable's points (a project role asking for either of the last two has the change stored for approval). A deliverable can be assigned to anyone, whether or not they are on the project's team.
+
+Database triggers write a row to `notifications` when someone is put on a project's team or given a deliverable. The signed-in layout loads the unread ones and shows them in a pop-up (`AssignmentPopup`) until the person dismisses it or opens My Tasks; both mark them read through `POST /api/notifications/read`.
