@@ -5,10 +5,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { reason } = await searchParams;
   return (
     <div className="login-scene">
-      {/* Slow, soft background: two drifting glows over a faint grid. Decorative only. */}
+      {/* Slow, soft background: three drifting glows (blue, green, orange) over a faint grid. Decorative only. */}
       <div className="login-grid" aria-hidden />
       <div className="login-glow login-glow-a" aria-hidden />
       <div className="login-glow login-glow-b" aria-hidden />
+      <div className="login-glow login-glow-c" aria-hidden />
 
       <main className="login-card">
         {/* eslint-disable-next-line @next/next/no-img-element */}

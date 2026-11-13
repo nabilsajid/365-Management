@@ -919,6 +919,133 @@
     }
   }
 
+  /* ---- Projects board: cards grouped into a column per status ---- */
+  .board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+
+  @media (min-width: 900px) {
+    .board {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
+      grid-template-columns: none;
+    }
+  }
+
+  .board-col {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    background: var(--color-subtle);
+  }
+
+  .board-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.15rem;
+  }
+
+  .board-empty {
+    padding: 1.25rem 0;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+  }
+
+  .project-card {
+    display: grid;
+    gap: 0.2rem;
+    padding: 1rem;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    background: var(--color-card);
+    color: var(--color-ink);
+    text-decoration: none;
+    transition: transform 0.15s ease-out, border-color 0.15s, box-shadow 0.15s;
+    animation: tile-in 0.35s ease-out both;
+  }
+
+  .project-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-line-strong);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.07);
+    text-decoration: none;
+  }
+
+  .project-card:active {
+    transform: scale(0.99);
+  }
+
+  .project-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .project-client {
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+  }
+
+  .project-progress {
+    display: grid;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  }
+
+  .project-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+
+  .project-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+
+  .project-tags {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .avatars {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .avatar {
+    display: inline-flex;
+    height: 1.65rem;
+    min-width: 1.65rem;
+    align-items: center;
+    justify-content: center;
+    margin-left: -0.35rem;
+    padding: 0 0.25rem;
+    border: 2px solid var(--color-card);
+    border-radius: 999px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+
+  .avatar:first-child {
+    margin-left: 0;
+  }
+
   /* ---- Login page: always dark, logo in the centre, soft moving background ---- */
   .login-scene {
     --color-page: #0a0a0a;
@@ -963,7 +1090,7 @@
     height: 46vmax;
     border-radius: 50%;
     filter: blur(90px);
-    opacity: 0.5;
+    opacity: 0.62;
     will-change: transform;
   }
 
@@ -971,14 +1098,24 @@
     top: -18vmax;
     left: -12vmax;
     background: radial-gradient(circle, rgb(37 99 235 / 0.55), transparent 65%);
-    animation: drift-a 22s ease-in-out infinite alternate;
+    animation: drift-a 18s ease-in-out infinite alternate;
   }
 
   .login-glow-b {
     right: -14vmax;
     bottom: -20vmax;
     background: radial-gradient(circle, rgb(16 185 129 / 0.4), transparent 65%);
-    animation: drift-b 28s ease-in-out infinite alternate;
+    animation: drift-b 23s ease-in-out infinite alternate;
+  }
+
+  /* Orange, smaller, crossing behind the card so the three colours meet softly. */
+  .login-glow-c {
+    top: 30%;
+    right: 8%;
+    width: 34vmax;
+    height: 34vmax;
+    background: radial-gradient(circle, rgb(249 115 22 / 0.62), transparent 65%);
+    animation: drift-c 20s ease-in-out infinite alternate;
   }
 
   .login-card {
@@ -1169,14 +1306,35 @@
 }
 
 @keyframes drift-a {
-  to {
-    transform: translate(9vmax, 7vmax) scale(1.12);
+  50% {
+    transform: translate(7vmax, 4vmax) scale(1.08);
+  }
+  100% {
+    transform: translate(12vmax, 10vmax) scale(1.15);
   }
 }
 
 @keyframes drift-b {
-  to {
-    transform: translate(-8vmax, -6vmax) scale(1.08);
+  50% {
+    transform: translate(-6vmax, -3vmax) scale(1.06);
+  }
+  100% {
+    transform: translate(-11vmax, -9vmax) scale(1.12);
+  }
+}
+
+@keyframes drift-c {
+  0% {
+    transform: translate(4vmax, -6vmax) scale(0.92);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-8vmax, 2vmax) scale(1.05);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(-14vmax, 8vmax) scale(1.1);
+    opacity: 0.55;
   }
 }
 
