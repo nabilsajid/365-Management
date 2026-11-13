@@ -674,12 +674,33 @@
     grid-row: span 2;
   }
 
-  .mini-bar {
-    flex: 1;
-    min-width: 3px;
-    border-radius: 3px 3px 0 0;
-    animation: grow 0.6s ease-out both;
-    transform-origin: bottom;
+  /* The funds tile's split bar: money in (green) against money out (grey). */
+  .flow-bar {
+    display: flex;
+    gap: 3px;
+    height: 0.6rem;
+    margin-top: 0.6rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--color-subtle);
+  }
+
+  .flow-in,
+  .flow-out {
+    height: 100%;
+    min-width: 4px;
+    border-radius: 999px;
+    transform-origin: left;
+    animation: grow-x 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .flow-in {
+    background: var(--color-success);
+  }
+
+  .flow-out {
+    background: var(--color-line-strong);
+    animation-delay: 0.12s;
   }
 
   .tile-label {
@@ -1103,9 +1124,9 @@
   }
 }
 
-@keyframes grow {
+@keyframes grow-x {
   from {
-    transform: scaleY(0);
+    transform: scaleX(0);
   }
 }
 

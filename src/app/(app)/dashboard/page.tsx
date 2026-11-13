@@ -1,6 +1,8 @@
 import {
   Activity,
   AlertCircle,
+  ArrowDownLeft,
+  ArrowUpRight,
   Banknote,
   BarChart3,
   CalendarClock,
@@ -124,8 +126,11 @@ export default async function DashboardPage() {
     tiles.push({ icon: Home, label: 'Fixed monthly costs', value: data.fixedMonthly, kind: 'money', note: 'Rent, utilities and other recurring costs', href: '/logistics', size: 'wide' });
   }
 
-  // Tallest bar = the busiest of the last six months, for the small chart on the funds tile.
-  const busiest = Math.max(1, ...data.cashflow.map((point) => Math.max(point.income, point.expenses)));
+  // This month's money in and out, for the split bar on the funds tile.
+  const thisMonth = data.cashflow[data.cashflow.length - 1] ?? { income: 0, expenses: 0 };
+  const moved = thisMonth.income + thisMonth.expenses;
+  const inShare = moved > 0 ? Math.round((thisMonth.income / moved) * 100) : 0;
+  const net = thisMonth.income - thisMonth.expenses;
 
   const approvals = [
     { label: 'Password requests', count: data.approvals.passwords },
@@ -186,17 +191,45 @@ export default async function DashboardPage() {
               <CountUp value={data.funds} kind="money" />
             </p>
             <p className="mt-1 text-[13px] text-muted">Across all accounts</p>
-            <div className="mt-auto flex h-16 items-end gap-1.5 pt-4" aria-hidden>
-              {data.cashflow.map((point) => (
-                <div key={point.month} className="flex h-full flex-1 items-end gap-0.5">
-                  <span className="mini-bar bg-success" style={{ height: `${Math.max(4, (point.income / busiest) * 100)}%` }} />
-                  <span className="mini-bar bg-line-strong" style={{ height: `${Math.max(4, (point.expenses / busiest) * 100)}%` }} />
+            <div className="mt-auto pt-5">
+              <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted">
+                <span>{monthLabel(data.month)}</span>
+                <span className={cn('normal-case tracking-normal', net >= 0 ? 'text-success-strong' : 'text-danger-strong')}>
+                  {moved === 0 ? 'No movement yet' : `Net ${net >= 0 ? '+' : '−'}${money(Math.abs(net))}`}
+                </span>
+              </div>
+
+              {/* One bar split by share: money in on the left, money out on the right. */}
+              <div className="flow-bar" role="img" aria-label={moved === 0 ? 'No money in or out this month' : `${inShare}% of this month's money was coming in, ${100 - inShare}% going out`}>
+                {moved > 0 ? (
+                  <>
+                    <span className="flow-in" style={{ width: `${inShare}%` }} />
+                    <span className="flow-out" style={{ width: `${100 - inShare}%` }} />
+                  </>
+                ) : null}
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-soft text-success-strong">
+                    <ArrowDownLeft size={15} aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs text-muted">Money in</span>
+                    <span className="block truncate text-[15px] font-semibold tabular-nums text-ink">{money(thisMonth.income)}</span>
+                  </span>
                 </div>
-              ))}
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-subtle text-muted">
+                    <ArrowUpRight size={15} aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs text-muted">Money out</span>
+                    <span className="block truncate text-[15px] font-semibold tabular-nums text-ink">{money(thisMonth.expenses)}</span>
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="tile-note">
-              {money(data.expensesThisMonth)} spent this month · money in and out, last 6 months
-            </p>
           </Link>
         ) : null}
 
