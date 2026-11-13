@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { AwardProjectPoints } from '@/components/award-project-points';
 import { CopyProject } from '@/components/copy-project';
 import { DeleteProject } from '@/components/delete-project';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
@@ -210,25 +209,6 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           <dd>{project.brief ?? 'No brief written yet.'}</dd>
         </dl>
       </section>
-
-      {isAdmin && project.status === 'completed' && 'points_awarded_at' in project && !project.points_awarded_at ? (
-        <AwardProjectPoints
-          projectId={project.id}
-          people={[...new Set([...team.map((profile) => profile.id), ...tasks.map((task) => task.assignee_id).filter((value): value is string => Boolean(value))])]
-            .map((personId) => person.get(personId))
-            .filter((profile): profile is Profile => Boolean(profile))
-            .map((profile) => {
-              const own = tasks.filter((task) => task.assignee_id === profile.id);
-              const approved = own.filter((task) => task.status === 'approved').length;
-              return {
-                id: profile.id,
-                name: profile.full_name,
-                role: profile.job_title,
-                note: own.length === 0 ? 'On the team' : `${own.length} deliverable${own.length === 1 ? '' : 's'}, ${approved} approved`,
-              };
-            })}
-        />
-      ) : null}
 
       {mayEdit ? (
         <details className="panel fold" id="edit" open={startEditing}>
