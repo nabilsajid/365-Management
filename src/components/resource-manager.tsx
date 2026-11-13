@@ -11,8 +11,29 @@ type FormState = Record<string, string | boolean | string[]>;
 type Values = Record<string, unknown>;
 
 /** Shows a short confirmation at the bottom of the screen (see Toast in the app shell). */
-export function toast(message: string) {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('app:toast', { detail: message }));
+export function toast(message: string, tone: 'plain' | 'success' = 'plain') {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('app:toast', { detail: { message, tone } }));
+}
+
+// Saving one of these values is a moment worth marking: a task approved, a day
+// verified, a request granted. The confirmation gets a tick instead of "Saved."
+const MILESTONES: Record<string, string> = {
+  approved: 'Approved',
+  approve: 'Approved',
+  verified: 'Verified',
+  resolved: 'Resolved',
+  acquired: 'Marked as acquired',
+  completed: 'Completed',
+};
+
+function milestone(body: unknown): string | null {
+  if (!body || typeof body !== 'object') return null;
+  const data = body as Record<string, unknown>;
+  for (const key of ['status', 'review_status', 'decision']) {
+    const text = MILESTONES[String(data[key] ?? '')];
+    if (text) return text;
+  }
+  return null;
 }
 
 async function callApi(endpoint: string, method: string, body?: unknown): Promise<string | null> {
@@ -24,7 +45,10 @@ async function callApi(endpoint: string, method: string, body?: unknown): Promis
     });
     if (response.ok) {
       // 202 means the change was stored for an admin to approve rather than applied.
-      toast(response.status === 202 ? 'Sent to an admin for approval.' : 'Saved.');
+      const reached = response.status === 202 ? null : milestone(body);
+      if (response.status === 202) toast('Sent to an admin for approval.');
+      else if (reached) toast(reached, 'success');
+      else toast(method === 'DELETE' ? 'Deleted.' : 'Saved.');
       return null;
     }
     const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -394,6 +418,8 @@ export function ResourceManager({
   // Delete asks for confirmation inside the row. Browser confirm dialogs are
   // blocked in some embedded browsers, where Delete would silently do nothing.
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // The row that was just saved flashes once.
+  const [flashId, setFlashId] = useState<string | null>(null);
   // Forms close straight away; the table dims while the fresh rows arrive.
   const [refreshing, startTransition] = useTransition();
   const refresh = () => startTransition(() => router.refresh());
@@ -511,6 +537,8 @@ export function ResourceManager({
                           const message = await callApi(`${endpoint}/${row.id}`, 'PATCH', values);
                           if (!message) {
                             setEditingId(null);
+                            setFlashId(row.id);
+                            window.setTimeout(() => setFlashId((current) => (current === row.id ? null : current)), 1600);
                             refresh();
                           }
                           return message;
@@ -519,7 +547,7 @@ export function ResourceManager({
                     </td>
                   </tr>
                 ) : (
-                  <tr key={row.id} data-pending={deletingId === row.id}>
+                  <tr key={row.id} data-pending={deletingId === row.id} className={flashId === row.id ? 'row-flash' : undefined}>
                     {columns.map((column) => (
                       <td key={column.key} className={column.kind === 'money' || column.kind === 'number' ? 'num' : undefined}>
                         <Cell row={row} column={column} />

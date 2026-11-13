@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import type { Profile } from '@/types/database';
 import { segmentsFromRoles } from '@/lib/domain/roles';
+import { primeOrg } from '@/lib/services/rewards';
 import { createClient } from '@/lib/supabase/server';
 import { authorize, authorizeWrite, makeCrud, type Access, type ApiContext } from './crud';
 
@@ -20,11 +21,13 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
   if (!userId) return null;
 
   const [profileResult, rolesResult] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('*, organization:organizations(name, timezone)').eq('id', userId).maybeSingle(),
     supabase.from('profile_roles').select('roles(permissions)').eq('profile_id', userId),
   ]);
-  const profile = profileResult.data as Profile | null;
-  if (!profile || !profile.is_active) return null;
+  const loaded = profileResult.data as (Profile & { organization?: { name: string; timezone: string } | null }) | null;
+  if (!loaded || !loaded.is_active) return null;
+  const { organization, ...profile } = loaded;
+  if (organization) primeOrg(profile.org_id, organization);
 
   // Each row carries the joined role; tolerate either an object or a one-item list.
   const held = ((rolesResult.data ?? []) as unknown as { roles: unknown }[]).flatMap((row) =>

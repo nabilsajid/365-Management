@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ApiForm, ResourceManager } from '@/components/resource-manager';
@@ -46,6 +47,18 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           <h1>{task.title}</h1>
         </div>
       </div>
+
+      {task.status === 'approved' ? (
+        <div className="done-banner" role="status">
+          <span className="check">
+            <Check size={16} aria-hidden strokeWidth={3} />
+          </span>
+          <span>
+            Task completed and approved
+            {task.points_value ? ` · ${task.points_value} points awarded` : ''}
+          </span>
+        </div>
+      ) : null}
 
       <section className="panel">
         <dl className="detail">

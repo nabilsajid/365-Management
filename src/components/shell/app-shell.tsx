@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronRight, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -112,14 +112,17 @@ function Brand({ orgName, collapsed }: { orgName: string; collapsed: boolean }) 
 
 /** Brief confirmations such as "Saved." or "Sent to an admin for approval." */
 function Toast() {
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: string; id: number } | null>(null);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const show = (event: Event) => {
-      setMessage(String((event as CustomEvent).detail ?? ''));
+      const detail = (event as CustomEvent).detail as { message?: string; tone?: string } | string;
+      const message = typeof detail === 'string' ? detail : (detail?.message ?? '');
+      const tone = typeof detail === 'string' ? 'plain' : (detail?.tone ?? 'plain');
+      setToast({ message, tone, id: Date.now() });
       clearTimeout(timer);
-      timer = setTimeout(() => setMessage(null), 3500);
+      timer = setTimeout(() => setToast(null), tone === 'success' ? 3200 : 2600);
     };
     window.addEventListener('app:toast', show);
     return () => {
@@ -130,9 +133,20 @@ function Toast() {
 
   return (
     <div aria-live="polite" role="status" className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
-      {message ? (
-        <span className="fade-in rounded-full border border-line-strong bg-ink px-4 py-2 text-[13px] font-medium text-page shadow-lg">
-          {message}
+      {toast ? (
+        <span
+          key={toast.id}
+          className={cn(
+            'toast-in flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium shadow-lg',
+            toast.tone === 'success' ? 'border-success bg-success text-white' : 'border-line-strong bg-ink text-page',
+          )}
+        >
+          {toast.tone === 'success' ? (
+            <span className="pop flex h-5 w-5 items-center justify-center rounded-full bg-white/25">
+              <Check size={13} aria-hidden strokeWidth={3} />
+            </span>
+          ) : null}
+          {toast.message}
         </span>
       ) : null}
     </div>

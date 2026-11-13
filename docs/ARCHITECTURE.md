@@ -99,8 +99,12 @@ The requester follows their requests on the My Requests page. The sidebar shows 
 
 - Light and dark themes share one set of tokens in `src/app/globals.css`; `:root[data-theme='dark']` overrides their values. The toggle in the top bar sets `data-theme` on `<html>` and remembers the choice on the device; a small inline script in the root layout applies it before first paint. With nothing saved, the device setting is used.
 - Use tokens (`bg-card`, `text-muted`, `border-line`, `bg-subtle`), never fixed colours, so both themes keep working.
+- Hosting region: `vercel.json` runs the server functions in Singapore (`sin1`), the same region as the Supabase database. Every page makes several database calls, so hosting far from the database (Vercel's default is the US east coast) adds seconds. If the database ever moves, change this to match.
+- The organization's name and timezone are read together with the signed-in profile (`primeOrg` in `src/lib/services/rewards.ts`), so pages do not make a separate call for them.
 - Speed: `getApiContext` is wrapped in React's `cache`, so the layout and page share one lookup per request, and the user id comes from the verified session claims instead of a call to the auth server. Use `npm run build` and `npm start` to judge real speed; `npm run dev` compiles each page on first visit.
 - `src/app/(app)/loading.tsx` shows a skeleton the moment a link is tapped. After a save, forms close immediately and the table dims while fresh rows load (`useTransition` in `ResourceManager`).
+- The dashboard summary is a bento grid (`.bento`, `.tile` in `globals.css`). Tones (`tone-green`, `tone-yellow`, `tone-red`) wash a tile lightly with a colour; the points tile picks its tone with `pointsTone()` in `src/lib/domain/tone.ts`.
+- Motion is kept short and marks things that matter: numbers count up once, a saved row flashes, approvals confirm with a tick, an approved task shows a completed banner, and the points tile glows the first time the monthly target is reached. All of it is switched off by the system's reduced-motion setting.
 - Touch screens get larger hit areas and 16px inputs (`@media (pointer: coarse)`).
 
 ## Rules that live in the database

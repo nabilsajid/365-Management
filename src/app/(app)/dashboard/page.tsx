@@ -13,13 +13,15 @@ import {
   Package,
   ShoppingCart,
   Receipt,
-  Target,
   UserCheck,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import type { CSSProperties, ReactNode } from 'react';
 import { CashflowChart } from '@/components/dashboard/cashflow-chart';
+import { CountUp } from '@/components/dashboard/count-up';
+import { PointsTile } from '@/components/dashboard/points-tile';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -28,29 +30,40 @@ import { money, monthLabel } from '@/lib/format';
 import { getPageContext } from '@/lib/page';
 import { getDashboard } from '@/lib/services/dashboard';
 import { getOrgTimezone } from '@/lib/services/rewards';
+import { cn } from '@/lib/utils';
 
-interface KpiProps {
+interface TileProps {
   icon: LucideIcon;
   label: string;
-  value: string;
+  /** A number counts up when it appears; pass text for anything else. */
+  value: number | string;
+  kind?: 'number' | 'money';
   note: string;
   href: string;
+  /** 'wide' spans two columns. */
+  size?: 'wide';
+  tone?: 'green';
+  children?: ReactNode;
 }
 
-function Kpi({ icon: Icon, label, value, note, href }: KpiProps) {
+function Tile({ icon: Icon, label, value, kind = 'number', note, href, size, tone, children, index }: TileProps & { index: number }) {
   return (
     <Link
       href={href}
-      className="group block rounded-card border border-line bg-card p-5 text-ink no-underline transition-[border-color,transform] duration-100 hover:border-line-strong hover:no-underline active:scale-[0.99]"
+      className={cn('tile', size === 'wide' && 'tile-wide', tone && `tone-${tone}`)}
+      style={{ '--i': index } as CSSProperties}
     >
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-medium text-muted">{label}</p>
-        <span className="flex h-8 w-8 items-center justify-center rounded-control bg-primary-soft text-primary">
+        <p className="tile-label">{label}</p>
+        <span className="tile-icon">
           <Icon size={16} aria-hidden />
         </span>
       </div>
-      <p className="mt-3 text-2xl font-semibold tracking-tight tabular-nums text-ink">{value}</p>
-      <p className="mt-1 text-[13px] text-muted">{note}</p>
+      <p className="mt-3 text-2xl font-semibold tracking-tight text-ink">
+        {typeof value === 'number' ? <CountUp value={value} kind={kind} /> : value}
+      </p>
+      {children}
+      <p className="tile-note">{note}</p>
     </Link>
   );
 }
@@ -71,49 +84,47 @@ export default async function DashboardPage() {
   const waiting = data.approvals.changes + data.approvals.submissions + data.approvals.attendance + data.approvals.bonuses;
   const hasCashflow = data.cashflow.some((point) => point.income > 0 || point.expenses > 0);
   const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
-  const toTarget = Math.max(0, data.mine.target - data.mine.points);
-
-  const kpis: KpiProps[] = [];
+  // The summary is a bento grid: the most important figures get bigger tiles,
+  // and each tile appears only if the viewer's roles include that part.
+  const tiles: TileProps[] = [];
   if (can('projects')) {
-    kpis.push(
-      { icon: FolderKanban, label: 'Active projects', value: String(data.activeProjects), note: `${data.projects.completed ?? 0} completed so far`, href: '/projects' },
-      { icon: ListChecks, label: 'Pending tasks', value: String(data.pendingTasks), note: `${data.tasks.submitted ?? 0} waiting for review`, href: isAdmin ? '/approvals' : '/projects' },
+    tiles.push(
+      {
+        icon: FolderKanban,
+        label: 'Active projects',
+        value: data.activeProjects,
+        note: `${data.projects.completed ?? 0} completed · ${data.projects.onboarding ?? 0} onboarding`,
+        href: '/projects',
+        size: 'wide',
+      },
+      { icon: ListChecks, label: 'Pending tasks', value: data.pendingTasks, note: `${data.tasks.submitted ?? 0} waiting for review`, href: isAdmin ? '/approvals' : '/projects' },
     );
   }
   if (can('cashflow')) {
-    kpis.push(
-      { icon: Wallet, label: 'Available funds', value: money(data.funds), note: `${money(data.expensesThisMonth)} spent this month`, href: '/cashflow' },
-      { icon: Receipt, label: 'Client dues', value: money(data.outstanding), note: 'Outstanding on open invoices', href: '/cashflow' },
+    tiles.push({ icon: Receipt, label: 'Client dues', value: data.outstanding, kind: 'money', note: 'Outstanding on open invoices', href: '/cashflow?tab=income', size: 'wide' });
+  }
+  tiles.push({ icon: UserCheck, label: 'My open tasks', value: data.mine.openTasks, note: 'Deliverables assigned to you', href: '/my-tasks' });
+  if (can('equipment')) {
+    tiles.push(
+      {
+        icon: Package,
+        label: 'Equipment value',
+        value: data.equipment.value,
+        kind: 'money',
+        note: `${plural(data.equipment.count, 'item')}${data.equipment.unpriced > 0 ? `, ${data.equipment.unpriced} without a price` : ''}`,
+        href: '/logistics',
+      },
+      { icon: ShoppingCart, label: 'Urgently needed', value: data.neededItems, note: 'Items the studio needs to get', href: '/logistics' },
     );
-  }
-  if (can('equipment')) {
-    kpis.push({
-      icon: Package,
-      label: 'Equipment value',
-      value: money(data.equipment.value),
-      note: `${plural(data.equipment.count, 'item')}${data.equipment.unpriced > 0 ? `, ${data.equipment.unpriced} without a price` : ''}`,
-      href: '/logistics',
-    });
-  }
-  if (can('equipment')) {
-    kpis.push({ icon: ShoppingCart, label: 'Urgently needed', value: String(data.neededItems), note: 'Items the studio needs to get', href: '/logistics' });
+  } else {
+    tiles.push({ icon: Package, label: 'Equipment I hold', value: data.mine.equipmentHeld, note: 'Items recorded as held by you', href: '/logistics' });
   }
   if (can('costs')) {
-    kpis.push({ icon: Home, label: 'Fixed monthly costs', value: money(data.fixedMonthly), note: 'Rent, utilities and other recurring costs', href: '/logistics' });
+    tiles.push({ icon: Home, label: 'Fixed monthly costs', value: data.fixedMonthly, kind: 'money', note: 'Rent, utilities and other recurring costs', href: '/logistics', size: 'wide' });
   }
-  kpis.push(
-    { icon: UserCheck, label: 'My open tasks', value: String(data.mine.openTasks), note: 'Deliverables assigned to you', href: '/my-tasks' },
-    {
-      icon: Target,
-      label: 'My points this month',
-      value: data.mine.points.toLocaleString('en-US'),
-      note: toTarget === 0 ? `Target of ${data.mine.target.toLocaleString('en-US')} reached` : `${toTarget.toLocaleString('en-US')} to reach ${data.mine.target.toLocaleString('en-US')}`,
-      href: '/employees',
-    },
-  );
-  if (!can('equipment')) {
-    kpis.push({ icon: Package, label: 'Equipment I hold', value: String(data.mine.equipmentHeld), note: 'Items recorded as held by you', href: '/logistics' });
-  }
+
+  // Tallest bar = the busiest of the last six months, for the small chart on the funds tile.
+  const busiest = Math.max(1, ...data.cashflow.map((point) => Math.max(point.income, point.expenses)));
 
   const approvals = [
     { label: 'Change requests to decide', count: data.approvals.changes },
@@ -160,9 +171,37 @@ export default async function DashboardPage() {
         </Card>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((kpi) => (
-          <Kpi key={kpi.label} {...kpi} />
+      <div className="bento">
+        {can('cashflow') ? (
+          <Link href="/cashflow" className="tile tile-big tone-green" style={{ '--i': 0 } as CSSProperties}>
+            <div className="flex items-center justify-between">
+              <p className="tile-label">Available funds</p>
+              <span className="tile-icon">
+                <Wallet size={16} aria-hidden />
+              </span>
+            </div>
+            <p className="mt-3 text-4xl font-semibold tracking-tight text-ink">
+              <CountUp value={data.funds} kind="money" />
+            </p>
+            <p className="mt-1 text-[13px] text-muted">Across all accounts</p>
+            <div className="mt-auto flex h-16 items-end gap-1.5 pt-4" aria-hidden>
+              {data.cashflow.map((point) => (
+                <div key={point.month} className="flex h-full flex-1 items-end gap-0.5">
+                  <span className="mini-bar bg-success" style={{ height: `${Math.max(4, (point.income / busiest) * 100)}%` }} />
+                  <span className="mini-bar bg-line-strong" style={{ height: `${Math.max(4, (point.expenses / busiest) * 100)}%` }} />
+                </div>
+              ))}
+            </div>
+            <p className="tile-note">
+              {money(data.expensesThisMonth)} spent this month · money in and out, last 6 months
+            </p>
+          </Link>
+        ) : null}
+
+        <PointsTile points={data.mine.points} target={data.mine.target} month={data.month} className="tile-wide" />
+
+        {tiles.map((tile, index) => (
+          <Tile key={tile.label} {...tile} index={index + 2} />
         ))}
       </div>
 

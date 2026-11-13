@@ -5,8 +5,8 @@ import { dateInZone, monthStart, nextMonth, parseMonth } from '@/lib/domain/poin
 import { roleTags, titleTags } from '@/lib/domain/roles';
 import { money, monthLabel } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, options, peopleOptions, rowsOf } from '@/lib/page';
-import { getMonthlySummary, getOrgTimezone, getPointRules } from '@/lib/services/rewards';
-import type { Attendance, Bonus, PointEntry, PointSettings, Profile, ProfileRole, Role, ViolationType } from '@/types/database';
+import { buildMonthlySummary, getOrgTimezone, getPointRules } from '@/lib/services/rewards';
+import type { Attendance, Bonus, MonthlyPoints, PointEntry, PointSettings, Profile, ProfileRole, Role, ViolationType } from '@/types/database';
 
 export default async function EmployeesPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: requested } = await searchParams;
@@ -21,7 +21,8 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const today = dateInZone(now, timeZone);
   const monthEnded = month < currentMonth;
 
-  const [rules, peopleR, attendanceR, entriesR, violationsR, settingsR, bonusesR, rolesR, heldR] = await Promise.all([
+  // Everything the page needs is fetched in one parallel round.
+  const [rules, peopleR, attendanceR, entriesR, violationsR, settingsR, bonusesR, rolesR, heldR, totalsR] = await Promise.all([
     getPointRules(supabase, orgId),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('attendance').select('*').eq('org_id', orgId).gte('work_date', month).lt('work_date', nextMonth(month)).order('work_date', { ascending: false }),
@@ -31,6 +32,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
     supabase.from('bonuses').select('*').eq('org_id', orgId).order('period_month', { ascending: false }),
     supabase.from('roles').select('*').eq('org_id', orgId).order('name'),
     supabase.from('profile_roles').select('*').eq('org_id', orgId),
+    supabase.from('monthly_points').select('*').eq('org_id', orgId).eq('period_month', month),
   ]);
   const people = rowsOf<Profile>(peopleR.data);
   const attendance = rowsOf<Attendance>(attendanceR.data);
@@ -41,7 +43,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const roles = rowsOf<Role>(rolesR.data);
   const held = rowsOf<ProfileRole>(heldR.data);
 
-  let summary = await getMonthlySummary(supabase, orgId, month, rules);
+  let summary = buildMonthlySummary(people, rowsOf<MonthlyPoints>(totalsR.data), rules);
   // Other people's points are only for roles that include the team points segment.
   if (!seesTeamPoints) summary = summary.filter((row) => row.employee_id === userId);
 
