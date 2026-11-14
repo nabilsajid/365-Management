@@ -13,7 +13,7 @@ Start here. This guide explains how the app is built, how to run it, and how to 
 
 UniDock is a company workspace for small teams, first built for 365 Frames, a media production company. It covers:
 
-- **Projects & Clients**: projects, deliverables (videos, thumbnails, graphics, shoots), submissions as Drive or Dropbox links, review, comments with @mentions, client review links, and projects that repeat every month.
+- **Projects & Clients**: one-time projects and monthly clients (a monthly package, a month for each calendar month, and extras), deliverables (videos, thumbnails, graphics, shoots), submissions as Drive or Dropbox links, review, comments with @mentions, and client review links.
 - **Logistics & Costs**: the equipment list and who holds it, needed items, fixed monthly costs, and travel costs per trip.
 - **Cash Flow & Invoices**: accounts, invoices (printable and shareable), payments, expenses, balances, CSV exports and a monthly summary.
 - **Employees & Rewards**: profiles, roles, attendance, monthly points, deductions, bonuses, leave and the points statement.
@@ -146,14 +146,28 @@ Everyone can always see and act on their own things: assigned tasks, their own a
 - **Device alerts.** `src/lib/server/push.ts` sends Web Push without a message body (VAPID, signed by hand). The phone wakes up and asks `/api/notifications` what's new (`public/sw.js`). `dispatchPushes()` runs after each page render and in the daily job.
 - **Offline.** `public/sw.js` caches pages and app files. `src/lib/offline-queue.ts` stores adds made offline and sends them when back online. Public pages (`/review/`, `/invoice/`) and `/api` are never cached.
 
-## 9. Scheduled job
+## 9. Monthly clients
+
+- A project has `kind` set to `one_time` or `monthly`.
+- A monthly client has:
+  - a package: `project_package_items`
+  - months: `project_months`, opened by `open_project_month`
+  - deliverables tied to a month: `tasks.month_id`, with `tasks.is_extra` for extras
+- The project page (`src/app/(app)/projects/[id]/page.tsx`) shows one month at a time: `?month=<month id>`, defaulting to the current month. Under it are `MonthBar`, the month's deliverables by type, Extras and the Monthly package.
+- Routes:
+  - `POST /api/package-items` and `PATCH`/`DELETE /api/package-items/:id`
+  - `POST /api/projects/:id/months` with `{ month: 'current' | 'next' | 'YYYY-MM' }`
+  - `PATCH /api/project-months/:id` (close, reopen, note), and `DELETE` for admins only
+- Creating a monthly project (`createProjectWithDeliverables` with `kind: 'monthly'`) saves the deliverables as the package and opens the current month.
+
+## 10. Scheduled job
 
 Vercel calls `/api/cron/daily` at 01:00 UTC (07:00 in Dhaka). It runs:
-- `create_recurring_projects()`: copies projects marked "repeat every month", once per month
+- `create_recurring_projects()`: opens the current month of every running monthly client, with its package's deliverables (`open_project_month`), once per month
 - `remind_overdue_invoices()`: reminds admins about each overdue invoice, at most once a week
 - `dispatchPushes()`
 
-## 10. Tests and checks
+## 11. Tests and checks
 
 ```bash
 npm run typecheck
@@ -166,13 +180,13 @@ npm run test:e2e    # Playwright against E2E_BASE_URL (optional)
 - Merge to `main` only when those checks and the Vercel preview are green.
 - The browser tests stay off until `E2E_BASE_URL`, `E2E_EMAIL` and `E2E_PASSWORD` point at a staging copy.
 
-## 11. Deploying
+## 12. Deploying
 
 - Work on a branch and push it. Vercel builds a preview, and GitHub runs the checks.
 - When both are green, fast-forward `main`. Vercel deploys production, and the database update workflow applies any new migration.
 - Rolling back the code: redeploy an earlier deployment in Vercel. Database updates are not rolled back automatically. Write a new migration that undoes the change.
 
-## 12. Things to know
+## 13. Things to know
 
 - **Login details.** Employee passwords are stored encrypted (`profile_credentials`, AES-GCM keyed from the service role key) so admins can read them back. Admin passwords are never stored. If the service role key changes, the stored passwords can no longer be read.
 - **No file uploads.** Deliverables are shared as Drive or Dropbox links. The `task_files` table and the `deliverables` storage bucket exist from update 28 but are unused.

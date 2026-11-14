@@ -966,20 +966,29 @@ end $$;
 -- Files, client review, invoice reminders and recurring projects.
 reset role;
 delete from notifications;
-insert into projects (id, org_id, name, recurs_monthly, created_at) values
-  ('00000000-0000-0000-0000-00000000f1a1', '00000000-0000-0000-0000-000000000001', 'Retainer', true, now() - interval '40 days');
+insert into projects (id, org_id, name, kind, status) values
+  ('00000000-0000-0000-0000-00000000f1a1', '00000000-0000-0000-0000-000000000001', 'Retainer', 'monthly', 'active');
 insert into project_members (project_id, profile_id, org_id) values
   ('00000000-0000-0000-0000-00000000f1a1', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001');
-insert into tasks (org_id, project_id, title, assignee_id, kind) values
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'Video 1', '00000000-0000-0000-0000-0000000000e1', 'video'),
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'Thumbnail 1', null, 'thumbnail');
-select pg_temp.check(create_recurring_projects() = 1, 'a repeating project is copied for the new month');
-select pg_temp.check(create_recurring_projects() = 0, 'and only once, however often the job runs');
+insert into project_package_items (id, org_id, project_id, title, kind, assignee_id, due_day, position) values
+  ('00000000-0000-0000-0000-00000000f1c1', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'Video 1', 'video', '00000000-0000-0000-0000-0000000000e1', 31, 0);
+insert into project_package_items (org_id, project_id, title, kind, for_item_id, position) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'Thumbnail 1', 'thumbnail', '00000000-0000-0000-0000-00000000f1c1', 1);
+set local request.jwt.claim.sub = '';
+select pg_temp.check(create_recurring_projects() = 1, 'the daily job opens this month for a monthly project');
+select pg_temp.check(create_recurring_projects() = 0, 'and only once, however often it runs');
 select pg_temp.check(
-  (select count(*) = 2 from tasks t join projects p on p.id = t.project_id where p.recurring_source_id = '00000000-0000-0000-0000-00000000f1a1')
-  and (select count(*) = 1 from project_members m join projects p on p.id = m.project_id where p.recurring_source_id = '00000000-0000-0000-0000-00000000f1a1')
-  and (select not recurs_monthly and status = 'onboarding' from projects where recurring_source_id = '00000000-0000-0000-0000-00000000f1a1'),
-  'the copy has the same team and deliverables, starts fresh and does not repeat itself');
+  (select count(*) = 2 from tasks where project_id = '00000000-0000-0000-0000-00000000f1a1' and month_id is not null and not is_extra)
+  and (select count(*) = 1 from projects where name like 'Retainer%'),
+  'the month gets the package''s deliverables inside the same project, with no copy of the project');
+select pg_temp.check(
+  (select t.for_task_id = v.id from tasks t join tasks v on v.title = 'Video 1' and v.month_id = t.month_id where t.title = 'Thumbnail 1')
+  and (select extract(day from due_date) >= 28 from tasks where title = 'Video 1' and project_id = '00000000-0000-0000-0000-00000000f1a1'),
+  'thumbnails stay paired with their video, and a due day past the month end falls on its last day');
+select open_project_month('00000000-0000-0000-0000-00000000f1a1', (date_trunc('month', now()) + interval '1 month')::date);
+select pg_temp.check((select count(*) = 2 from project_months where project_id = '00000000-0000-0000-0000-00000000f1a1')
+  and (select count(*) = 4 from tasks where project_id = '00000000-0000-0000-0000-00000000f1a1'),
+  'the next month can be opened early, with its own deliverables');
 
 insert into clients (id, org_id, name) values ('00000000-0000-0000-0000-00000000c1a1', '00000000-0000-0000-0000-000000000001', 'Late Payer Ltd');
 insert into invoices (org_id, client_id, invoice_number, issue_date, due_date, amount, status) values
@@ -992,7 +1001,7 @@ insert into review_links (id, org_id, project_id) values
 select pg_temp.check((select length(token) = 64 from review_links where id = '00000000-0000-0000-0000-00000000f1b1'), 'a review link gets a long random key');
 insert into client_feedback (org_id, link_id, task_id, name, decision, comment)
 select '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1b1', id, 'Client Jane', 'changes', 'Make the logo bigger'
-from tasks where project_id = '00000000-0000-0000-0000-00000000f1a1' and title = 'Video 1';
+from tasks where project_id = '00000000-0000-0000-0000-00000000f1a1' and title = 'Video 1' order by due_date limit 1;
 select pg_temp.check(
   (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Client asked for changes: Video 1'),
   'the assignee hears what the client said');
@@ -1006,12 +1015,22 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok - only the server records client feedback';
 end $$;
 do $$ begin
+  insert into project_package_items (org_id, project_id, title) values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'Sneaky');
+  raise exception 'FAILED: a member without project editing changed a monthly package';
+exception when insufficient_privilege then raise notice 'ok - only people who edit projects change a monthly package';
+end $$;
+do $$ begin
+  perform open_project_month('00000000-0000-0000-0000-00000000f1a1', '2030-01-01');
+  raise exception 'FAILED: a member opened a month';
+exception when insufficient_privilege then raise notice 'ok - only people who edit projects open a month';
+end $$;
+do $$ begin
   perform create_recurring_projects();
   raise exception 'FAILED: a member ran the recurring job';
 exception when insufficient_privilege then raise notice 'ok - only the server runs the recurring job';
 end $$;
 insert into task_files (org_id, task_id, path, name, size, uploaded_by)
-select org_id, id, org_id || '/' || id || '/abc-cut.mp4', 'cut.mp4', 1024, auth.uid() from tasks where title = 'Video 1' and project_id = '00000000-0000-0000-0000-00000000f1a1';
+select org_id, id, org_id || '/' || id || '/abc-cut.mp4', 'cut.mp4', 1024, auth.uid() from tasks where title = 'Video 1' and project_id = '00000000-0000-0000-0000-00000000f1a1' order by due_date limit 1;
 select pg_temp.check((select count(*) = 1 from task_files), 'a file can be recorded on a task');
 do $$ begin
   insert into task_files (org_id, task_id, path, name, size, uploaded_by)
@@ -1054,7 +1073,7 @@ reset role;
 -- Well done: the assignee hears when their deliverable is approved; the whole team when the project is done.
 reset role;
 delete from notifications;
-update tasks set status = 'approved' where title = 'Video 1' and project_id = '00000000-0000-0000-0000-00000000f1a1';
+update tasks set status = 'approved' where id = (select id from tasks where title = 'Video 1' and project_id = '00000000-0000-0000-0000-00000000f1a1' order by due_date limit 1);
 select pg_temp.check(
   (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Well done! Task completed'),
   'the assignee is congratulated when their deliverable is approved');

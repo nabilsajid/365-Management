@@ -168,3 +168,14 @@ Admins can read and edit everything. For everyone else, reading depends on the s
 - `platform_owners` — the app's owner (the 365 Frames admin). Only the owner sees the Companies page (the company tag in the sidebar).
 - `company_views` — the company the owner has stepped into. While set, `current_org_id()` returns that company and `is_admin()` is true, so the owner works there as its admin. `view_company(null)` steps back.
 - New companies are made on the Companies page with their first admin (`/api/companies`), using the service key.
+
+## Monthly clients (update 34)
+
+A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a **monthly client** (`'monthly'`): one project that stays open for an ongoing client.
+
+- `project_package_items`: the monthly package, meaning what the client gets every month. Each line has a title, type, assignee, points, `due_day` (day of the month) and `for_item_id` (a thumbnail's video).
+- `project_months`: one row per calendar month of a monthly project (`month` = its first day, `status` open/closed). `open_project_month(project, month)` creates the month once and copies every package line into `tasks`, assigned and due as the package says, with thumbnails paired to their video.
+- `tasks.month_id`: the month a deliverable belongs to. `tasks.is_extra`: on top of the package, for that month only. `tasks.package_item_id`: the package line it came from.
+- The daily job (`create_recurring_projects()`) now opens the current month for every monthly project that is onboarding or active. Closing a month (`status = 'closed'`) congratulates everyone who worked on it ("Well done! Month completed").
+- Changing the package applies from the next month opened. Months already opened keep their own deliverables.
+- `projects.recurs_monthly`, `recurring_source_id` and `recurring_month` (update 28) are no longer used. Update 34 turned repeating projects into monthly clients and merged their copies into months.

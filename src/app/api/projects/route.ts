@@ -4,7 +4,9 @@ import { proposeChange, summarize } from '@/lib/api/crud';
 import { fromDbError, ok, readJson } from '@/lib/api/http';
 import { directProjectsReady, projects } from '@/lib/api/resources';
 import { dispatchPushes } from '@/lib/server/push';
+import { monthStart } from '@/lib/domain/points';
 import { createProjectWithDeliverables } from '@/lib/services/projects';
+import { getOrgTimezone } from '@/lib/services/rewards';
 import { projectCreate } from '@/lib/validation';
 
 export const GET = crud.collection(projects).GET;
@@ -26,7 +28,8 @@ export async function POST(request: Request): Promise<Response> {
     return proposeChange(ctx, request, body.data, summarize('Add', 'project', name, { client, due_date: due }));
   }
 
-  const result = await createProjectWithDeliverables(ctx.supabase, ctx.profile.org_id, body.data);
+  const month = body.data.kind === 'monthly' ? monthStart(new Date(), await getOrgTimezone(ctx.supabase, ctx.profile.org_id)) : undefined;
+  const result = await createProjectWithDeliverables(ctx.supabase, ctx.profile.org_id, body.data, month);
   if (result.error) return fromDbError(result.error);
   // The team and assignees were notified; send the alerts to their devices once the reply is out.
   after(dispatchPushes);

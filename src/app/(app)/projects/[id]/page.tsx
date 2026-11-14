@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import { AwardProjectPoints } from '@/components/award-project-points';
 import { CopyProject } from '@/components/copy-project';
 import { DeleteProject } from '@/components/delete-project';
+import { MonthBar, monthName, type MonthTab } from '@/components/month-bar';
+import { nextMonthStart } from '@/lib/domain/deliverables';
+import { monthStart } from '@/lib/domain/points';
 import { ShareLink } from '@/components/share-link';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
@@ -12,17 +15,24 @@ import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, thumbnailState, type Tas
 import { titleTags } from '@/lib/domain/roles';
 import type { Client, Profile, Project, ProjectComment, ProjectMember, Role, Task } from '@/types/database';
 
-export default async function ProjectPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string; month?: string }>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
   // Arriving from the board's Edit button opens the edit form straight away.
-  const startEditing = Boolean((await searchParams).edit);
-  const { supabase, orgId, userId, isAdmin, canEdit, localDateTime } = await getPageContext();
+  const startEditing = Boolean(query.edit);
+  const { supabase, orgId, userId, isAdmin, canEdit, localDateTime, timeZone } = await getPageContext();
 
   const projectResult = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const project = projectResult.data as Project | null;
   if (!project) notFound();
 
-  const [clientResult, tasksResult, peopleResult, membersResult, rolesResult, commentsResult, directProbe, reviewResult, feedbackResult] = await Promise.all([
+  const [clientResult, tasksResult, peopleResult, membersResult, rolesResult, commentsResult, directProbe, reviewResult, feedbackResult, monthsResult, packageResult] = await Promise.all([
     project.client_id
       ? supabase.from('clients').select('*').eq('id', project.client_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -36,6 +46,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
     // The client review link (only people who edit projects can see it).
     supabase.from('review_links').select('token, is_active').eq('project_id', id).eq('org_id', orgId).limit(1).maybeSingle(),
     supabase.from('client_feedback').select('id, task_id, name, decision, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(200),
+    // A monthly client's months and package (after the monthly clients database update).
+    supabase.from('project_months').select('*').eq('project_id', id).eq('org_id', orgId).order('month', { ascending: false }),
+    supabase.from('project_package_items').select('*').eq('project_id', id).eq('org_id', orgId).order('position'),
   ]);
   // Client review arrives with a database update; until then it is left out.
   const reviewReady = !reviewResult.error;
@@ -45,7 +58,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const commentsReady = !commentsResult.error;
   const comments = rowsOf<ProjectComment>(commentsResult.data);
   const client = clientResult.data as Client | null;
-  const tasks = rowsOf<Task>(tasksResult.data);
+  const allTasks = rowsOf<Task & { month_id?: string | null; is_extra?: boolean }>(tasksResult.data);
   const people = rowsOf<Profile>(peopleResult.data);
   const person = new Map(people.map((profile) => [profile.id, profile]));
   const team = rowsOf<ProjectMember>(membersResult.data)
@@ -57,15 +70,45 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   // Deliverable types, thumbnail pairing and the shoot status arrive with a database update.
   const typesReady = 'shoot_status' in project;
   const mayEdit = canEdit('projects');
-  const titleOf = new Map(tasks.map((task) => [task.id, task.title]));
+  // A monthly client shows one month at a time: its package deliverables and its extras.
+  const monthlyReady = !monthsResult.error && 'kind' in project;
+  const monthly = monthlyReady && (project as Project & { kind?: string }).kind === 'monthly';
+  const months = rowsOf<{ id: string; month: string; status: 'open' | 'closed'; note: string | null }>(monthsResult.data);
+  const packageItems = rowsOf<{
+    id: string;
+    title: string;
+    description: string | null;
+    kind: string;
+    assignee_id: string | null;
+    points_value: number | null;
+    due_day: number | null;
+    position: number;
+  }>(packageResult.data);
+  const thisMonth = monthStart(new Date(), timeZone);
+  const selectedMonth = monthly
+    ? (months.find((row) => row.id === query.month) ?? months.find((row) => row.month === thisMonth) ?? months[0] ?? null)
+    : null;
+  const inMonth = (task: (typeof allTasks)[number]) => !monthly || (selectedMonth ? task.month_id === selectedMonth.id : !task.month_id);
+  const tasks = allTasks.filter((task) => inMonth(task) && !(monthly && task.is_extra));
+  const extras = monthly ? allTasks.filter((task) => inMonth(task) && task.is_extra) : [];
+  const monthTabs: MonthTab[] = months.map((row) => {
+    const own = allTasks.filter((task) => task.month_id === row.id);
+    return {
+      id: row.id,
+      month: row.month,
+      status: row.status,
+      done: own.filter((task) => task.status === 'approved').length,
+      total: own.length,
+      extras: own.filter((task) => task.is_extra).length,
+    };
+  });
+  const titleOf = new Map(allTasks.map((task) => [task.id, task.title]));
   const clientAnswers = rowsOf<{ id: string; task_id: string; name: string; decision: string; created_at: string }>(feedbackResult.data).filter((row) =>
     titleOf.has(row.task_id),
   );
-  const recurringReady = 'recurs_monthly' in project;
-  const repeats = Boolean((project as Project & { recurs_monthly?: boolean }).recurs_monthly);
-  const videos = tasks.filter((task) => task.kind === 'video');
+  const videos = [...tasks, ...extras].filter((task) => task.kind === 'video');
 
-  const taskRows = tasks.map((task) => {
+  const toRow = (task: (typeof allTasks)[number]) => {
     const assignee = task.assignee_id ? person.get(task.assignee_id) : undefined;
     return {
       ...task,
@@ -77,7 +120,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       thumbnail: task.kind === 'video' ? thumbnailState(task.id, tasks) : null,
       for_video: task.for_task_id ? (titleOf.get(task.for_task_id) ?? '—') : null,
     };
-  });
+  };
+  const taskRows = tasks.map(toRow);
+  const extraRows = extras.map(toRow);
 
   const kindField: Field = {
     name: 'kind',
@@ -102,6 +147,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
     { name: 'due_date', label: 'Due date', type: 'date' },
     { name: 'description', label: 'Quick notes', type: 'textarea', placeholder: 'Longer than the rest, about 10 minutes.' },
     { name: 'file_links', label: 'File links', type: 'links' },
+  ];
+  /** A line of a monthly client's package. */
+  const packageFields: Field[] = [
+    { name: 'title', label: 'Deliverable', required: true, placeholder: 'Video 1' },
+    { ...kindField },
+    { name: 'assignee_id', label: 'Assignee', type: 'select', options: peopleOptions(people), hint: 'Who gets it every month. Change it for one month on that month\'s deliverable.' },
+    { name: 'due_day', label: 'Due on day of the month', type: 'number', placeholder: '25', hint: '1 to 31. Past the end of a short month means its last day.' },
+    ...(isAdmin ? [{ name: 'points_value', label: 'Points on approval', type: 'number' as const }] : []),
+    { name: 'description', label: 'Quick notes', type: 'textarea' },
   ];
   /** The form for one type of deliverable; thumbnails also choose their video. */
   const fieldsFor = (kind: TaskKind | null, editing: boolean): Field[] => {
@@ -141,7 +195,18 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
     client_name: client?.name ?? null,
     brief: project.brief,
     member_ids: team.map((profile) => profile.id),
-    deliverables: tasks.map((task) => ({
+    // A monthly client is copied with its package; a one-time project with its deliverables.
+    ...(monthly ? { kind: 'monthly' } : {}),
+    deliverables: monthly
+      ? packageItems.map((item) => ({
+          title: item.title,
+          description: item.description,
+          assignee_id: item.assignee_id,
+          kind: item.kind,
+          due_day: item.due_day,
+          ...(isAdmin ? { points_value: item.points_value } : {}),
+        }))
+      : tasks.map((task) => ({
       title: task.title,
       description: task.description,
       assignee_id: task.assignee_id,
@@ -163,9 +228,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           </p>
           <h1>
             {project.name}
-            {repeats ? (
-              <span className="badge" style={{ marginLeft: 8, verticalAlign: 'middle' }}>
-                Repeats monthly
+            {monthly ? (
+              <span className="badge badge-active" style={{ marginLeft: 8, verticalAlign: 'middle' }}>
+                Monthly client
               </span>
             ) : null}
           </h1>
@@ -266,7 +331,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               brief: project.brief,
               member_ids: team.map((profile) => profile.id),
               file_links: links,
-              ...(recurringReady ? { recurs_monthly: repeats } : {}),
+              ...(monthlyReady ? { kind: monthly ? 'monthly' : 'one_time' } : {}),
             }}
             fields={[
               { name: 'name', label: 'Project name', required: true },
@@ -277,13 +342,18 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               { name: 'brief', label: 'Project brief', type: 'textarea' },
               { name: 'member_ids', label: 'Assigned employees', type: 'multiselect', options: peopleOptions(people), hint: 'Tick to add someone, untick to remove them. New people are notified.' },
               { name: 'file_links', label: 'Links', type: 'links' },
-              ...(recurringReady
+              ...(monthlyReady
                 ? [
                     {
-                      name: 'recurs_monthly',
-                      label: 'Repeat every month',
-                      type: 'checkbox' as const,
-                      hint: 'On the 1st of each month a fresh copy is made with the same client, team and deliverables.',
+                      name: 'kind',
+                      label: 'Type',
+                      type: 'select' as const,
+                      required: true,
+                      options: [
+                        { value: 'one_time', label: 'One-time project' },
+                        { value: 'monthly', label: 'Monthly client (ongoing, a package every month)' },
+                      ],
+                      hint: 'A monthly client keeps one project, with a monthly package and a month for each calendar month.',
                     },
                   ]
                 : []),
@@ -367,6 +437,18 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </section>
       ) : null}
 
+      {monthly ? (
+        <MonthBar
+          projectId={project.id}
+          tabs={monthTabs}
+          selectedId={selectedMonth?.id ?? null}
+          thisMonth={thisMonth}
+          nextMonth={nextMonthStart(thisMonth)}
+          canEdit={mayEdit}
+          isAdmin={isAdmin}
+        />
+      ) : null}
+
       {typesReady && missingThumbnails > 0 ? (
         <p role="status" className="mb-5 rounded-card border border-warning bg-warning-soft px-4 py-3 text-[13px] text-warning-strong">
           {missingThumbnails} {missingThumbnails === 1 ? 'video has' : 'videos have'} no thumbnail yet. Add a thumbnail and choose the video it is for.
@@ -380,7 +462,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           endpoint="/api/tasks"
           rows={asRows(taskRows.filter((task) => task.kind === kind))}
           columns={columnsFor(kind)}
-          fields={fieldsFor(kind, false)}
+          fields={monthly ? undefined : fieldsFor(kind, false)}
           editFields={fieldsFor(kind, true)}
           fixedValues={{ project_id: project.id, position: tasks.length, kind }}
           canWrite={mayEdit}
@@ -390,7 +472,53 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         />
       ))}
 
-      {typesReady ? (
+      {monthly ? (
+        <>
+          {selectedMonth ? (
+            <ResourceManager
+              title={`Extras in ${monthName(selectedMonth.month)}`}
+              description="Anything on top of the monthly package, for this month only. Marked as extra, so it is easy to bill separately."
+              endpoint="/api/tasks"
+              rows={asRows(extraRows)}
+              columns={columnsFor(null)}
+              fields={fieldsFor(null, false)}
+              editFields={fieldsFor(null, true)}
+              fixedValues={{ project_id: project.id, month_id: selectedMonth.id, is_extra: true, position: allTasks.length }}
+              canWrite={mayEdit && selectedMonth.status === 'open'}
+              needsApproval={needsApproval}
+              addLabel="Add an extra"
+              emptyText="No extras this month."
+            />
+          ) : null}
+          <ResourceManager
+            title="Monthly package"
+            description="What this client gets every month. A new month starts with these deliverables. Changes apply from the next month opened; to change this month, edit its deliverables above."
+            endpoint="/api/package-items"
+            rows={asRows(
+              packageItems.map((item) => ({
+                ...item,
+                kind_label: TASK_KIND_SINGLE[item.kind as TaskKind] ?? item.kind,
+                assignee_name: item.assignee_id ? (person.get(item.assignee_id)?.full_name ?? '—') : 'Unassigned',
+                due_text: item.due_day ? `Day ${item.due_day}` : '—',
+              })),
+            )}
+            columns={[
+              { key: 'title', label: 'Deliverable' },
+              { key: 'kind_label', label: 'Type' },
+              { key: 'assignee_name', label: 'Assignee' },
+              { key: 'due_text', label: 'Due each month' },
+              { key: 'points_value', label: 'Points', kind: 'number' as const },
+              { key: 'description', label: 'Notes' },
+            ]}
+            fields={packageFields}
+            editFields={packageFields}
+            fixedValues={{ project_id: project.id, position: packageItems.length }}
+            canWrite={mayEdit}
+            addLabel="Add to package"
+            emptyText="No package yet. Add what this client gets every month."
+          />
+        </>
+      ) : typesReady ? (
         mayEdit || groups.length === 0 ? (
           <ResourceManager
             title={groups.length === 0 ? 'Deliverables' : 'Add another type'}

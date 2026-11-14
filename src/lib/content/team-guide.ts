@@ -58,6 +58,7 @@ export const TEAM_GUIDE: GuideSection[] = [
       'Comment on a task or project to ask questions. Write @ and someone\'s first name or nickname (for example @Rafi) to notify them.',
       'Projects show the client, team, links, shoot date (or "waiting for client confirmation") and every deliverable: videos, thumbnails, graphics and shoots.',
       'When your work is approved, or a project you worked on is completed, you get fireworks and a "Well done!" on your screen. The admin then gives points for completed projects.',
+      'Projects are either one-time jobs or monthly clients. A monthly client is one project that stays open: every month it gets the same package of deliverables, plus any extras for that month. Open the project to see this month; earlier months are in the tabs under its name.',
       'The Calendar shows due dates, shoots and leave for the month.',
     ],
   },

@@ -225,4 +225,4 @@ Notices and broadcasts share one page, `/updates`, with three tabs: Announcement
   ```
   (list every file number you have already run in the SQL Editor). After that, new updates run by themselves.
 - **Browser tests** (`.github/workflows/e2e.yml`, `tests/e2e`) sign in and open the main pages on phone and desktop sizes. They stay off until `E2E_BASE_URL`, `E2E_EMAIL` and `E2E_PASSWORD` point at a separate staging setup with test data.
-- **Daily job**: Vercel calls `/api/cron/daily` at 01:00 UTC (07:00 in Dhaka) to create repeating projects and remind admins about overdue invoices. Optional: set `CRON_SECRET` in Vercel so only Vercel can call it.
+- **Daily job**: Vercel calls `/api/cron/daily` at 01:00 UTC (07:00 in Dhaka) to open the new month of every monthly client and remind admins about overdue invoices. Optional: set `CRON_SECRET` in Vercel so only Vercel can call it.

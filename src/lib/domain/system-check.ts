@@ -37,6 +37,7 @@ export const DATABASE_UPDATES: UpdateCheck[] = [
   { file: '20261112000028_files_review_invoices_recurring.sql', adds: 'Client review, invoice links and repeating projects', table: 'review_links', column: 'token' },
   { file: '20261112000029_invoice_options.sql', adds: 'Choosing what invoices show', table: 'organizations', column: 'invoice_options' },
   { file: '20261112000031_companies.sql', adds: 'Several companies', table: 'company_views', column: 'org_id' },
+  { file: '20261112000034_monthly_clients.sql', adds: 'Monthly clients', table: 'project_months', column: 'month' },
 ];
 
 /** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */

@@ -15,6 +15,7 @@ interface DeliverableDraft {
   assignee_id: string;
   points_value: string;
   due_date: string;
+  due_day: string;
 }
 
 const blank = (key: number): DeliverableDraft => ({
@@ -26,6 +27,7 @@ const blank = (key: number): DeliverableDraft => ({
   assignee_id: '',
   points_value: '',
   due_date: '',
+  due_day: '',
 });
 
 /** Add a project: details, links, the people assigned to it, and optional deliverables. */
@@ -34,6 +36,7 @@ export function ProjectOnboardingForm({
   needsApproval = false,
   typesReady = false,
   showPoints = true,
+  monthlyReady = false,
 }: {
   people: Option[];
   needsApproval?: boolean;
@@ -41,9 +44,13 @@ export function ProjectOnboardingForm({
   typesReady?: boolean;
   /** Points are an admin's decision, so only admins set them here. */
   showPoints?: boolean;
+  /** Whether monthly clients exist yet (after the database update). */
+  monthlyReady?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<'one_time' | 'monthly'>('one_time');
+  const monthly = monthlyReady && kind === 'monthly';
   const [name, setName] = useState('');
   const [clientName, setClientName] = useState('');
   const [brief, setBrief] = useState('');
@@ -93,6 +100,10 @@ export function ProjectOnboardingForm({
         setError(`"${item.title}" has a line that is not a link: ${parsed.invalid[0]}`);
         return;
       }
+      if (monthly && item.due_day && !(Number.isInteger(Number(item.due_day)) && Number(item.due_day) >= 1 && Number(item.due_day) <= 31)) {
+        setError(`The due day for "${item.title}" must be a day from 1 to 31.`);
+        return;
+      }
       if (item.points_value && !Number.isInteger(Number(item.points_value))) {
         setError(`Points for "${item.title}" must be a whole number.`);
         return;
@@ -103,7 +114,8 @@ export function ProjectOnboardingForm({
         file_links: parsed.links,
         assignee_id: item.assignee_id || null,
         points_value: showPoints && item.points_value ? Number(item.points_value) : null,
-        due_date: item.due_date || null,
+        due_date: monthly ? null : item.due_date || null,
+        ...(monthly ? { due_day: item.due_day ? Number(item.due_day) : null } : {}),
         ...(typesReady ? { kind: item.kind } : {}),
       });
     }
@@ -119,7 +131,8 @@ export function ProjectOnboardingForm({
           client_name: clientName.trim() || null,
           brief: brief.trim() || null,
           start_date: startDate || null,
-          due_date: dueDate || null,
+          due_date: monthly ? null : dueDate || null,
+          ...(monthlyReady ? { kind } : {}),
           file_links: projectLinks.links,
           member_ids: team,
           deliverables: payload,
@@ -178,6 +191,18 @@ export function ProjectOnboardingForm({
         </div>
       </header>
       <form className="form" onSubmit={handleSubmit}>
+        {monthlyReady ? (
+          <div className="type-switch" role="radiogroup" aria-label="Type of project">
+            <button type="button" role="radio" aria-checked={kind === 'one_time'} className={kind === 'one_time' ? 'on' : undefined} onClick={() => setKind('one_time')}>
+              <strong>One-time project</strong>
+              <span>A job with a start and an end.</span>
+            </button>
+            <button type="button" role="radio" aria-checked={kind === 'monthly'} className={kind === 'monthly' ? 'on' : undefined} onClick={() => setKind('monthly')}>
+              <strong>Monthly client</strong>
+              <span>Ongoing. The same package every month, plus extras.</span>
+            </button>
+          </div>
+        ) : null}
         <div className="form-grid">
           <label className="field">
             <span>Project name *</span>
@@ -192,10 +217,12 @@ export function ProjectOnboardingForm({
             <span>Start date</span>
             <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
           </label>
-          <label className="field">
-            <span>Due date</span>
-            <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
-          </label>
+          {monthly ? null : (
+            <label className="field">
+              <span>Due date</span>
+              <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+            </label>
+          )}
           <label className="field wide">
             <span>Project brief</span>
             <textarea rows={3} value={brief} onChange={(event) => setBrief(event.target.value)} />
@@ -233,7 +260,13 @@ export function ProjectOnboardingForm({
           </label>
         </div>
 
-        {deliverables.length > 0 ? <h3>Deliverables</h3> : null}
+        {deliverables.length > 0 ? <h3>{monthly ? 'Monthly package' : 'Deliverables'}</h3> : null}
+        {monthly ? (
+          <p className="muted">
+            What this client gets every month. This month opens straight away with these deliverables; each new month
+            opens by itself on the 1st. Extras for a single month are added on the project later.
+          </p>
+        ) : null}
         {deliverables.map((item) => (
           <fieldset key={item.key} className="deliverable">
             <div className="form-grid">
@@ -277,10 +310,24 @@ export function ProjectOnboardingForm({
                 />
               </label>
               ) : null}
-              <label className="field">
-                <span>Due date</span>
-                <input type="date" value={item.due_date} onChange={(event) => update(item.key, { due_date: event.target.value })} />
-              </label>
+              {monthly ? (
+                <label className="field">
+                  <span>Due on day of the month</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={item.due_day}
+                    placeholder="25"
+                    onChange={(event) => update(item.key, { due_day: event.target.value })}
+                  />
+                </label>
+              ) : (
+                <label className="field">
+                  <span>Due date</span>
+                  <input type="date" value={item.due_date} onChange={(event) => update(item.key, { due_date: event.target.value })} />
+                </label>
+              )}
               <label className="field wide">
                 <span>Quick notes</span>
                 <textarea rows={2} value={item.description} onChange={(event) => update(item.key, { description: event.target.value })} />
@@ -312,10 +359,10 @@ export function ProjectOnboardingForm({
         ) : null}
         <div className="actions">
           <button type="submit" className="primary" disabled={busy}>
-            {busy ? 'Creating…' : 'Create project'}
+            {busy ? 'Creating…' : monthly ? 'Create monthly client' : 'Create project'}
           </button>
           <button type="button" onClick={addDeliverable} disabled={busy}>
-            Add a deliverable (shoot, video, thumbnail…)
+            {monthly ? 'Add to the monthly package' : 'Add a deliverable (shoot, video, thumbnail…)'}
           </button>
           <button type="button" onClick={() => setOpen(false)} disabled={busy}>
             Cancel

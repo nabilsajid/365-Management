@@ -3550,3 +3550,109 @@
     animation: none;
   }
 }
+
+/* Monthly clients. */
+.type-switch {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.panel .type-switch button {
+  display: grid;
+  justify-items: start;
+  gap: 0.15rem;
+  height: auto;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+  transform: none;
+}
+.panel .type-switch button span {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.panel .type-switch button.on {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card));
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
+}
+.monthly-section {
+  margin-bottom: 1.5rem;
+}
+.monthly-section h2,
+.section-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.section-title {
+  margin: 0 0 0.75rem;
+}
+.monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+.monthly-card {
+  border-left: 3px solid var(--color-primary);
+}
+.month-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.month-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-subtle);
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+.month-progress > div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-success);
+  transition: width 0.3s ease;
+}
+.month-tabs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.month-tabs::-webkit-scrollbar {
+  display: none;
+}
+.month-tabs a {
+  display: grid;
+  flex: none;
+  justify-items: center;
+  min-width: 4.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.month-tabs a small {
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 400;
+}
+.month-tabs a[aria-current='page'] {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card));
+}
+@media (max-width: 640px) {
+  .month-actions {
+    width: 100%;
+  }
+  .month-actions .action,
+  .month-actions .action button {
+    flex: 1;
+  }
+}

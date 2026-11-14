@@ -40,8 +40,11 @@ const taskFields = {
   kind: z.enum(TASK_KINDS).optional(),
 };
 
+const dueDay = z.coerce.number().int('Use a whole day.').min(1, 'Use a day from 1 to 31.').max(31, 'Use a day from 1 to 31.');
+
 // In a new project a thumbnail points at its video by position in the list.
-export const deliverable = z.object({ ...taskFields, for_index: z.number().int().nonnegative().nullish() });
+// In a monthly project the deliverables are its package, due on a day of each month.
+export const deliverable = z.object({ ...taskFields, for_index: z.number().int().nonnegative().nullish(), due_day: dueDay.nullish() });
 
 export const projectStatus = z.enum(['onboarding', 'active', 'completed', 'archived']);
 
@@ -59,8 +62,8 @@ const projectFields = {
   shoot_date: date.nullish(),
   file_links: z.array(fileLink).max(50).optional(),
   member_ids: z.array(id).max(100).optional(),
-  // Copied as a fresh project at the start of every month.
-  recurs_monthly: z.boolean().optional(),
+  // One-time, or a monthly client: one project with a monthly package and a month for each calendar month.
+  kind: z.enum(['one_time', 'monthly']).optional(),
 };
 
 export const projectCreate = z.object({
@@ -79,11 +82,14 @@ export const taskCreate = z.object({
   ...taskFields,
   project_id: id,
   for_task_id: id.nullish(),
+  // In a monthly project: the month it belongs to, and whether it is on top of the package.
+  month_id: id.nullish(),
+  is_extra: z.boolean().optional(),
   status: taskStatus.optional(),
   position: z.number().int().nonnegative().optional(),
 });
 export const taskUpdate = z
-  .object({ ...taskFields, for_task_id: id.nullable(), status: taskStatus, position: z.number().int().nonnegative() })
+  .object({ ...taskFields, for_task_id: id.nullable(), is_extra: z.boolean(), status: taskStatus, position: z.number().int().nonnegative() })
   .partial();
 
 export const submissionCreate = z
@@ -448,3 +454,23 @@ export const companyCreate = z.object({
 });
 
 export const companyView = z.object({ org_id: id.nullable() });
+
+// One line of a monthly project's package.
+const packageFields = {
+  title: text,
+  description: optionalText,
+  kind: z.enum(TASK_KINDS).optional(),
+  assignee_id: id.nullish(),
+  points_value: points.nullish(),
+  due_day: dueDay.nullish(),
+  for_item_id: id.nullish(),
+  position: z.number().int().nonnegative().optional(),
+};
+export const packageItemCreate = z.object({ ...packageFields, project_id: id });
+export const packageItemUpdate = z.object(packageFields).partial();
+
+// Open a month of a monthly project: this month, next month, or a given YYYY-MM.
+export const monthOpen = z.object({ month: z.union([z.literal('current'), z.literal('next'), z.string().regex(/^\d{4}-\d{2}$/)]).default('current') });
+export const monthUpdate = z
+  .object({ status: z.enum(['open', 'closed']), note: optionalText })
+  .partial();

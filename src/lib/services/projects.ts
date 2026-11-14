@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildDeliverableTasks, type DeliverableInput, type FileLinkInput } from '../domain/deliverables';
+import { buildDeliverableTasks, buildPackageItems, type DeliverableInput, type FileLinkInput } from '../domain/deliverables';
 
 export interface ProjectInput {
   name: string;
@@ -14,6 +14,7 @@ export interface ProjectInput {
   file_links?: FileLinkInput[];
   member_ids?: string[];
   deliverables?: DeliverableInput[];
+  kind?: 'one_time' | 'monthly';
 }
 
 type DbError = { code?: string; message: string };
@@ -47,6 +48,8 @@ export async function createProjectWithDeliverables(
   supabase: SupabaseClient,
   orgId: string,
   input: ProjectInput,
+  /** For a monthly project: the first day of the month to open straight away. */
+  currentMonth?: string,
 ): Promise<Result<Record<string, unknown>>> {
   const { deliverables = [], member_ids: memberIds = [], client_name: clientName, file_links: fileLinks = [], ...project } = input;
 
@@ -72,6 +75,28 @@ export async function createProjectWithDeliverables(
   if (teamIds.length > 0) {
     const team = await supabase.rpc('set_project_members', { p_project: projectId, p_members: teamIds });
     if (team.error) return undo(team.error);
+  }
+
+  // A monthly client: the deliverables are its monthly package, and this month opens with them.
+  if (input.kind === 'monthly') {
+    const items = buildPackageItems(orgId, projectId, deliverables);
+    if (items.length > 0) {
+      const saved = await supabase.from('project_package_items').insert(items).select('id, position');
+      if (saved.error) return undo(saved.error);
+      const idAt = new Map((saved.data as { id: string; position: number }[]).map((row) => [row.position, row.id]));
+      for (const [index, item] of deliverables.entries()) {
+        const target = typeof item.for_index === 'number' ? idAt.get(item.for_index) : undefined;
+        const own = idAt.get(index);
+        if (!target || !own || target === own) continue;
+        const tied = await supabase.from('project_package_items').update({ for_item_id: target }).eq('id', own);
+        if (tied.error) return undo(tied.error);
+      }
+    }
+    if (currentMonth) {
+      const opened = await supabase.rpc('open_project_month', { p_project: projectId, p_month: currentMonth });
+      if (opened.error) return undo(opened.error);
+    }
+    return { data: { ...created.data, tasks: [] } };
   }
 
   const rows = buildDeliverableTasks(orgId, projectId, deliverables);

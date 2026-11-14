@@ -15,6 +15,29 @@ export interface DeliverableInput {
   kind?: string | null;
   /** For a thumbnail: the position, in the same list, of the video it belongs to. */
   for_index?: number | null;
+  /** In a monthly project's package: the day of the month it is due. */
+  due_day?: number | null;
+}
+
+/** Rows for a monthly project's package, from the deliverables given when it was created. */
+export function buildPackageItems(orgId: string, projectId: string, deliverables: DeliverableInput[]) {
+  return deliverables.map((deliverable, index) => ({
+    org_id: orgId,
+    project_id: projectId,
+    title: deliverable.title.trim(),
+    description: deliverable.description?.trim() || null,
+    kind: deliverable.kind || 'other',
+    assignee_id: deliverable.assignee_id ?? null,
+    points_value: deliverable.points_value ?? null,
+    due_day: deliverable.due_day ?? null,
+    position: index,
+  }));
+}
+
+/** The first day of the month after the given YYYY-MM-01. */
+export function nextMonthStart(month: string): string {
+  const [year, index] = month.split('-').map(Number);
+  return index === 12 ? `${year + 1}-01-01` : `${year}-${String(index + 1).padStart(2, '0')}-01`;
 }
 
 /** What a deliverable is. The order here is the order the groups appear on a project. */

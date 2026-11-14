@@ -31,12 +31,21 @@ export default async function ReviewPage({ params }: { params: Promise<{ token: 
 
   const [orgR, projectR, tasksR] = await Promise.all([
     admin.from('organizations').select('name').eq('id', orgId).maybeSingle(),
-    admin.from('projects').select('name, brief, due_date').eq('id', projectId).maybeSingle(),
-    admin.from('tasks').select('id, title, kind, status, due_date').eq('project_id', projectId).order('position'),
+    admin.from('projects').select('*').eq('id', projectId).maybeSingle(),
+    admin.from('tasks').select('*').eq('project_id', projectId).order('position'),
   ]);
-  const project = projectR.data as { name: string; brief: string | null; due_date: string | null } | null;
+  const project = projectR.data as { name: string; brief: string | null; due_date: string | null; kind?: string } | null;
   if (!project) notFound();
-  const tasks = (tasksR.data ?? []) as TaskRow[];
+  // A monthly client sees the latest month only.
+  let tasks = (tasksR.data ?? []) as (TaskRow & { month_id?: string | null })[];
+  let monthLabel: string | null = null;
+  if (project.kind === 'monthly') {
+    const latest = await admin.from('project_months').select('id, month').eq('project_id', projectId).order('month', { ascending: false }).limit(1).maybeSingle();
+    if (latest.data) {
+      tasks = tasks.filter((task) => task.month_id === latest.data.id);
+      monthLabel = new Date(`${latest.data.month}T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    }
+  }
   const ids = tasks.map((task) => task.id);
 
   const [submissionsR, feedbackR] = ids.length
@@ -54,7 +63,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ token: 
       <p className="brand-line">{(orgR.data as { name: string } | null)?.name ?? '365 Frames'} · Client review</p>
       <div>
         <h1 style={{ fontSize: '1.6rem', margin: 0 }}>{project.name}</h1>
-        {project.due_date ? <p className="muted">Due {project.due_date}</p> : null}
+        {monthLabel ? <p className="muted">{monthLabel}</p> : project.due_date ? <p className="muted">Due {project.due_date}</p> : null}
       </div>
       {project.brief ? (
         <section className="panel">
