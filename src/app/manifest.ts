@@ -16,9 +16,9 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#0a0a0a',
     theme_color: '#0a0a0a',
     icons: [
-      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icons/unidock-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/unidock-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/unidock-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     shortcuts: [
       { name: 'My Tasks', url: '/my-tasks' },
