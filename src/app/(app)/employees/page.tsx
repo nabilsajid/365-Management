@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react';
 import Link from 'next/link';
 import { GivePointsForm } from '@/components/give-points-form';
 import { MonthPicker } from '@/components/month-picker';
@@ -140,10 +141,13 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             {month === currentMonth ? ' (current month)' : ''}. Points start from zero each month.
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="header-tools">
           <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} keep={{ tab }} />
           <details className="export-menu">
-            <summary className="button">Export</summary>
+            <summary className="button">
+              <Download size={14} aria-hidden />
+              Export
+            </summary>
             <div>
               <a href={`/api/export?type=points&month=${month.slice(0, 7)}`} download>
                 Points (CSV)

@@ -1,3 +1,4 @@
+import { readInvoiceOptions, type InvoiceOptions } from '@/lib/domain/invoice-options';
 import { money } from '@/lib/format';
 
 export interface InvoiceSheetData {
@@ -16,32 +17,52 @@ export interface InvoiceSheetData {
   projectName: string | null;
 }
 
-/** An invoice laid out to read on screen and print cleanly (Save as PDF). */
-export function InvoiceSheet({ data }: { data: InvoiceSheetData }) {
+/** An invoice laid out to read on screen and print cleanly (Save as PDF). Shows only the parts switched on. */
+export function InvoiceSheet({ data, options = readInvoiceOptions({}) }: { data: InvoiceSheetData; options?: InvoiceOptions }) {
+  const { show } = options;
   const outstanding = data.status === 'void' ? 0 : Math.max(0, data.amount - data.paid);
+  const statusText = data.status === 'void' ? 'Cancelled' : outstanding <= 0 ? 'Paid' : data.paid > 0 ? 'Partly paid' : 'Unpaid';
+  const clientLines = [show.client_contact && data.clientContact, show.client_email && data.clientEmail, show.client_phone && data.clientPhone].filter(
+    (line): line is string => Boolean(line),
+  );
+  const facts: [string, string][] = [];
+  if (show.issue_date) facts.push(['Issued', data.issueDate]);
+  if (show.due_date) facts.push(['Due', data.dueDate ?? 'On receipt']);
+  if (show.status) facts.push(['Status', statusText]);
+
   return (
     <article className="invoice-sheet">
       <div className="invoice-top">
-        <div>
-          <p className="muted" style={{ margin: 0 }}>{data.orgName}</p>
-          <h1>Invoice {data.invoiceNumber}</h1>
+        <div className="invoice-brand">
+          {show.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/logo-dark.png" alt={data.orgName} width={161} height={48} className="invoice-logo" />
+          ) : null}
+          {show.company_name ? <p className="invoice-muted">{data.orgName}</p> : null}
+          <h1>{show.invoice_number ? `Invoice ${data.invoiceNumber}` : 'Invoice'}</h1>
         </div>
-        <dl className="detail" style={{ margin: 0 }}>
-          <dt>Issued</dt>
-          <dd>{data.issueDate}</dd>
-          <dt>Due</dt>
-          <dd>{data.dueDate ?? 'On receipt'}</dd>
-          <dt>Status</dt>
-          <dd>{data.status === 'void' ? 'Cancelled' : outstanding <= 0 ? 'Paid' : data.paid > 0 ? 'Partly paid' : 'Unpaid'}</dd>
-        </dl>
+        {facts.length > 0 ? (
+          <dl className="invoice-facts">
+            {facts.map(([name, value]) => (
+              <div key={name}>
+                <dt>{name}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
-      <div>
-        <p className="muted" style={{ margin: 0 }}>Bill to</p>
-        <p style={{ margin: 0, fontWeight: 600 }}>{data.clientName}</p>
-        {[data.clientContact, data.clientEmail, data.clientPhone].filter(Boolean).map((line) => (
-          <p key={line!} style={{ margin: 0 }}>{line}</p>
-        ))}
-      </div>
+      {show.client_name || clientLines.length > 0 ? (
+        <div>
+          <p className="invoice-muted">Bill to</p>
+          {show.client_name ? <p style={{ margin: 0, fontWeight: 600 }}>{data.clientName}</p> : null}
+          {clientLines.map((line) => (
+            <p key={line} style={{ margin: 0 }}>
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : null}
       <table>
         <thead>
           <tr>
@@ -51,10 +72,10 @@ export function InvoiceSheet({ data }: { data: InvoiceSheetData }) {
         </thead>
         <tbody>
           <tr>
-            <td>{data.projectName ? `Production: ${data.projectName}` : 'Production services'}</td>
+            <td>{show.project && data.projectName ? `Production: ${data.projectName}` : 'Production services'}</td>
             <td className="amount">{money(data.amount)}</td>
           </tr>
-          {data.paid > 0 ? (
+          {show.paid && data.paid > 0 ? (
             <tr>
               <td>Paid so far</td>
               <td className="amount">−{money(data.paid)}</td>
@@ -62,11 +83,12 @@ export function InvoiceSheet({ data }: { data: InvoiceSheetData }) {
           ) : null}
           <tr className="total">
             <td>Amount due</td>
-            <td className="amount">{money(outstanding)}</td>
+            <td className="amount">{money(show.paid ? outstanding : data.status === 'void' ? 0 : data.amount)}</td>
           </tr>
         </tbody>
       </table>
-      {data.notes ? <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{data.notes}</p> : null}
+      {show.notes && data.notes ? <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{data.notes}</p> : null}
+      {options.footer ? <p className="invoice-footer">{options.footer}</p> : null}
     </article>
   );
 }
@@ -78,16 +100,17 @@ type Loader = {
 };
 
 /** Gathers what the sheet shows, with whichever client (signed in or service) is allowed to read it. */
-export async function loadInvoiceSheet(db: Loader, invoice: Record<string, unknown>): Promise<InvoiceSheetData> {
+export async function loadInvoiceSheet(db: Loader, invoice: Record<string, unknown>): Promise<{ data: InvoiceSheetData; options: InvoiceOptions }> {
   const [org, client, project, balance] = await Promise.all([
-    db.from('organizations').select('name').eq('id', invoice.org_id as string).maybeSingle(),
+    db.from('organizations').select('*').eq('id', invoice.org_id as string).maybeSingle(),
     db.from('clients').select('name, contact_name, email, phone').eq('id', invoice.client_id as string).maybeSingle(),
     invoice.project_id ? db.from('projects').select('name').eq('id', invoice.project_id as string).maybeSingle() : Promise.resolve({ data: null }),
     db.from('invoice_balances').select('paid').eq('invoice_id', invoice.id as string).maybeSingle(),
   ]);
   const c = client.data as { name: string; contact_name: string | null; email: string | null; phone: string | null } | null;
-  return {
-    orgName: (org.data as { name: string } | null)?.name ?? '',
+  const orgRow = org.data as { name: string; invoice_options?: unknown } | null;
+  const data: InvoiceSheetData = {
+    orgName: orgRow?.name ?? '',
     invoiceNumber: invoice.invoice_number as string,
     issueDate: invoice.issue_date as string,
     dueDate: (invoice.due_date as string | null) ?? null,
@@ -101,4 +124,5 @@ export async function loadInvoiceSheet(db: Loader, invoice: Record<string, unkno
     clientPhone: c?.phone ?? null,
     projectName: (project.data as { name: string } | null)?.name ?? null,
   };
+  return { data, options: readInvoiceOptions(orgRow?.invoice_options) };
 }

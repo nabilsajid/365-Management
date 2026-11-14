@@ -408,6 +408,8 @@ export const orgRulesUpdate = z
   .object({
     auto_approve_limit: z.coerce.number().min(0, 'Use 0 or more.').max(100000000),
     delete_log_days: z.coerce.number().int('Use whole days.').min(1, 'At least 1 day.').max(365, 'At most 365 days.'),
+    // What invoices show: each part on or off, and a footer.
+    invoice_options: z.record(z.union([z.boolean(), z.string().max(1000, 'Keep the footer under 1000 characters.')])),
   })
   .partial();
 
@@ -426,13 +428,6 @@ export const notifyPrefs = z.object({
   assignments: z.boolean(),
   updates: z.boolean(),
   approvals: z.boolean(),
-});
-
-export const taskFileCreate = z.object({
-  path: z.string().trim().min(3).max(500),
-  name: z.string().trim().min(1).max(200),
-  size: z.number().int().nonnegative().max(209715200, 'Files can be up to 200 MB.'),
-  content_type: z.string().trim().max(150).nullish(),
 });
 
 export const clientFeedbackCreate = z.object({

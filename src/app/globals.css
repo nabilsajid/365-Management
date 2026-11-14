@@ -2740,38 +2740,6 @@
   pointer-events: none;
 }
 
-/* Uploaded files on a deliverable. */
-.file-list {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.file-list li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.15rem 0.75rem;
-  align-items: center;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-}
-.file-list .file-name {
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-.file-list .muted {
-  grid-column: 1;
-  font-size: 0.75rem;
-}
-.file-list .file-actions {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  display: inline-flex;
-  gap: 0.4rem;
-}
-
 /* A link to share with a client. */
 .share-link {
   display: flex;
@@ -2818,9 +2786,10 @@
   gap: 0.75rem;
 }
 
-/* A printable invoice. */
+/* A printable invoice: always dark text on white paper, in either theme. */
 .invoice-sheet {
-  background: var(--color-card);
+  background: #ffffff;
+  color: #171717;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-panel, 12px);
   padding: 2rem;
@@ -2831,11 +2800,44 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
+}
+.invoice-sheet .invoice-brand {
+  display: grid;
+  gap: 0.35rem;
+}
+.invoice-sheet .invoice-logo {
+  height: 44px;
+  width: auto;
+  margin-bottom: 0.4rem;
 }
 .invoice-sheet h1 {
   font-size: 1.5rem;
   margin: 0;
+  color: #171717;
+}
+.invoice-sheet .invoice-muted {
+  margin: 0;
+  color: #6b6b6b;
+  font-size: 0.8125rem;
+}
+.invoice-sheet .invoice-facts {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+}
+.invoice-sheet .invoice-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+.invoice-sheet .invoice-facts dt {
+  color: #6b6b6b;
+}
+.invoice-sheet .invoice-facts dd {
+  margin: 0;
+  font-weight: 500;
 }
 .invoice-sheet table {
   width: 100%;
@@ -2844,8 +2846,14 @@
 .invoice-sheet th,
 .invoice-sheet td {
   text-align: left;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--color-line);
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #e5e5e5;
+  color: #171717;
+}
+.invoice-sheet th {
+  color: #6b6b6b;
+  font-weight: 500;
+  font-size: 0.8125rem;
 }
 .invoice-sheet td.amount,
 .invoice-sheet th.amount {
@@ -2853,7 +2861,27 @@
 }
 .invoice-sheet .total td {
   font-weight: 600;
+  font-size: 1.05rem;
   border-bottom: none;
+}
+.invoice-sheet .invoice-footer {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e5e5;
+  color: #4a4a4a;
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+}
+.invoice-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.35rem 1rem;
+  margin-top: 0.5rem;
+}
+@media (max-width: 640px) {
+  .invoice-sheet {
+    padding: 1.25rem;
+  }
 }
 .report-grid {
   display: grid;
@@ -2882,6 +2910,11 @@
   .panel {
     border: none !important;
     box-shadow: none !important;
+  }
+  .invoice-sheet {
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 
@@ -2925,4 +2958,31 @@
   border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
   background: var(--color-subtle);
+}
+
+/* Month picker and buttons beside it, lined up on the same baseline and height. */
+.header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.header-tools .field select,
+.header-tools .button,
+.header-tools button {
+  height: 2.4rem;
+  min-height: 2.4rem;
+  box-sizing: border-box;
+}
+.header-tools .export-menu summary {
+  gap: 0.35rem;
+}
+@media (pointer: coarse) {
+  .header-tools .field select,
+  .header-tools .button,
+  .header-tools button {
+    height: 2.75rem;
+    min-height: 2.75rem;
+  }
 }

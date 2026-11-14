@@ -18,7 +18,7 @@ const STATUS: Record<string, string> = {
 type TaskRow = { id: string; title: string; kind: string | null; status: string; due_date: string | null };
 
 // What a client sees through a project's review link: no account, no other
-// project, nothing about money or the team. Files open through short private links.
+// project, nothing about money or the team. Work is shared as Drive or Dropbox links.
 export default async function ReviewPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^[0-9a-f]{64}$/.test(token)) notFound();
@@ -39,24 +39,15 @@ export default async function ReviewPage({ params }: { params: Promise<{ token: 
   const tasks = (tasksR.data ?? []) as TaskRow[];
   const ids = tasks.map((task) => task.id);
 
-  const [submissionsR, filesR, feedbackR] = ids.length
+  const [submissionsR, feedbackR] = ids.length
     ? await Promise.all([
         admin.from('task_submissions').select('task_id, kind, url, note, created_at').in('task_id', ids).order('created_at', { ascending: false }),
-        admin.from('task_files').select('task_id, path, name').in('task_id', ids).order('created_at', { ascending: false }),
         admin.from('client_feedback').select('task_id, decision, created_at').eq('link_id', link.data.id).order('created_at', { ascending: false }),
       ])
-    : [{ data: [] }, { data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }];
   const submissions = (submissionsR.data ?? []) as { task_id: string; kind: string; url: string | null; note: string | null }[];
-  const files = (filesR.data ?? []) as { task_id: string; path: string; name: string }[];
   const lastAnswer = new Map<string, string>();
   for (const row of (feedbackR.data ?? []) as { task_id: string; decision: string }[]) if (!lastAnswer.has(row.task_id)) lastAnswer.set(row.task_id, row.decision);
-
-  // One private link per file, valid for an hour.
-  const signed = new Map<string, string>();
-  if (files.length) {
-    const result = await admin.storage.from('deliverables').createSignedUrls(files.map((file) => file.path), 60 * 60);
-    for (const item of result.data ?? []) if (item.path && item.signedUrl) signed.set(item.path, item.signedUrl);
-  }
 
   return (
     <main className="public-page">
@@ -74,7 +65,6 @@ export default async function ReviewPage({ params }: { params: Promise<{ token: 
       {tasks.map((task) => {
         const shared = submissions.filter((row) => row.task_id === task.id && row.url).slice(0, 3);
         const notes = submissions.filter((row) => row.task_id === task.id && !row.url && row.note).slice(0, 1);
-        const own = files.filter((file) => file.task_id === task.id && signed.has(file.path));
         const answer = lastAnswer.get(task.id);
         return (
           <section key={task.id} className="panel review-item">
@@ -84,16 +74,11 @@ export default async function ReviewPage({ params }: { params: Promise<{ token: 
               <span className={task.status === 'approved' ? 'badge badge-approved' : 'badge badge-pending'}>{STATUS[task.status] ?? task.status}</span>
               {answer ? <span className="badge">{answer === 'approved' ? 'You approved this' : 'You asked for changes'}</span> : null}
             </div>
-            {shared.length || own.length ? (
+            {shared.length ? (
               <div className="tags">
                 {shared.map((row) => (
                   <a key={row.url!} className="chip" href={row.url!} target="_blank" rel="noreferrer">
                     {row.kind === 'dropbox' ? 'Dropbox link' : 'Drive link'}
-                  </a>
-                ))}
-                {own.map((file) => (
-                  <a key={file.path} className="chip" href={signed.get(file.path)} target="_blank" rel="noreferrer">
-                    {file.name}
                   </a>
                 ))}
               </div>

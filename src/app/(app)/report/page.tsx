@@ -57,7 +57,7 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
           </p>
           <h1>Monthly summary</h1>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="header-tools">
           <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} />
           <PrintButton />
         </div>

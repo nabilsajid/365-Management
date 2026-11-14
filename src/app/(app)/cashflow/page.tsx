@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { MonthPicker } from '@/components/month-picker';
@@ -183,10 +184,13 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
             {month === currentMonth ? ' (current month)' : ''}. Balances and client dues always count every month.
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="header-tools">
           <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} keep={{ tab }} />
           <details className="export-menu">
-            <summary className="button">Export</summary>
+            <summary className="button">
+              <Download size={14} aria-hidden />
+              Export
+            </summary>
             <div>
               {(['expenses', 'payments', 'invoices'] as const).map((kind) => (
                 <a key={kind} href={`/api/export?type=${kind}&month=${month.slice(0, 7)}`} download>

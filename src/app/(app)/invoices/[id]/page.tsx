@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { InvoiceEditor } from '@/components/invoice-editor';
 import { InvoiceSheet, loadInvoiceSheet } from '@/components/invoice-sheet';
 import { PrintButton } from '@/components/print-button';
 import { ShareLink } from '@/components/share-link';
@@ -13,7 +14,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const invoice = await supabase.from('invoices').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   if (!invoice.data) notFound();
   const row = invoice.data as Record<string, unknown>;
-  const data = await loadInvoiceSheet(supabase as never, row);
+  const { data, options } = await loadInvoiceSheet(supabase as never, row);
   const shareReady = 'share_token' in row;
 
   return (
@@ -38,7 +39,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <ShareLink endpoint={`/api/invoices/${id}/share`} basePath="/invoice" token={(row.share_token as string | null) ?? null} createLabel="Make a client link" />
         </section>
       ) : null}
-      <InvoiceSheet data={data} />
+      {isAdmin ? <InvoiceEditor data={data} initial={options} /> : <InvoiceSheet data={data} options={options} />}
     </>
   );
 }
