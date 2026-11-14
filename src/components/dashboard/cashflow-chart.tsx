@@ -45,15 +45,7 @@ export function CashflowChart({ data }: { data: CashflowPoint[] }) {
             labelStyle={{ color: 'var(--color-ink)' }}
             itemStyle={{ color: 'var(--color-ink)' }}
           />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{ fontSize: 13, color: 'var(--color-muted)' }}
-            payload={[
-              { value: 'Money in', type: 'circle', id: 'income', color: '#f97316' },
-              { value: 'Money out', type: 'circle', id: 'expenses', color: EXPENSES },
-            ]}
-          />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13, color: 'var(--color-muted)' }} />
           <Bar dataKey="income" name="Money in" fill={INCOME} radius={[4, 4, 0, 0]} maxBarSize={28} style={{ filter: 'url(#income-glow)' }} />
           <Bar dataKey="expenses" name="Money out" fill={EXPENSES} radius={[4, 4, 0, 0]} maxBarSize={28} />
         </BarChart>
