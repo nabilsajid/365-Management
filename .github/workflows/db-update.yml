@@ -40,10 +40,17 @@ jobs:
           fi
       - if: steps.ready.outputs.go == 'true'
         uses: actions/checkout@v4
+      # The Supabase CLI from npm (not GitHub releases, whose lookups are rate limited).
       - if: steps.ready.outputs.go == 'true'
-        uses: supabase/setup-cli@v1
+        uses: actions/setup-node@v4
         with:
-          version: latest
+          node-version: 22
+      - if: steps.ready.outputs.go == 'true'
+        name: Install the Supabase CLI
+        run: |
+          npm install --no-save --no-audit --no-fund supabase@latest
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+          npx supabase --version
       - if: steps.ready.outputs.go == 'true'
         name: Show what will run
         run: |
