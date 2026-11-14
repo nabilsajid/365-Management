@@ -14,6 +14,11 @@ on:
     branches: [main]
     paths: ['supabase/migrations/**']
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only show what would run, change nothing'
+        type: boolean
+        default: true
 
 concurrency:
   group: database-update
@@ -45,8 +50,15 @@ jobs:
       - if: steps.ready.outputs.go == 'true'
         name: Show what will run
         run: |
-          supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-          supabase db push --dry-run --password "$SUPABASE_DB_PASSWORD"
-      - if: steps.ready.outputs.go == 'true'
+          set -o pipefail
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push --linked --dry-run 2>&1 | tee plan.txt
+          # Safety: if the first update is listed, the one-time "already done" step was skipped,
+          # and pushing would re-run every update on the live database. Stop instead.
+          if grep -q 20261112000001 plan.txt; then
+            echo "::error::Supabase thinks no updates have been run yet. Run the one-time 'mark as done' SQL first (docs/ARCHITECTURE.md)."
+            exit 1
+          fi
+      - if: steps.ready.outputs.go == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         name: Run the new updates
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --linked
