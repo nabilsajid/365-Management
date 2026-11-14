@@ -4,9 +4,9 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import type { CashflowPoint } from '@/lib/domain/dashboard';
 import { money } from '@/lib/format';
 
-// Money in is a warm orange with a faint glow; money out stays neutral grey
-// (a CSS variable, so it follows the light and dark themes).
-const INCOME = 'url(#income-fill)';
+// Money in carries the accent colour; money out stays neutral grey. Both are
+// CSS variables, so the chart follows the light and dark themes.
+const INCOME = 'var(--color-primary)';
 const EXPENSES = 'var(--color-chart-muted)';
 
 function shortMonth(month: string): string {
@@ -26,15 +26,6 @@ export function CashflowChart({ data }: { data: CashflowPoint[] }) {
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={4}>
-          <defs>
-            <linearGradient id="income-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fb923c" />
-              <stop offset="100%" stopColor="#f97316" stopOpacity={0.85} />
-            </linearGradient>
-            <filter id="income-glow" x="-50%" y="-20%" width="200%" height="140%">
-              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#f97316" floodOpacity="0.28" />
-            </filter>
-          </defs>
           <CartesianGrid stroke="var(--color-line)" strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: 'var(--color-line)' }} tick={{ fill: 'var(--color-muted)', fontSize: 12 }} />
           <YAxis tickLine={false} axisLine={false} width={56} tick={{ fill: 'var(--color-muted)', fontSize: 12 }} tickFormatter={compact} />
@@ -46,7 +37,7 @@ export function CashflowChart({ data }: { data: CashflowPoint[] }) {
             itemStyle={{ color: 'var(--color-ink)' }}
           />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13, color: 'var(--color-muted)' }} />
-          <Bar dataKey="income" name="Money in" fill={INCOME} radius={[4, 4, 0, 0]} maxBarSize={28} style={{ filter: 'url(#income-glow)' }} />
+          <Bar dataKey="income" name="Money in" fill={INCOME} radius={[4, 4, 0, 0]} maxBarSize={28} />
           <Bar dataKey="expenses" name="Money out" fill={EXPENSES} radius={[4, 4, 0, 0]} maxBarSize={28} />
         </BarChart>
       </ResponsiveContainer>

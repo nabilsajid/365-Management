@@ -3,11 +3,13 @@
 /* Design tokens. Tailwind turns each --color-* into utilities such as
    bg-primary, text-muted and border-line. */
 @theme {
-  /* Light mode is neutral charcoal on soft grey: no blue. */
-  --color-primary: #2b2b2b;
-  --color-primary-hover: #111111;
-  --color-primary-strong: #171717;
-  --color-primary-soft: #ececec;
+  /* Neutral surfaces with one accent: a deep orange, used sparingly (primary
+     buttons, the active sidebar item, money in). Green, amber and red are
+     only ever status colours. */
+  --color-primary: #c2410c;
+  --color-primary-hover: #9a3412;
+  --color-primary-strong: #9a3412;
+  --color-primary-soft: #fff1e6;
   --color-on-primary: #ffffff;
   --color-sidebar: #1c1c1c;
   --color-sidebar-hover: #2e2e2e;
@@ -44,13 +46,13 @@
 }
 
 :root[data-theme='dark'] {
-  /* Neutral graphite: no blue tint. The accent is a soft white, so primary
-     buttons and the active sidebar link read as light on near-black. */
+  /* Neutral graphite with the same orange accent, a little brighter, and
+     dark text on it so it stays easy to read. */
   color-scheme: dark;
-  --color-primary: #ededed;
-  --color-primary-hover: #ffffff;
-  --color-primary-strong: #fafafa;
-  --color-primary-soft: rgb(255 255 255 / 0.08);
+  --color-primary: #f97316;
+  --color-primary-hover: #fb923c;
+  --color-primary-strong: #fdba74;
+  --color-primary-soft: rgb(249 115 22 / 0.14);
   --color-on-primary: #0a0a0a;
   --color-sidebar: #0f0f0f;
   --color-sidebar-hover: #1f1f1f;
@@ -241,22 +243,17 @@
   }
 
   /* Subtle colour on summary cards: a light wash and a tinted figure. */
-  .card[class*='tone-'] {
-    background: color-mix(in srgb, var(--tone) 7%, var(--color-card));
-    border-color: color-mix(in srgb, var(--tone) 28%, var(--color-line));
-  }
-
   .card[class*='tone-'] .value {
     color: color-mix(in srgb, var(--tone) 55%, var(--color-ink));
   }
 
-  /* Amounts in tables: money going out leans red, money held leans green. */
+  /* Amounts in tables: money in carries the accent, money out stays neutral. */
   .amount-out {
-    color: color-mix(in srgb, var(--color-danger) 62%, var(--color-ink));
+    color: var(--color-muted);
   }
 
   .amount-in {
-    color: color-mix(in srgb, var(--color-success) 58%, var(--color-ink));
+    color: color-mix(in srgb, var(--color-primary) 85%, var(--color-ink));
   }
 
   /* A small coloured dot before a category name. Uses the tag-* hues. */
@@ -721,7 +718,7 @@
     grid-row: span 2;
   }
 
-  /* The funds tile's split bar: money in (green) against money out (grey). */
+  /* The funds tile's split bar: money in (the accent) against money out (grey). */
   .flow-bar {
     display: flex;
     gap: 3px;
@@ -742,7 +739,7 @@
   }
 
   .flow-in {
-    background: var(--color-success);
+    background: var(--color-primary);
   }
 
   .flow-out {
@@ -778,11 +775,6 @@
   .tone-green { --tone: var(--color-success); }
   .tone-yellow { --tone: var(--color-warning); }
   .tone-red { --tone: var(--color-danger); }
-
-  .tile[class*='tone-'] {
-    background: color-mix(in srgb, var(--tone) 8%, var(--color-card));
-    border-color: color-mix(in srgb, var(--tone) 32%, var(--color-line));
-  }
 
   .tile[class*='tone-'] .tile-icon {
     background: color-mix(in srgb, var(--tone) 16%, transparent);
@@ -1548,8 +1540,7 @@
 
   /* Points for a finished project. */
   .award {
-    border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-line));
-    background: color-mix(in srgb, var(--color-success) 5%, var(--color-card));
+    border-color: var(--color-line-strong);
   }
 
   .award-input {
@@ -1633,31 +1624,6 @@
 
   .fold[open] > summary {
     margin-bottom: 1rem;
-  }
-
-  /* Save buttons: every form's save button is green with a soft glow. */
-  .panel .form button[type='submit'].primary {
-    border-color: var(--color-success);
-    background: var(--color-success);
-    color: #ffffff;
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--color-success) 35%, transparent),
-      0 0 16px color-mix(in srgb, var(--color-success) 55%, transparent);
-    animation: save-glow 2.4s ease-in-out infinite;
-  }
-
-  .panel .form button[type='submit'].primary:hover:not(:disabled) {
-    border-color: var(--color-success-strong);
-    background: color-mix(in srgb, var(--color-success) 88%, #000000);
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--color-success) 50%, transparent),
-      0 0 22px color-mix(in srgb, var(--color-success) 75%, transparent);
-  }
-
-  .panel .form button[type='submit'].primary:disabled {
-    animation: none;
-    box-shadow: none;
-    opacity: 0.6;
   }
 
   /* The two values an admin copies into Vercel to set up device alerts. */
@@ -1780,10 +1746,8 @@
     list-style: disc;
   }
 
-  /* The app's background glow: two large, very soft orange lights behind the
-     content, drifting slowly, like light through frosted glass. Kept faint so
-     text stays easy to read; a little stronger in dark mode where it has
-     more room. */
+  /* The app's background: one very faint warm light at the top of the page,
+     drifting slowly. Kept faint so it never competes with the content. */
   .app-bg {
     position: relative;
     isolation: isolate;
@@ -1799,63 +1763,21 @@
 
   .app-glow span {
     position: absolute;
-    width: 62vmax;
-    height: 62vmax;
+    top: -38vmax;
+    left: 50%;
+    width: 80vmax;
+    height: 56vmax;
+    margin-left: -40vmax;
     border-radius: 999px;
-    filter: blur(90px);
-    opacity: 0.1;
+    background: radial-gradient(closest-side, rgb(249 115 22 / 0.9), transparent);
+    filter: blur(80px);
+    opacity: 0.06;
+    animation: app-glow-a 60s ease-in-out infinite alternate;
     will-change: transform;
   }
 
-  .app-glow-a {
-    top: -24vmax;
-    right: -16vmax;
-    background: radial-gradient(circle, rgb(249 115 22 / 0.85), transparent 70%);
-    animation: app-glow-a 46s ease-in-out infinite alternate;
-  }
-
-  .app-glow-b {
-    bottom: -30vmax;
-    left: -10vmax;
-    background: radial-gradient(circle, rgb(251 146 60 / 0.8), transparent 70%);
-    animation: app-glow-b 58s ease-in-out infinite alternate;
-  }
-
-  /* A cool blue light between the two warm ones. */
-  .app-glow-c {
-    top: 18vh;
-    left: 22vw;
-    width: 48vmax !important;
-    height: 48vmax !important;
-    background: radial-gradient(circle, rgb(59 130 246 / 0.8), transparent 70%);
-    animation: app-glow-c 52s ease-in-out infinite alternate;
-  }
-
   :root[data-theme='dark'] .app-glow span {
-    opacity: 0.13;
-  }
-
-  /* A faint grid over the glow, fading out toward the edges. */
-  .app-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgb(0 0 0 / 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(0 0 0 / 0.035) 1px, transparent 1px);
-    background-size: 48px 48px;
-    mask-image: radial-gradient(ellipse 80% 70% at 55% 40%, #000 25%, transparent 78%);
-    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 55% 40%, #000 25%, transparent 78%);
-  }
-
-  :root[data-theme='dark'] .app-grid {
-    background-image:
-      linear-gradient(rgb(255 255 255 / 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(255 255 255 / 0.03) 1px, transparent 1px);
-  }
-
-  /* Cards let a hint of the glow through, like frosted glass. */
-  .app-bg .panel:not(.award) {
-    background-color: color-mix(in srgb, var(--color-card) 93%, transparent);
+    opacity: 0.07;
   }
 
   /* Project comments. */
@@ -1931,14 +1853,6 @@
 @keyframes pulse {
   50% {
     opacity: 0.5;
-  }
-}
-
-@keyframes save-glow {
-  50% {
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--color-success) 45%, transparent),
-      0 0 24px color-mix(in srgb, var(--color-success) 80%, transparent);
   }
 }
 
@@ -2032,38 +1946,11 @@
 }
 
 @keyframes app-glow-a {
-  0% {
-    transform: translate(0, 0) scale(1);
+  from {
+    transform: translateX(-8vmax);
   }
-  50% {
-    transform: translate(-12vmax, 8vmax) scale(1.08);
-  }
-  100% {
-    transform: translate(-22vmax, 3vmax) scale(0.96);
-  }
-}
-
-@keyframes app-glow-c {
-  0% {
-    transform: translate(0, 0) scale(0.95);
-  }
-  50% {
-    transform: translate(10vmax, 6vmax) scale(1.06);
-  }
-  100% {
-    transform: translate(-6vmax, 12vmax) scale(1);
-  }
-}
-
-@keyframes app-glow-b {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(14vmax, -9vmax) scale(1.1);
-  }
-  100% {
-    transform: translate(26vmax, -2vmax) scale(1);
+  to {
+    transform: translateX(8vmax);
   }
 }
 

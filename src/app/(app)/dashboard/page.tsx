@@ -197,7 +197,7 @@ export default async function DashboardPage() {
 
       <div className="bento">
         {can('cashflow') ? (
-          <Link href="/cashflow" className="tile tile-big tone-green" style={{ '--i': 0 } as CSSProperties}>
+          <Link href="/cashflow" className="tile tile-big" style={{ '--i': 0 } as CSSProperties}>
             <div className="flex items-center justify-between">
               <p className="tile-label">Available funds</p>
               <span className="tile-icon">
@@ -228,7 +228,7 @@ export default async function DashboardPage() {
 
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-soft text-success-strong">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary">
                     <ArrowDownLeft size={15} aria-hidden />
                   </span>
                   <span className="min-w-0">

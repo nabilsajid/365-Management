@@ -421,12 +421,9 @@ export function AppShell({
 
   return (
     <div className="app-bg min-h-screen">
-      {/* Soft orange and blue glows drifting slowly over a faint grid, behind everything. Decorative only. */}
+      {/* One very faint warm light at the top of the page. Decorative only. */}
       <div className="app-glow" aria-hidden>
-        <i className="app-grid" />
-        <span className="app-glow-a" />
-        <span className="app-glow-b" />
-        <span className="app-glow-c" />
+        <span />
       </div>
       <NavProgress />
       {/* Desktop sidebar */}
