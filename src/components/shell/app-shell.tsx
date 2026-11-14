@@ -344,7 +344,12 @@ export function AppShell({
   }, [mobileOpen]);
 
   return (
-    <div className="min-h-screen">
+    <div className="app-bg min-h-screen">
+      {/* A soft orange glow that drifts slowly behind everything. Decorative only. */}
+      <div className="app-glow" aria-hidden>
+        <span className="app-glow-a" />
+        <span className="app-glow-b" />
+      </div>
       <NavProgress />
       {/* Desktop sidebar */}
       <aside

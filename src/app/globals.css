@@ -1775,6 +1775,56 @@
     list-style: disc;
   }
 
+  /* The app's background glow: two large, very soft orange lights behind the
+     content, drifting slowly, like light through frosted glass. Kept faint so
+     text stays easy to read; a little stronger in dark mode where it has
+     more room. */
+  .app-bg {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .app-glow {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .app-glow span {
+    position: absolute;
+    width: 62vmax;
+    height: 62vmax;
+    border-radius: 999px;
+    filter: blur(90px);
+    opacity: 0.1;
+    will-change: transform;
+  }
+
+  .app-glow-a {
+    top: -24vmax;
+    right: -16vmax;
+    background: radial-gradient(circle, rgb(249 115 22 / 0.85), transparent 70%);
+    animation: app-glow-a 46s ease-in-out infinite alternate;
+  }
+
+  .app-glow-b {
+    bottom: -30vmax;
+    left: -10vmax;
+    background: radial-gradient(circle, rgb(251 146 60 / 0.8), transparent 70%);
+    animation: app-glow-b 58s ease-in-out infinite alternate;
+  }
+
+  :root[data-theme='dark'] .app-glow span {
+    opacity: 0.13;
+  }
+
+  /* Cards let a hint of the glow through, like frosted glass. */
+  .app-bg .panel:not(.award) {
+    background-color: color-mix(in srgb, var(--color-card) 93%, transparent);
+  }
+
   /* Project comments. */
   .comments {
     display: grid;
@@ -1945,6 +1995,30 @@
   from {
     opacity: 0;
     transform: translateY(12px) scale(0.96);
+  }
+}
+
+@keyframes app-glow-a {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-12vmax, 8vmax) scale(1.08);
+  }
+  100% {
+    transform: translate(-22vmax, 3vmax) scale(0.96);
+  }
+}
+
+@keyframes app-glow-b {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(14vmax, -9vmax) scale(1.1);
+  }
+  100% {
+    transform: translate(26vmax, -2vmax) scale(1);
   }
 }
 
