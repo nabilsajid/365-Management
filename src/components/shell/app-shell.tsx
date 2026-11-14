@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { SearchBox } from '@/components/search-box';
+import { UniDockLogo, UniDockMark } from '@/components/unidock-logo';
 import { AppInstall } from '@/components/app-install';
 import { NavProgress } from '@/components/nav-progress';
 import { RolePreviewBar } from '@/components/role-preview';
@@ -109,17 +110,24 @@ function SidebarNav({
 }
 
 function Brand({ orgName, collapsed }: { orgName: string; collapsed: boolean }) {
-  // The company logo: the full wordmark when the sidebar is open, the mark alone when collapsed.
+  // The app's own logo (UniDock) on top, and the company using it just below,
+  // so everyone can see whose workspace this is.
   return (
-    <div className={cn('flex h-14 shrink-0 items-center border-b border-white/10 px-4', collapsed && 'justify-center px-0')}>
-      {collapsed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/logo-mark.png" alt={orgName} width={29} height={28} className="h-7 w-auto" />
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/logo.png" alt={orgName} width={114} height={34} className="h-[34px] w-auto" />
-      )}
-    </div>
+    <>
+      <div className={cn('flex h-14 shrink-0 items-center border-b border-white/10 px-4', collapsed && 'justify-center px-0')}>
+        {collapsed ? <UniDockMark size={28} /> : <UniDockLogo />}
+      </div>
+      <div className={cn('company-tag', collapsed && 'collapsed')} title={collapsed ? `Company: ${orgName}` : undefined}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-mark.png" alt="" width={20} height={19} />
+        {collapsed ? null : (
+          <span>
+            <small>Company</small>
+            {orgName}
+          </span>
+        )}
+      </div>
+    </>
   );
 }
 
