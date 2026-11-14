@@ -1986,6 +1986,403 @@
     cursor: pointer;
   }
 
+  /* Search in the top bar; on phones it becomes an icon that opens the search page. */
+  .topbar-search {
+    display: none;
+    align-items: center;
+    gap: 0.4rem;
+    width: 15rem;
+    height: 2.25rem;
+    padding: 0 0.7rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: var(--color-subtle);
+    color: var(--color-muted);
+    transition: border-color 0.15s, width 0.2s ease;
+  }
+
+  .topbar-search:focus-within {
+    width: 19rem;
+    border-color: var(--color-primary);
+  }
+
+  .topbar-search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    outline: none;
+  }
+
+  .topbar-search-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-control);
+    color: var(--color-ink);
+  }
+
+  @media (min-width: 768px) {
+    .topbar-search {
+      display: flex;
+    }
+
+    .topbar-search-icon {
+      display: none;
+    }
+  }
+
+  .search-page-form {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+    padding: 0.4rem 0.4rem 0.4rem 0.9rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-card);
+    background: var(--color-card);
+    color: var(--color-muted);
+  }
+
+  .search-page-form input {
+    flex: 1;
+    min-width: 0;
+    min-height: 2.4rem;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink);
+    font-size: 0.9375rem;
+    outline: none;
+  }
+
+  .search-page-form button {
+    min-height: 2.4rem;
+    padding: 0 1rem;
+    border-radius: var(--radius-control);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  .search-results {
+    display: grid;
+  }
+
+  .search-results a {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    padding: 0.6rem 0.25rem;
+    border-bottom: 1px solid var(--color-line);
+    color: var(--color-ink);
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+
+  .search-results li:last-child a {
+    border-bottom: 0;
+  }
+
+  .search-results a:hover {
+    color: var(--color-primary);
+  }
+
+  .search-results .muted {
+    font-size: 0.75rem;
+    text-transform: capitalize;
+  }
+
+  /* @mentions in comments. */
+  .mention {
+    padding: 0 0.2rem;
+    border-radius: 4px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+    font-weight: 500;
+  }
+
+  /* Calendar. */
+  .cal-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .cal-head h2 {
+    min-width: 9rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .cal-step,
+  .cal-today {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.1rem;
+    height: 2.1rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    text-decoration: none;
+  }
+
+  .cal-step:hover,
+  .cal-today:hover {
+    background: var(--color-subtle);
+    text-decoration: none;
+  }
+
+  .cal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-left: auto;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+  }
+
+  .cal-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .cal-dot {
+    display: inline-block;
+    width: 0.55rem;
+    height: 0.55rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--cal);
+  }
+
+  .cal-task {
+    --cal: var(--color-primary);
+  }
+
+  .cal-deadline {
+    --cal: var(--color-danger);
+  }
+
+  .cal-shoot {
+    --cal: #7c6ad6;
+  }
+
+  .cal-leave {
+    --cal: #2f9e8f;
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border-top: 1px solid var(--color-line);
+    border-left: 1px solid var(--color-line);
+  }
+
+  .cal-weekday {
+    padding: 0.4rem 0.5rem;
+    border-right: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-page);
+    color: var(--color-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .cal-day {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-height: 6.5rem;
+    padding: 0.35rem;
+    border-right: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--color-line);
+    min-width: 0;
+  }
+
+  .cal-out {
+    background: color-mix(in srgb, var(--color-page) 60%, transparent);
+  }
+
+  .cal-out .cal-num {
+    color: var(--color-line-strong);
+  }
+
+  .cal-num {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .cal-today-cell .cal-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+
+  .cal-event {
+    display: block;
+    overflow: hidden;
+    padding: 0.15rem 0.4rem;
+    border-left: 3px solid var(--cal);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--cal) 12%, transparent);
+    color: var(--color-ink);
+    font-size: 0.7rem;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color 0.15s;
+  }
+
+  .cal-event:hover {
+    background: color-mix(in srgb, var(--cal) 22%, transparent);
+    text-decoration: none;
+  }
+
+  .cal-done {
+    opacity: 0.55;
+    text-decoration: line-through;
+  }
+
+  .cal-more {
+    color: var(--color-muted);
+    font-size: 0.6875rem;
+  }
+
+  .cal-list {
+    display: none;
+  }
+
+  .cal-list-day {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .cal-list-date {
+    margin-bottom: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .cal-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    padding: 0.35rem 0;
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    text-decoration: none;
+  }
+
+  .cal-list-item .cal-dot {
+    margin-top: 0.35rem;
+  }
+
+  .cal-list-item > span {
+    display: grid;
+  }
+
+  .cal-list-item .muted {
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 760px) {
+    .cal-grid {
+      display: none;
+    }
+
+    .cal-list {
+      display: block;
+    }
+
+    .cal-legend {
+      margin-left: 0;
+    }
+  }
+
+  /* On phones, wide tables become a stack of cards: one card per row, each
+     value with its column name beside it. */
+  @media (max-width: 640px) {
+    .panel table.cards-on-phone thead {
+      display: none;
+    }
+
+    .panel table.cards-on-phone,
+    .panel table.cards-on-phone tbody {
+      display: block;
+    }
+
+    .panel table.cards-on-phone tr {
+      display: block;
+      margin: 0.75rem;
+      padding: 0.35rem 0;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-control);
+      background: var(--color-card);
+    }
+
+    .panel table.cards-on-phone td {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.35rem 0.85rem;
+      border-bottom: 0;
+      text-align: right;
+    }
+
+    .panel table.cards-on-phone td[data-label]::before {
+      content: attr(data-label);
+      flex-shrink: 0;
+      color: var(--color-muted);
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-align: left;
+    }
+
+    .panel table.cards-on-phone td:first-child {
+      font-weight: 600;
+    }
+
+    .panel table.cards-on-phone td.row-actions {
+      justify-content: flex-end;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--color-line);
+    }
+
+    .panel table.cards-on-phone td[colspan] {
+      display: block;
+      text-align: left;
+    }
+
+    .panel table.cards-on-phone tbody tr:hover td {
+      background: transparent;
+    }
+  }
+
   /* Project comments. */
   .comments {
     display: grid;

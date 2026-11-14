@@ -522,7 +522,7 @@ export function ResourceManager({
         <p className="muted empty">Nothing matches “{search}”.</p>
       ) : (
         <div className="table-wrap" data-pending={refreshing} aria-busy={refreshing}>
-          <table>
+          <table className="cards-on-phone">
             <thead>
               <tr>
                 {columns.map((column) => (
@@ -559,7 +559,7 @@ export function ResourceManager({
                 ) : (
                   <tr key={row.id} data-pending={deletingId === row.id} className={flashId === row.id ? 'row-flash' : undefined}>
                     {columns.map((column) => (
-                      <td key={column.key} className={column.kind === 'money' || column.kind === 'number' ? 'num' : undefined}>
+                      <td key={column.key} data-label={column.label} className={column.kind === 'money' || column.kind === 'number' ? 'num' : undefined}>
                         <Cell row={row} column={column} />
                       </td>
                     ))}

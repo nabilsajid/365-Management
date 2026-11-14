@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ApiForm, ResourceManager } from '@/components/resource-manager';
+import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import { label } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, rowsOf } from '@/lib/page';
 import type { Profile, Project, Task, TaskSubmission } from '@/types/database';
@@ -10,17 +10,24 @@ const KIND_LABEL: Record<string, string> = { drive: 'Google Drive', dropbox: 'Dr
 
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, orgId, isAdmin, userId, can, localDate } = await getPageContext();
+  const { supabase, orgId, isAdmin, userId, can, localDate, localDateTime } = await getPageContext();
 
   const taskResult = await supabase.from('tasks').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const task = taskResult.data as Task | null;
   if (!task) notFound();
 
-  const [projectResult, submissionsResult, peopleResult] = await Promise.all([
+  const [projectResult, submissionsResult, peopleResult, commentsResult] = await Promise.all([
     supabase.from('projects').select('*').eq('id', task.project_id).maybeSingle(),
     supabase.from('task_submissions').select('*').eq('task_id', id).order('created_at', { ascending: false }),
     supabase.from('profiles').select('*').eq('org_id', orgId),
+    supabase.from('task_comments').select('*').eq('task_id', id).eq('org_id', orgId).order('created_at'),
   ]);
+  // Comments arrive with a database update; until then the section is left out.
+  const commentsReady = !commentsResult.error;
+  const comments = rowsOf<{ id: string; author_id: string | null; body: string; created_at: string }>(commentsResult.data);
+  const mentionable = rowsOf<Profile>(peopleResult.data)
+    .filter((profile) => profile.is_active)
+    .map((profile) => (profile.nickname || profile.full_name.split(' ')[0]).replace(/\s+/g, ''));
   const project = projectResult.data as Project | null;
   const submissions = rowsOf<TaskSubmission>(submissionsResult.data);
   const person = new Map(rowsOf<Profile>(peopleResult.data).map((profile) => [profile.id, profile]));
@@ -132,6 +139,65 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
               { name: 'url', label: 'Link', placeholder: 'https://…' },
               { name: 'note', label: 'Note', type: 'textarea' },
             ]}
+          />
+        </section>
+      ) : null}
+
+      {commentsReady ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>
+                Comments
+                {comments.length > 0 ? <span className="count">{comments.length}</span> : null}
+              </h2>
+              <p className="muted">
+                Write @ and a first name to tell someone, for example {mentionable.slice(0, 3).map((name) => `@${name}`).join(', ')}. The assignee is told about every comment.
+              </p>
+            </div>
+          </header>
+          {comments.length > 0 ? (
+            <ul className="comments">
+              {comments.map((comment) => {
+                const author = comment.author_id ? person.get(comment.author_id) : undefined;
+                return (
+                  <li key={comment.id} className="comment">
+                    <span className="avatar" aria-hidden>
+                      {(author?.full_name ?? '?').charAt(0).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="comment-meta">
+                        <strong>{author?.full_name ?? 'Former employee'}</strong>
+                        <span> · {localDateTime(comment.created_at)}</span>
+                      </p>
+                      <p className="comment-body">
+                        {comment.body.split(/(@[\w.-]+)/g).map((part, index) =>
+                          part.startsWith('@') ? (
+                            <span key={index} className="mention">
+                              {part}
+                            </span>
+                          ) : (
+                            part
+                          ),
+                        )}
+                      </p>
+                    </div>
+                    {isAdmin || comment.author_id === userId ? (
+                      <ActionButton endpoint={`/api/task-comments/${comment.id}`} method="DELETE">
+                        Delete
+                      </ActionButton>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="muted">No comments yet.</p>
+          )}
+          <ApiForm
+            endpoint={`/api/tasks/${task.id}/comments`}
+            submitLabel="Add comment"
+            fields={[{ name: 'body', label: 'Your comment', type: 'textarea', required: true, placeholder: 'A question, an update, or feedback. Use @Name to tell someone.' }]}
           />
         </section>
       ) : null}

@@ -937,6 +937,32 @@ select pg_temp.check((select count(*) = 1 from leave_requests where status = 'ap
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
 select pg_temp.check((select count(*) = 1 from notifications where title = 'Your leave was approved'), 'the person is told their leave was approved');
 
+-- Task comments with @mentions.
+reset role;
+delete from notifications;
+update profiles set full_name = 'Editor Ahmed', nickname = 'Eddy' where id = '00000000-0000-0000-0000-0000000000e1';
+insert into projects (id, org_id, name) values ('00000000-0000-0000-0000-00000000f0f1', '00000000-0000-0000-0000-000000000001', 'Comment test');
+insert into tasks (id, org_id, project_id, title, assignee_id) values
+  ('00000000-0000-0000-0000-00000000f0f2', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0f1', 'Cut the teaser', '00000000-0000-0000-0000-0000000000e1');
+delete from notifications;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+insert into task_comments (org_id, task_id, author_id, body)
+values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0f2', auth.uid(), 'Looks great @eddy, ship it');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check(
+  (select count(*) = 1 and bool_and(title like '%mentioned you' and href = '/tasks/00000000-0000-0000-0000-00000000f0f2') from notifications),
+  'a mention notifies that person once, even when they are also the assignee');
+insert into task_comments (org_id, task_id, author_id, body)
+values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0f2', auth.uid(), 'Done, thanks');
+select pg_temp.check((select count(*) = 1 from notifications), 'nobody is notified of their own comment');
+do $$ begin
+  insert into task_comments (org_id, task_id, author_id, body)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f0f2', '00000000-0000-0000-0000-0000000000a1', 'Fake');
+  raise exception 'FAILED: a comment was posted under another name';
+exception when insufficient_privilege then raise notice 'ok - task comments are always posted as yourself';
+end $$;
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

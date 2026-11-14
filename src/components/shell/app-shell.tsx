@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown, ChevronRight, CircleUserRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
+import { Search, Check, ChevronDown, ChevronRight, CircleUserRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -511,6 +511,13 @@ export function AppShell({
               <span className="font-medium text-ink">365 Management</span>
             )}
           </nav>
+          <form action="/search" role="search" className="topbar-search">
+            <Search size={15} aria-hidden />
+            <input name="q" placeholder="Search" aria-label="Search projects, tasks, clients and people" />
+          </form>
+          <Link href="/search" aria-label="Search" className="topbar-search-icon">
+            <Search size={18} aria-hidden />
+          </Link>
           <AppInstall />
           <ThemeToggle />
           <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} />

@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   ClipboardCheck,
   Settings,
   ContactRound,
@@ -52,6 +53,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: '/projects', label: 'Projects', icon: FolderKanban },
       { href: '/my-tasks', label: 'My Tasks', icon: ListChecks },
+      { href: '/calendar', label: 'Calendar', icon: CalendarDays },
     ],
   },
   { title: 'Finance', items: [{ href: '/cashflow', label: 'Cash Flow & Invoices', icon: Wallet, segment: 'cashflow' }] },

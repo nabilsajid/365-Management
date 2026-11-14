@@ -206,3 +206,10 @@ Notices and broadcasts share one page, `/updates`, with three tabs: Announcement
 ## Who entered an expense
 
 `expenses.created_by` is the person who recorded it. When an admin approves someone's request, the replay carries `x-requested-by`, so the requester stays the author and `approved_by` records the admin. Expenses are no longer asked for an account: a database trigger takes them from the company's first account so balances stay right.
+
+## Calendar, search and task comments
+
+- `/calendar` shows a month (Monday to Sunday) with task and project deadlines, confirmed shoots and approved leave; "Mine" limits it to the viewer's own. On phones the grid becomes a day-by-day list. Logic in `src/lib/domain/calendar.ts`.
+- `/search` (and the box in the top bar) looks for projects, tasks, clients, people and announcements by name. Row level security decides what each person can find.
+- `task_comments` hold comments on a task. A database trigger notifies anyone mentioned as `@FirstName` or `@nickname`, and the assignee.
+- On phones, tables drawn by `ResourceManager` become one card per row (`table.cards-on-phone`, each cell labelled from `data-label`).
