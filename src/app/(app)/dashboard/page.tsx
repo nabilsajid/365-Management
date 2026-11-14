@@ -168,8 +168,7 @@ export default async function DashboardPage() {
           </span>
         </h1>
         <p className="mt-0.5 text-muted">
-          {profile.job_title ?? 'No role yet'} · {monthLabel(data.month)} · Here&apos;s how things stand today.{' '}
-          <Link href="/updates#guide">New here? Read the team guide.</Link>
+          {profile.job_title ?? 'No role yet'} · {monthLabel(data.month)} · Here&apos;s how things stand today.
         </p>
       </div>
 

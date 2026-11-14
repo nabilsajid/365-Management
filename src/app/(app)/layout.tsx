@@ -1,6 +1,7 @@
 import { after } from 'next/server';
 import type { ReactNode } from 'react';
 import { AssignmentPopup, type NotificationItem } from '@/components/assignment-popup';
+import { GuideWelcome } from '@/components/guide-welcome';
 import { LiveRefresh } from '@/components/live-refresh';
 import { OfflineStatus } from '@/components/offline-status';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
@@ -58,6 +59,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // The very first sign-in: everyone fills in their profile before using the app.
   // The column check keeps the app usable until the profiles database update has been run.
   const needsProfile = 'profile_completed_at' in profile && !profile.profile_completed_at;
+  // Not shown to the owner while working inside another company.
+  const welcomeGuide = 'guide_seen_at' in profile && !(profile as { guide_seen_at?: string | null }).guide_seen_at && !companyView;
 
   return (
     <>
@@ -101,7 +104,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         ) : (
           children
         )}
-        {!needsProfile && notifications.length > 0 ? (
+        {/* Right after the first profile is saved, the team guide is offered once; other pop-ups wait. */}
+        {!needsProfile && welcomeGuide ? (
+          <GuideWelcome firstName={(profile.nickname || profile.full_name).split(' ')[0]} orgName={orgName} />
+        ) : !needsProfile && notifications.length > 0 ? (
           <AssignmentPopup key={notifications.map((item) => item.id).join()} items={notifications} />
         ) : null}
       </div>

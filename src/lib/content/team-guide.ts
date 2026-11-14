@@ -16,6 +16,7 @@ export const TEAM_GUIDE: GuideSection[] = [
     points: [
       'Sign in with the email and password your admin gave you. If you forget your password, press "Forgot password?" on the sign-in page: your admin is asked to set a new one for you.',
       'The first time you sign in, fill in your profile: your full name, a nickname, your contact number (a Bangladeshi number that starts with 01 and has 11 digits), your address and a second contact. Your name and number are visible to the team; your address and second contact only to you and the admins.',
+      'Once your profile is saved, a welcome pop-up offers this guide. It is always here afterwards, pinned at the top of Updates → Announcements.',
       'Install the app: press "Install the app" (on the sign-in page or at the top of the app). It then opens from your home screen or taskbar like any other app and stays signed in.',
       'Turn on device alerts under Profiles & Contacts → My profile, so new assignments and messages reach your phone even when the app is closed.',
     ],

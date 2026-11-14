@@ -179,3 +179,7 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - The daily job (`create_recurring_projects()`) now opens the current month for every monthly project that is onboarding or active. Closing a month (`status = 'closed'`) congratulates everyone who worked on it ("Well done! Month completed").
 - Changing the package applies from the next month opened. Months already opened keep their own deliverables.
 - `projects.recurs_monthly`, `recurring_source_id` and `recurring_month` (update 28) are no longer used. Update 34 turned repeating projects into monthly clients and merged their copies into months.
+
+## Team guide welcome (update 35)
+
+- `profiles.guide_seen_at`: when the person answered the one-time welcome pop-up. It appears right after someone fills in their profile for the first time and offers the team guide (Updates → Announcements, pinned). `mark_guide_seen()` sets it for the signed-in person. People whose profile was already complete were marked as having seen it.

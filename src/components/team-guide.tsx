@@ -14,7 +14,7 @@ export function TeamGuide() {
             <h2 id="guide-title">
               Team guide <span className="badge">Pinned</span>
             </h2>
-            <p className="muted">New here? Start with this. Open any topic to read it; it stays here for whenever you need it.</p>
+            <p className="muted">How the app works and how we work. Open any topic to read it; it stays here for whenever you need it.</p>
           </div>
         </div>
       </header>

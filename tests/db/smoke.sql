@@ -1082,6 +1082,16 @@ select pg_temp.check(
   (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Well done! Project completed'),
   'everyone who worked on a project is congratulated once when it is completed');
 
+-- The team guide is offered once after the first profile is saved.
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select mark_guide_seen();
+reset role;
+select pg_temp.check(
+  (select guide_seen_at is not null from profiles where id = '00000000-0000-0000-0000-0000000000e1')
+  and (select count(*) = 1 from profiles where guide_seen_at is not null),
+  'answering the welcome pop-up marks only that person, so it does not show again');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

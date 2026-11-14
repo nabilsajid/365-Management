@@ -3656,3 +3656,8 @@
     flex: 1;
   }
 }
+
+.popup.welcome p {
+  margin: 0 0 0.6rem;
+  line-height: 1.55;
+}
