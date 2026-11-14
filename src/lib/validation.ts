@@ -483,7 +483,7 @@ export const checkoutCreate = z
     project_id: id.nullish(),
     start_date: date.nullish(),
     due_back: date.nullish(),
-    // Only for people who manage equipment: who takes it, and handing it over now without a request.
+    // Only for admins: who takes it.
     holder_id: id.nullish(),
     take_now: z.boolean().optional(),
   })

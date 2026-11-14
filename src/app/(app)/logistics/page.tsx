@@ -216,20 +216,20 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
           <section className="panel">
             <header className="panel-header">
               <div>
-                <h2>{manages ? 'Hand out or ask for equipment' : 'Ask to take equipment'}</h2>
+                <h2>{isAdmin ? 'Hand out equipment' : 'Ask to take equipment'}</h2>
                 <p className="muted">
                   {manages
                     ? isAdmin
-                      ? 'Record who takes an item and until when. Tick "Hand over now" when it leaves right away; otherwise it waits as a request.'
-                      : 'Record an item you are taking, and until when. Tick "Hand over now" when it leaves right away; otherwise it waits as a request.'
+                      ? 'Record who takes an item and until when. It is handed over straight away.'
+                      : 'Ask for an item you are taking, and until when. It waits as a request until it is approved.'
                     : 'Choose the item, what it is for and when you will bring it back. An admin or the logistics team approves it.'}
                 </p>
               </div>
             </header>
             <ApiForm
               endpoint="/api/equipment-checkouts"
-              submitLabel={manages ? 'Save' : 'Send request'}
-              initial={{ start_date: today, take_now: manages }}
+              submitLabel={isAdmin ? 'Hand over' : 'Send request'}
+              initial={{ start_date: today }}
               fields={[
                 { name: 'equipment_id', label: 'Item', type: 'select', required: true, options: available.map((item) => ({ value: item.id, label: `${item.name}${item.current_holder_id ? ` (with ${person.get(item.current_holder_id)?.full_name ?? 'someone'})` : ''}` })) },
                 // Only an admin chooses who takes it; everyone else takes it for themselves.
@@ -238,7 +238,6 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
                 { name: 'purpose', label: 'Purpose', placeholder: 'Client shoot, location scout…' },
                 { name: 'start_date', label: 'From', type: 'date', required: true },
                 { name: 'due_back', label: 'Back by', type: 'date', hint: 'When it will be returned.' },
-                ...(manages ? [{ name: 'take_now', label: 'Hand over now (no request needed)', type: 'checkbox' as const }] : []),
               ]}
             />
           </section>
