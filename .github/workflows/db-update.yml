@@ -57,4 +57,4 @@ jobs:
           fi
       - if: steps.ready.outputs.go == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         name: Run the new updates
-        run: supabase db push --db-url "$DB_URL"
+        run: supabase db push --db-url "$DB_URL" --yes
