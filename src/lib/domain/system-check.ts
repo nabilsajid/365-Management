@@ -33,6 +33,8 @@ export const DATABASE_UPDATES: UpdateCheck[] = [
   { file: '20261112000024_appearance.sql', adds: 'Appearance', table: 'organizations', column: 'appearance' },
   { file: '20261112000025_updates_messages.sql', adds: 'Personal messages', table: 'broadcasts', column: 'recipient_id' },
   { file: '20261112000026_rules_leave_notifications.sql', adds: 'Rules, leave and notification settings', table: 'leave_requests', column: 'id' },
+  { file: '20261112000027_task_comments.sql', adds: 'Comments on deliverables', table: 'task_comments', column: 'id' },
+  { file: '20261112000028_files_review_invoices_recurring.sql', adds: 'File uploads, client review, invoice links and repeating projects', table: 'review_links', column: 'token' },
 ];
 
 /** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */

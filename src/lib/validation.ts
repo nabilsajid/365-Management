@@ -59,6 +59,8 @@ const projectFields = {
   shoot_date: date.nullish(),
   file_links: z.array(fileLink).max(50).optional(),
   member_ids: z.array(id).max(100).optional(),
+  // Copied as a fresh project at the start of every month.
+  recurs_monthly: z.boolean().optional(),
 };
 
 export const projectCreate = z.object({
@@ -424,4 +426,18 @@ export const notifyPrefs = z.object({
   assignments: z.boolean(),
   updates: z.boolean(),
   approvals: z.boolean(),
+});
+
+export const taskFileCreate = z.object({
+  path: z.string().trim().min(3).max(500),
+  name: z.string().trim().min(1).max(200),
+  size: z.number().int().nonnegative().max(209715200, 'Files can be up to 200 MB.'),
+  content_type: z.string().trim().max(150).nullish(),
+});
+
+export const clientFeedbackCreate = z.object({
+  task_id: id,
+  name: z.string().trim().min(1, 'Write your name.').max(80),
+  decision: z.enum(['approved', 'changes']),
+  comment: z.string().trim().max(2000).nullish(),
 });

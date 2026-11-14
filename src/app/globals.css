@@ -2704,3 +2704,225 @@
     display: none;
   }
 }
+
+/* Links and file pickers that look like buttons. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  min-height: 2.25rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.button:hover {
+  background: var(--color-subtle);
+  border-color: var(--color-line-strong);
+}
+.button.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.button.primary:hover {
+  background: var(--color-primary-hover);
+}
+.button.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Uploaded files on a deliverable. */
+.file-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.file-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 0.75rem;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+}
+.file-list .file-name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.file-list .muted {
+  grid-column: 1;
+  font-size: 0.75rem;
+}
+.file-list .file-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+/* A link to share with a client. */
+.share-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.share-link input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+
+/* Pages clients open without an account. */
+.public-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 16px 4rem;
+  display: grid;
+  gap: 1rem;
+}
+.public-page .brand-line {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.review-item {
+  display: grid;
+  gap: 0.6rem;
+}
+.review-item .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.review-form {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--color-line);
+}
+.review-form .choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* A printable invoice. */
+.invoice-sheet {
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel, 12px);
+  padding: 2rem;
+  display: grid;
+  gap: 1.5rem;
+}
+.invoice-sheet .invoice-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.invoice-sheet h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+.invoice-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.invoice-sheet th,
+.invoice-sheet td {
+  text-align: left;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.invoice-sheet td.amount,
+.invoice-sheet th.amount {
+  text-align: right;
+}
+.invoice-sheet .total td {
+  font-weight: 600;
+  border-bottom: none;
+}
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+@media print {
+  aside,
+  header.sticky,
+  .app-glow,
+  .no-print,
+  .splash {
+    display: none !important;
+  }
+  .lg\:pl-\[250px\],
+  .lg\:pl-16 {
+    padding-left: 0 !important;
+  }
+  body,
+  .app-bg {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .invoice-sheet,
+  .panel {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* A small menu of downloads next to the month picker. */
+.export-menu {
+  position: relative;
+}
+.export-menu summary {
+  list-style: none;
+}
+.export-menu summary::-webkit-details-marker {
+  display: none;
+}
+.export-menu > div {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  display: grid;
+  min-width: 15rem;
+  padding: 0.35rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.25);
+}
+.export-menu > div a {
+  padding: 0.5rem 0.65rem;
+  border-radius: calc(var(--radius-control) - 2px);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+.export-menu > div a:hover {
+  background: var(--color-subtle);
+}
+.stat-tile {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-subtle);
+}

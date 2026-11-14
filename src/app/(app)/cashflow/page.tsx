@@ -98,6 +98,8 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
     project_name: invoice.project_id ? (projectName.get(invoice.project_id) ?? '—') : null,
     paid: Number(invoiceBalance.get(invoice.id)?.paid ?? 0),
     outstanding: invoice.status === 'void' ? 0 : Number(invoiceBalance.get(invoice.id)?.outstanding ?? invoice.amount),
+    // Opens the invoice to print, save as PDF or share with the client.
+    invoice_href: `/invoices/${invoice.id}`,
   }));
   const issuedThisMonth = invoiceRows.filter((invoice) => invoice.issue_date >= month && invoice.issue_date < until);
   const unpaidEarlier = invoiceRows.filter((invoice) => invoice.issue_date < month && invoice.outstanding > 0);
@@ -131,7 +133,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   const accountOptions = options(accounts, (account) => account.name);
   const defaultDate = month === currentMonth ? today : month;
   const invoiceColumns = [
-    { key: 'invoice_number', label: 'Invoice' },
+    { key: 'invoice_number', label: 'Invoice', kind: 'nav' as const, hrefKey: 'invoice_href' },
     { key: 'client_name', label: 'Client' },
     { key: 'project_name', label: 'Project' },
     { key: 'issue_date', label: 'Issued' },
@@ -181,7 +183,20 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
             {month === currentMonth ? ' (current month)' : ''}. Balances and client dues always count every month.
           </p>
         </div>
-        <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} keep={{ tab }} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} keep={{ tab }} />
+          <details className="export-menu">
+            <summary className="button">Export</summary>
+            <div>
+              {(['expenses', 'payments', 'invoices'] as const).map((kind) => (
+                <a key={kind} href={`/api/export?type=${kind}&month=${month.slice(0, 7)}`} download>
+                  {kind === 'expenses' ? 'Costs' : kind === 'payments' ? 'Payments received' : 'Invoices issued'} (CSV)
+                </a>
+              ))}
+              <Link href={`/report?month=${month.slice(0, 7)}`}>Monthly summary (print / PDF)</Link>
+            </div>
+          </details>
+        </div>
       </div>
 
       <nav className="tabs" aria-label="Cash flow sections">

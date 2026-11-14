@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { AwardProjectPoints } from '@/components/award-project-points';
 import { CopyProject } from '@/components/copy-project';
 import { DeleteProject } from '@/components/delete-project';
+import { ShareLink } from '@/components/share-link';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { label } from '@/lib/format';
@@ -21,7 +22,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const project = projectResult.data as Project | null;
   if (!project) notFound();
 
-  const [clientResult, tasksResult, peopleResult, membersResult, rolesResult, commentsResult, directProbe] = await Promise.all([
+  const [clientResult, tasksResult, peopleResult, membersResult, rolesResult, commentsResult, directProbe, reviewResult, feedbackResult] = await Promise.all([
     project.client_id
       ? supabase.from('clients').select('*').eq('id', project.client_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -32,7 +33,13 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
     supabase.from('project_comments').select('*').eq('project_id', id).eq('org_id', orgId).order('created_at'),
     // After the project rules database update, project roles change things without admin approval.
     supabase.from('notifications').select('id').limit(1),
+    // The client review link (only people who edit projects can see it).
+    supabase.from('review_links').select('token, is_active').eq('project_id', id).eq('org_id', orgId).limit(1).maybeSingle(),
+    supabase.from('client_feedback').select('id, task_id, name, decision, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(200),
   ]);
+  // Client review arrives with a database update; until then it is left out.
+  const reviewReady = !reviewResult.error;
+  const reviewLink = reviewResult.data as { token: string; is_active: boolean } | null;
   const needsApproval = !isAdmin && Boolean(directProbe.error);
   // Comments arrive with a database update; until then the section is left out.
   const commentsReady = !commentsResult.error;
@@ -51,6 +58,11 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const typesReady = 'shoot_status' in project;
   const mayEdit = canEdit('projects');
   const titleOf = new Map(tasks.map((task) => [task.id, task.title]));
+  const clientAnswers = rowsOf<{ id: string; task_id: string; name: string; decision: string; created_at: string }>(feedbackResult.data).filter((row) =>
+    titleOf.has(row.task_id),
+  );
+  const recurringReady = 'recurs_monthly' in project;
+  const repeats = Boolean((project as Project & { recurs_monthly?: boolean }).recurs_monthly);
   const videos = tasks.filter((task) => task.kind === 'video');
 
   const taskRows = tasks.map((task) => {
@@ -149,7 +161,14 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
             <Link href="/projects">Projects</Link>
             {client ? ` / ${client.name}` : ''}
           </p>
-          <h1>{project.name}</h1>
+          <h1>
+            {project.name}
+            {repeats ? (
+              <span className="badge" style={{ marginLeft: 8, verticalAlign: 'middle' }}>
+                Repeats monthly
+              </span>
+            ) : null}
+          </h1>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {mayEdit ? <CopyProject payload={copyPayload} /> : null}
@@ -247,6 +266,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               brief: project.brief,
               member_ids: team.map((profile) => profile.id),
               file_links: links,
+              ...(recurringReady ? { recurs_monthly: repeats } : {}),
             }}
             fields={[
               { name: 'name', label: 'Project name', required: true },
@@ -257,9 +277,59 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               { name: 'brief', label: 'Project brief', type: 'textarea' },
               { name: 'member_ids', label: 'Assigned employees', type: 'multiselect', options: peopleOptions(people), hint: 'Tick to add someone, untick to remove them. New people are notified.' },
               { name: 'file_links', label: 'Links', type: 'links' },
+              ...(recurringReady
+                ? [
+                    {
+                      name: 'recurs_monthly',
+                      label: 'Repeat every month',
+                      type: 'checkbox' as const,
+                      hint: 'On the 1st of each month a fresh copy is made with the same client, team and deliverables.',
+                    },
+                  ]
+                : []),
             ]}
           />
         </details>
+      ) : null}
+
+      {reviewReady && mayEdit ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>Client review</h2>
+              <p className="muted">
+                Send the client a link. They see the deliverables and shared work, then approve each one or ask for changes — no account needed.
+              </p>
+            </div>
+          </header>
+          <ShareLink
+            endpoint={`/api/projects/${project.id}/review-link`}
+            basePath="/review"
+            token={reviewLink?.is_active ? reviewLink.token : null}
+            createLabel={reviewLink ? 'Turn the review link back on' : 'Make a review link'}
+          />
+          {clientAnswers.length > 0 ? (
+            <ul className="comments" style={{ marginTop: '1rem' }}>
+              {clientAnswers.slice(0, 10).map((answer) => (
+                <li key={answer.id} className="comment">
+                  <span className="avatar" aria-hidden>
+                    {answer.name.charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="comment-meta">
+                      <strong>{answer.name}</strong>
+                      <span> · {localDateTime(answer.created_at)} · </span>
+                      <Link href={`/tasks/${answer.task_id}`}>{titleOf.get(answer.task_id)}</Link>{' '}
+                      <span className={answer.decision === 'approved' ? 'badge badge-approved' : 'badge badge-pending'}>
+                        {answer.decision === 'approved' ? 'Approved' : 'Asked for changes'}
+                      </span>
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
       ) : null}
 
       {typesReady && mayEdit ? (

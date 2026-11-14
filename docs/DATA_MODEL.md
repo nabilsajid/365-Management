@@ -152,3 +152,12 @@ Admins can read and edit everything. For everyone else, reading depends on the s
 | Profiles, roles, point settings, violation types | All | n/a |
 
 `set_profile_roles(profile, roles[])` replaces a person's roles in one step (admins only).
+
+## Files, client review, invoice links and repeating projects (update 28)
+
+- `task_files` — files uploaded to a deliverable. The file itself lives in the private Storage bucket `deliverables` under `<org id>/<task id>/…`; the app opens it through a 10-minute signed link (`/api/files/:id`).
+- `review_links` — one link per project for the client (`/review/<token>`). Only people who can edit projects see or change it.
+- `client_feedback` — the client's "approve" or "ask for changes" on a deliverable. Written only by the server; admins and the assignee are notified.
+- `invoices.share_token` — when set, the client can open `/invoice/<token>` and save it as a PDF. `invoices.reminded_at` — last overdue reminder (at most weekly).
+- `projects.recurs_monthly` — copied on the 1st of each month by `create_recurring_projects()`; copies carry `recurring_source_id` and `recurring_month`.
+- `/api/cron/daily` (Vercel cron, 01:00 UTC) runs `create_recurring_projects()` and `remind_overdue_invoices()`. If `CRON_SECRET` is set in Vercel, only Vercel can call it.

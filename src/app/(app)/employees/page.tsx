@@ -140,7 +140,21 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             {month === currentMonth ? ' (current month)' : ''}. Points start from zero each month.
           </p>
         </div>
-        <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} keep={{ tab }} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} keep={{ tab }} />
+          <details className="export-menu">
+            <summary className="button">Export</summary>
+            <div>
+              <a href={`/api/export?type=points&month=${month.slice(0, 7)}`} download>
+                Points (CSV)
+              </a>
+              <a href={`/api/export?type=attendance&month=${month.slice(0, 7)}`} download>
+                Attendance (CSV)
+              </a>
+              {isAdmin ? <Link href={`/report?month=${month.slice(0, 7)}`}>Monthly summary (print / PDF)</Link> : null}
+            </div>
+          </details>
+        </div>
       </div>
 
       <nav className="tabs" aria-label="Employees and rewards sections">

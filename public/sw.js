@@ -80,8 +80,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Data requests and the sign-in pages always go to the network.
-  if (path.startsWith('/api/') || path.startsWith('/auth') || path.startsWith('/login')) {
+  // Data requests, the sign-in pages and pages shared with clients always go to the network.
+  if (
+    path.startsWith('/api/') ||
+    path.startsWith('/auth') ||
+    path.startsWith('/login') ||
+    path.startsWith('/review/') ||
+    path.startsWith('/invoice/')
+  ) {
     if (request.mode === 'navigate') event.respondWith(fetch(request).catch(() => caches.match('/offline.html')));
     return;
   }

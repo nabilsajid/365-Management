@@ -43,7 +43,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
-  const isPublic = pathname.startsWith('/login') || pathname.startsWith('/auth');
+  // Client review pages and shared invoices are opened by clients, who have no account.
+  const isPublic =
+    pathname.startsWith('/login') || pathname.startsWith('/auth') || pathname.startsWith('/review/') || pathname.startsWith('/invoice/');
   if (!user && !isPublic && !pathname.startsWith('/api')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';

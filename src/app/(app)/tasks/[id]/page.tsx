@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
+import { TaskFiles } from '@/components/task-files';
 import { label } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, rowsOf } from '@/lib/page';
 import type { Profile, Project, Task, TaskSubmission } from '@/types/database';
@@ -16,12 +17,17 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
   const task = taskResult.data as Task | null;
   if (!task) notFound();
 
-  const [projectResult, submissionsResult, peopleResult, commentsResult] = await Promise.all([
+  const [projectResult, submissionsResult, peopleResult, commentsResult, filesResult, feedbackResult] = await Promise.all([
     supabase.from('projects').select('*').eq('id', task.project_id).maybeSingle(),
     supabase.from('task_submissions').select('*').eq('task_id', id).order('created_at', { ascending: false }),
     supabase.from('profiles').select('*').eq('org_id', orgId),
     supabase.from('task_comments').select('*').eq('task_id', id).eq('org_id', orgId).order('created_at'),
+    supabase.from('task_files').select('*').eq('task_id', id).eq('org_id', orgId).order('created_at', { ascending: false }),
+    supabase.from('client_feedback').select('*').eq('task_id', id).eq('org_id', orgId).order('created_at', { ascending: false }),
   ]);
+  // File uploads and client feedback arrive with a database update; until then they are left out.
+  const filesReady = !filesResult.error;
+  const feedback = rowsOf<{ id: string; name: string; decision: 'approved' | 'changes'; comment: string | null; created_at: string }>(feedbackResult.data);
   // Comments arrive with a database update; until then the section is left out.
   const commentsReady = !commentsResult.error;
   const comments = rowsOf<{ id: string; author_id: string | null; body: string; created_at: string }>(commentsResult.data);
@@ -33,6 +39,14 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
   const person = new Map(rowsOf<Profile>(peopleResult.data).map((profile) => [profile.id, profile]));
   const assignee = task.assignee_id ? person.get(task.assignee_id) : undefined;
   const canSubmit = isAdmin || task.assignee_id === userId;
+  const files = rowsOf<{ id: string; name: string; size: number; uploaded_by: string | null; created_at: string }>(filesResult.data).map((file) => ({
+    id: file.id,
+    name: file.name,
+    size: Number(file.size),
+    uploaded_by_name: file.uploaded_by ? (person.get(file.uploaded_by)?.full_name ?? '—') : '—',
+    uploaded_on: localDate(file.created_at),
+    can_remove: isAdmin || file.uploaded_by === userId,
+  }));
 
   const submissionRows = submissions.map((submission) => ({
     ...submission,
@@ -89,6 +103,38 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           </dd>
         </dl>
       </section>
+
+      {filesReady ? <TaskFiles orgId={orgId} taskId={task.id} files={files} canUpload={canSubmit || can('projects')} /> : null}
+
+      {feedback.length > 0 ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>Client feedback</h2>
+              <p className="muted">What the client said through the project&apos;s review link.</p>
+            </div>
+          </header>
+          <ul className="comments">
+            {feedback.map((entry) => (
+              <li key={entry.id} className="comment">
+                <span className="avatar" aria-hidden>
+                  {entry.name.charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="comment-meta">
+                    <strong>{entry.name}</strong>
+                    <span> · {localDateTime(entry.created_at)} </span>
+                    <span className={entry.decision === 'approved' ? 'badge badge-approved' : 'badge badge-pending'}>
+                      {entry.decision === 'approved' ? 'Approved' : 'Asked for changes'}
+                    </span>
+                  </p>
+                  {entry.comment ? <p className="comment-body">{entry.comment}</p> : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <ResourceManager
         title="Submissions"
