@@ -11,6 +11,25 @@ export interface NotificationItem {
   href: string | null;
 }
 
+/** Where a notification belongs, from the page it points to. */
+function sectionOf(href: string | null): { href: string; label: string } {
+  const path = href ?? '';
+  if (path.startsWith('/approvals') || path.includes('#award')) return { href: '/approvals', label: 'Open Approvals' };
+  if (path.startsWith('/updates')) return { href: path.includes('tab=messages') ? '/updates?tab=messages' : path.includes('tab=broadcasts') ? '/updates?tab=broadcasts' : '/updates', label: 'Open Updates' };
+  if (path.startsWith('/tasks') || path.startsWith('/projects')) return { href: '/my-tasks', label: 'Open My Tasks' };
+  return { href: path || '/dashboard', label: 'Open' };
+}
+
+/** One button per kind of news, most recent kind first: Approvals, Updates or My Tasks, never a wrong one. */
+function destinations(items: NotificationItem[]): { href: string; label: string }[] {
+  const seen = new Map<string, { href: string; label: string }>();
+  for (const item of items) {
+    const place = sectionOf(item.href);
+    if (!seen.has(place.label)) seen.set(place.label, place);
+  }
+  return [...seen.values()].slice(0, 2);
+}
+
 /** Shown while there are unread notifications: a new assignment, a notice, or (for admins) something to approve. */
 export function AssignmentPopup({ items }: { items: NotificationItem[] }) {
   const router = useRouter();
@@ -66,13 +85,15 @@ export function AssignmentPopup({ items }: { items: NotificationItem[] }) {
           ))}
         </ul>
         <p className="muted">
-          Tap one to open it. Everything assigned to you is under My Tasks. To get these as alerts on your phone or computer,
-          turn them on under Profiles &amp; Contacts → My profile.
+          Tap one to open it. To get these as alerts on your phone or computer, turn them on under Profiles &amp;
+          Contacts → My profile.
         </p>
         <div className="popup-actions">
-          <button type="button" className="primary" disabled={busy} onClick={() => done('/my-tasks')}>
-            Open My Tasks
-          </button>
+          {destinations(items).map((place, index) => (
+            <button key={place.href} type="button" className={index === 0 ? 'primary' : undefined} disabled={busy} onClick={() => done(place.href)}>
+              {place.label}
+            </button>
+          ))}
           <button type="button" disabled={busy} onClick={() => done(null)}>
             Got it
           </button>

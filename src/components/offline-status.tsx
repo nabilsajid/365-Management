@@ -8,7 +8,7 @@ import { toast } from './resource-manager';
 
 /** Starting points for what is kept on the device: every section of the sidebar. */
 const KEEP = [
-  '/dashboard', '/notices', '/broadcasts', '/projects', '/projects?view=list', '/my-tasks', '/my-tasks?view=list',
+  '/dashboard', '/updates', '/updates?tab=broadcasts', '/updates?tab=messages', '/projects', '/projects?view=list', '/my-tasks', '/my-tasks?view=list',
   '/cashflow', '/logistics', '/employees', '/profile', '/profile?tab=me', '/profile?tab=team', '/approvals', '/requests',
   '/roles', '/delete-log',
 ];

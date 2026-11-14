@@ -18,7 +18,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // admins get everything waiting for them, everyone else only their own.
   const [pendingChanges, openBroadcasts, pendingOther, unread, look] = await Promise.all([
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
-    isAdmin ? supabase.from('broadcasts').select('id').eq('org_id', orgId).eq('status', 'open') : Promise.resolve({ data: [] }),
+    // Open broadcasts to the admins (for admins), or open personal messages (for everyone else).
+    supabase.from('broadcasts').select('*').eq('org_id', orgId).eq('status', 'open'),
     isAdmin
       ? Promise.all([
           supabase.from('task_submissions').select('id').eq('org_id', orgId).eq('review_status', 'pending'),
@@ -40,14 +41,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Whatever anyone just did may have created notifications; send them to people's devices once this page is out.
   if (pushConfigured()) after(dispatchPushes);
 
+  const waitingUpdates = (openBroadcasts.data ?? []) as { recipient_id?: string | null }[];
   const changes = pendingChanges.data?.length ?? 0;
   const otherWaiting = (pendingOther as { data: unknown[] | null }[]).reduce(
     (total, result) => total + (result.data?.length ?? 0),
     0,
   );
   const badges: Record<string, number> = isAdmin
-    ? { '/approvals': changes + otherWaiting, '/broadcasts': openBroadcasts.data?.length ?? 0 }
-    : { '/requests': changes };
+    ? { '/approvals': changes + otherWaiting, '/updates': waitingUpdates.filter((row) => !row.recipient_id).length }
+    : { '/requests': changes, '/updates': waitingUpdates.filter((row) => row.recipient_id === userId).length };
 
   // The very first sign-in: everyone fills in their profile before using the app.
   // The column check keeps the app usable until the profiles database update has been run.

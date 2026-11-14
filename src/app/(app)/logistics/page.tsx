@@ -61,6 +61,8 @@ export default async function LogisticsPage() {
   const tripRows = trips.map((trip) => ({
     ...trip,
     traveler_name: trip.traveler_id ? (person.get(trip.traveler_id)?.full_name ?? '—') : null,
+    entered_by: trip.created_by ? (person.get(trip.created_by)?.full_name ?? '—') : '—',
+    approved_by_name: trip.approved_by ? (person.get(trip.approved_by)?.full_name ?? '—') : null,
     // What the trip was for: the project, the client, and anything typed in by hand.
     travelling_for:
       [
@@ -224,7 +226,8 @@ export default async function LogisticsPage() {
               { key: 'travelling_for', label: 'Travelling for' },
               { key: 'trip_origin', label: 'From' },
               { key: 'trip_destination', label: 'To' },
-              { key: 'traveler_name', label: 'Traveller' },
+              { key: 'traveler_name', label: 'Whose cost' },
+              ...(isAdmin ? [{ key: 'entered_by', label: 'Entered by' }, { key: 'approved_by_name', label: 'Approved by' }] : []),
               { key: 'amount', label: 'Cost', kind: 'money' },
             ]}
             fields={[

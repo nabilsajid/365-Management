@@ -23,7 +23,7 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: 'My Tasks', url: '/my-tasks' },
       { name: 'Mark attendance', url: '/employees?tab=attendance' },
-      { name: 'Broadcasts', url: '/broadcasts' },
+      { name: 'Updates', url: '/updates' },
     ],
   };
 }

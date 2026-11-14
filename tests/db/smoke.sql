@@ -829,7 +829,7 @@ select pg_temp.check(
   'any change moves the live-update counter, which members can read');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 select pg_temp.check(
-  (select count(*) = 2 from notifications where title in ('New broadcast', 'A change is waiting for your approval')),
+  (select count(*) = 2 from notifications where title like 'New broadcast%' or title = 'A change is waiting for your approval'),
   'admins are notified of broadcasts and of changes waiting for approval');
 insert into notices (org_id, title, is_urgent) values ('00000000-0000-0000-0000-000000000001', 'Fire drill at 3', true);
 insert into projects (id, org_id, name, status) values ('00000000-0000-0000-0000-00000000f0ee', '00000000-0000-0000-0000-000000000001', 'Wrap film', 'active');
@@ -837,12 +837,46 @@ update projects set status = 'completed' where id = '00000000-0000-0000-0000-000
 select pg_temp.check(
   (select count(*) = 1 from notifications where title like 'Project completed%' and href = '/projects/00000000-0000-0000-0000-00000000f0ee#award'),
   'finishing a project asks the admin to give points');
-select pg_temp.check((select count(*) = 0 from notifications where title = 'Urgent notice'), 'the person who posts a notice is not notified of it');
+select pg_temp.check((select count(*) = 0 from notifications where title = 'Urgent update'), 'the person who posts a notice is not notified of it');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
 select pg_temp.check(
-  (select count(*) = 1 from notifications where title = 'Urgent notice' and body = 'Fire drill at 3'),
+  (select count(*) = 1 from notifications where title = 'Urgent update' and body = 'Fire drill at 3'),
   'a notice notifies everyone else, employees included');
-select pg_temp.check((select count(*) = 0 from notifications where title = 'New broadcast'), 'employees are not notified of broadcasts');
+select pg_temp.check((select count(*) = 0 from notifications where title like 'New broadcast%'), 'employees are not notified of broadcasts');
+
+-- Updates: personal messages from an admin, and expenses taken from the main account.
+reset role;
+delete from notifications;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into broadcasts (id, org_id, sender_id, recipient_id, message) values
+  ('00000000-0000-0000-0000-00000000bb01', '00000000-0000-0000-0000-000000000001', auth.uid(), '00000000-0000-0000-0000-0000000000e1', 'Please send the raw files tonight');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check(
+  (select count(*) = 1 from broadcasts where id = '00000000-0000-0000-0000-00000000bb01')
+  and (select count(*) = 1 from notifications where href = '/updates?tab=messages'),
+  'a personal message reaches only its recipient, with a notification');
+select mark_message_done('00000000-0000-0000-0000-00000000bb01');
+select pg_temp.check((select status = 'resolved' from broadcasts where id = '00000000-0000-0000-0000-00000000bb01'), 'the recipient marks it done');
+do $$ begin
+  insert into broadcasts (org_id, sender_id, recipient_id, message)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2', 'Hi');
+  raise exception 'FAILED: an employee sent a personal message';
+exception when insufficient_privilege then raise notice 'ok - only admins send personal messages';
+end $$;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check((select count(*) = 0 from broadcasts where id = '00000000-0000-0000-0000-00000000bb01'), 'nobody else sees a personal message');
+do $$ begin
+  perform mark_message_done('00000000-0000-0000-0000-00000000bb01');
+  raise exception 'FAILED: someone else marked a message done';
+exception when invalid_parameter_value then raise notice 'ok - only the recipient can mark a message done';
+end $$;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into expenses (id, org_id, category, description, amount) values
+  ('00000000-0000-0000-0000-00000000ee01', '00000000-0000-0000-0000-000000000001', 'general', 'Printer ink', 40);
+select pg_temp.check(
+  (select account_id is not null from expenses where id = '00000000-0000-0000-0000-00000000ee01'),
+  'an expense with no account is taken from the main account');
 
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;

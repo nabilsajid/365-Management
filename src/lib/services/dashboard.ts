@@ -97,7 +97,7 @@ export async function getDashboard(
     supabase.from('expenses').select('id, description, category, amount, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(6),
     supabase.from('monthly_points').select('total_points').eq('org_id', orgId).eq('employee_id', userId).eq('period_month', month).maybeSingle(),
     supabase.from('point_settings').select('monthly_target').eq('org_id', orgId).maybeSingle(),
-    supabase.from('broadcasts').select('id, sender_id, message, created_at').eq('org_id', orgId).eq('status', 'open').order('created_at', { ascending: false }).limit(5),
+    supabase.from('broadcasts').select('*').eq('org_id', orgId).eq('status', 'open').order('created_at', { ascending: false }).limit(20),
     supabase.from('equipment_needs').select('id').eq('org_id', orgId).eq('status', 'needed'),
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
     supabase.from('password_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
@@ -190,7 +190,10 @@ export async function getDashboard(
     progress: projectProgress(projectRows, taskRows),
     deadlines: upcomingDeadlines(today, projectRows, taskRows),
     activity,
-    broadcasts: ((openBroadcasts.data ?? []) as { id: string; sender_id: string; message: string; created_at: string }[]).map((row) => ({
+    broadcasts: ((openBroadcasts.data ?? []) as { id: string; sender_id: string; recipient_id?: string | null; message: string; created_at: string }[])
+      // Broadcasts to the admins, and personal messages addressed to the viewer; not messages the viewer sent to someone else.
+      .filter((row) => !row.recipient_id || row.recipient_id === userId)
+      .slice(0, 5).map((row) => ({
       id: row.id,
       sender: personName.get(row.sender_id) ?? 'Someone',
       message: row.message,

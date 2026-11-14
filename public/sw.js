@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
 // Alerts on the device. A push carries no text: it only says "something is new",
 // and the worker asks the app what it is (signed in as whoever uses this device).
 self.addEventListener('push', (event) => {
-  const fallback = { title: '365 Frames', body: 'You have something new. Open the app to see it.', href: '/my-tasks' };
+  const fallback = { title: '365 Frames', body: 'You have something new. Open the app to see it.', href: '/dashboard' };
   event.waitUntil(
     fetch('/api/notifications', { credentials: 'same-origin', cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
@@ -107,8 +107,8 @@ self.addEventListener('push', (event) => {
         const items = (result && result.data) || [];
         if (items.length === 0) return fallback;
         const first = items[0];
-        if (items.length === 1) return { title: first.title, body: first.body || '', href: first.href || '/my-tasks' };
-        return { title: items.length + ' new things for you', body: first.title + (first.body ? ': ' + first.body : ''), href: '/my-tasks' };
+        if (items.length === 1) return { title: first.title, body: first.body || '', href: first.href || '/dashboard' };
+        return { title: items.length + ' new things for you', body: first.title + (first.body ? ': ' + first.body : ''), href: first.href || '/dashboard' };
       })
       .catch(() => fallback)
       .then((alert) =>
@@ -126,7 +126,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const href = (event.notification.data && event.notification.data.href) || '/my-tasks';
+  const href = (event.notification.data && event.notification.data.href) || '/dashboard';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
       for (const client of windows) {

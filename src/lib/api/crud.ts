@@ -56,6 +56,8 @@ export interface ResourceConfig {
   onUpdate?: (ctx: ApiContext, data: Row) => Row;
   /** Values the server fixes on a proposed new record before it is stored for approval. */
   onPropose?: (ctx: ApiContext, data: Row) => Row;
+  /** The table has an approved_by column, filled when an admin approves someone's request. */
+  recordsApprover?: boolean;
   /**
    * For people who normally write directly: true sends this particular change
    * to an admin for approval instead (for example approving a deliverable).
@@ -200,7 +202,18 @@ export function makeCrud(getContext: ContextProvider) {
         ...(config.onCreate ? config.onCreate(ctx, body.data as Row) : {}),
         org_id: ctx.profile.org_id,
       };
-      const { data, error } = await ctx.supabase.from(config.table).insert(row).select(select).single();
+      // An admin approving someone's request: that person stays the author, and the admin is recorded as approving it.
+      const requestedBy = isAdmin(ctx) ? request.headers.get('x-requested-by') : null;
+      if (requestedBy && UUID.test(requestedBy) && 'created_by' in row) {
+        row.created_by = requestedBy;
+        if (config.recordsApprover) row.approved_by = ctx.userId;
+      }
+      let { data, error } = await ctx.supabase.from(config.table).insert(row).select(select).single();
+      // Before the database update that adds approved_by, save without it rather than fail.
+      if (error && 'approved_by' in row && /approved_by/.test(error.message ?? '')) {
+        delete row.approved_by;
+        ({ data, error } = await ctx.supabase.from(config.table).insert(row).select(select).single());
+      }
       if (error) return fromDbError(error);
       return ok(data, 201);
     }

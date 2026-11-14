@@ -216,6 +216,8 @@ export interface Expense {
   client_id?: string | null;
   purpose?: string | null;
   created_by: string | null;
+  /** The admin who accepted it, when it was someone else's request. */
+  approved_by?: string | null;
   created_at: string;
 }
 
@@ -251,6 +253,8 @@ export interface Broadcast {
   id: string;
   org_id: string;
   sender_id: string;
+  /** Set for a personal message from an admin to one person; empty for a broadcast to the admins. */
+  recipient_id?: string | null;
   message: string;
   status: 'open' | 'resolved';
   resolved_by: string | null;

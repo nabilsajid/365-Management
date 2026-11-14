@@ -198,3 +198,11 @@ Two pieces, both on the device:
 - **Queued actions.** When a request cannot reach the server, `callApi` keeps it in `src/lib/offline-queue.ts` if it is on the short list of things that only add something: marking attendance, a project comment, a work submission, a trip or cost, a needed item, a broadcast. They are sent oldest first when the connection returns. One the server turns down (a day already marked, a project deleted meanwhile) is dropped and shown with the reason. Because these only add records, two people doing them offline never overwrite each other.
 
 Everything else needs a connection and says so: editing or deleting existing records, and anything about money, points, bonuses, approvals, roles or passwords. A rare double entry is possible if the connection drops after the server saved an action but before the device heard back; the action is then sent again.
+
+## Updates
+
+Notices and broadcasts share one page, `/updates`, with three tabs: Announcements (`notices`, for everyone, with a visible-for period), Broadcasts (`broadcasts` with no recipient: anyone to the admins) and Messages (`broadcasts` with a `recipient_id`: an admin to one person, who marks it done through `mark_message_done`). The old `/notices` and `/broadcasts` addresses redirect there. The sign-in pop-up groups notifications by where they point and offers a button for each kind (Approvals, Updates, My Tasks).
+
+## Who entered an expense
+
+`expenses.created_by` is the person who recorded it. When an admin approves someone's request, the replay carries `x-requested-by`, so the requester stays the author and `approved_by` records the admin. Expenses are no longer asked for an account: a database trigger takes them from the company's first account so balances stay right.

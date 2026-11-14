@@ -3,7 +3,6 @@ import {
   History,
   Palette,
   ContactRound,
-  Pin,
   Inbox,
   Megaphone,
   ShieldCheck,
@@ -45,8 +44,7 @@ const GROUPS: NavGroup[] = [
     title: 'Overview',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/notices', label: 'Notice Board', icon: Pin },
-      { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone },
+      { href: '/updates', label: 'Updates', icon: Megaphone },
     ],
   },
   {

@@ -36,7 +36,8 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
     try {
       applied = await fetch(new URL(change.path, request.url), {
         method: change.method,
-        headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') ?? '' },
+        // The person who asked stays the author; the admin approving it is recorded as such.
+        headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') ?? '', 'x-requested-by': change.requested_by },
         body: change.method === 'DELETE' ? undefined : JSON.stringify(change.body ?? {}),
         cache: 'no-store',
       });

@@ -175,9 +175,9 @@ export default async function DashboardPage() {
       {data.notices.length > 0 ? (
         <Card>
           <CardHeader
-            title="Notice board"
+            title="Announcements"
             description="Emergency information and updates from the admins."
-            action={<Link href="/notices">{isAdmin ? 'Manage' : 'View all'}</Link>}
+            action={<Link href="/updates">{isAdmin ? 'Manage' : 'View all'}</Link>}
           />
           <CardContent>
             <NoticeList
@@ -191,9 +191,9 @@ export default async function DashboardPage() {
       {data.broadcasts.length > 0 ? (
         <Card className="border-warning">
           <CardHeader
-            title={isAdmin ? 'Urgent broadcasts' : 'Your open broadcasts'}
-            description={isAdmin ? 'Messages from the team that need your attention.' : 'Sent to the admins and not resolved yet.'}
-            action={<Link href="/broadcasts">{isAdmin ? 'Open inbox' : 'View'}</Link>}
+            title={isAdmin ? 'Urgent broadcasts' : 'Messages and broadcasts'}
+            description={isAdmin ? 'Messages from the team that need your attention.' : 'Messages for you, and broadcasts you sent that are not resolved yet.'}
+            action={<Link href={isAdmin ? '/updates?tab=broadcasts' : '/updates?tab=messages'}>{isAdmin ? 'Open inbox' : 'View'}</Link>}
           />
           <CardContent>
             <ul className="divide-y divide-line">

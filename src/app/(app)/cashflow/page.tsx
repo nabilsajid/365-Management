@@ -62,7 +62,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   // A role may be allowed to view cash flow without being allowed to change it.
   const editsCashflow = canEdit('cashflow');
 
-  const [accountsR, balancesR, invoicesR, invoiceBalancesR, paymentsR, expensesR, clientsR, projectsR, fixedR] =
+  const [accountsR, balancesR, invoicesR, invoiceBalancesR, paymentsR, expensesR, clientsR, projectsR, fixedR, peopleR] =
     await Promise.all([
       supabase.from('accounts').select('*').eq('org_id', orgId).order('name'),
       supabase.from('account_balances').select('*').eq('org_id', orgId),
@@ -73,7 +73,9 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
       supabase.from('clients').select('*').eq('org_id', orgId).order('name'),
       supabase.from('projects').select('*').eq('org_id', orgId).order('name'),
       supabase.from('fixed_expenses').select('*').eq('org_id', orgId).order('name'),
+      supabase.from('profiles').select('id, full_name').eq('org_id', orgId),
     ]);
+  const personName = new Map(rowsOf<{ id: string; full_name: string }>(peopleR.data).map((person) => [person.id, person.full_name]));
   const accounts = rowsOf<Account>(accountsR.data);
   const invoices = rowsOf<Invoice>(invoicesR.data);
   const payments = rowsOf<Payment>(paymentsR.data);
@@ -107,6 +109,9 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   const expenseRows = expenses.map((expense) => ({
     ...expense,
     account_name: expense.account_id ? (accountName.get(expense.account_id) ?? '—') : null,
+    // Who recorded it, and (when it came from someone else's request) the admin who approved it.
+    entered_by: expense.created_by ? (personName.get(expense.created_by) ?? '—') : '—',
+    approved_by_name: expense.approved_by ? (personName.get(expense.approved_by) ?? '—') : null,
   }));
 
   // All-time figures.
@@ -159,7 +164,6 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
     { name: 'description', label: 'Description', required: true, hint: 'For equipment, this becomes the item name.' },
     { name: 'amount', label: 'Amount', type: 'number', hint: 'May be left empty only for an equipment purchase.' },
     { name: 'expense_date', label: 'Date', type: 'date', required: true, defaultValue: defaultDate },
-    { name: 'account_id', label: 'Paid from', type: 'select', options: accountOptions },
     { name: 'fixed_expense_id', label: 'Fixed monthly cost', type: 'select', options: options(fixed, (item) => item.name), hint: 'Only for the fixed category.' },
     { name: 'trip_origin', label: 'Trip from', hint: 'Transport only.' },
     { name: 'trip_destination', label: 'Trip to', hint: 'Transport only.' },
@@ -362,14 +366,15 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
 
           <ResourceManager
             title={`Expenses in ${monthName}`}
-            description={`Total: ${money(moneyOut)}. Use the search box to find an entry by description, category or account.`}
+            description={`Total: ${money(moneyOut)}. Entered by shows who recorded each one; Approved by shows who accepted it when it came from someone else. Expenses are taken from the main account.`}
             endpoint="/api/expenses"
             rows={asRows(expenseRows)}
             columns={[
               { key: 'expense_date', label: 'Date' },
               { key: 'category', label: 'Category', kind: 'label' },
               { key: 'description', label: 'Description' },
-              { key: 'account_name', label: 'Paid from' },
+              { key: 'entered_by', label: 'Entered by' },
+              { key: 'approved_by_name', label: 'Approved by' },
               { key: 'amount', label: 'Amount', kind: 'money' },
             ]}
             fields={expenseFields}

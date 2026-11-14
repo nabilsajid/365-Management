@@ -134,6 +134,8 @@ export const equipmentNeedUpdate = z
 export const BROADCAST_MAX = 280;
 export const broadcastCreate = z.object({
   message: z.string().trim().min(1, 'Write a message.').max(BROADCAST_MAX, `Keep it under ${BROADCAST_MAX} characters.`),
+  // Set only by an admin: a personal message to that one person.
+  recipient_id: z.string().uuid().nullish(),
 });
 export const broadcastUpdate = z.object({ status: z.enum(['open', 'resolved']) });
 
