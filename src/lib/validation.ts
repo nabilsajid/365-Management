@@ -474,3 +474,25 @@ export const monthOpen = z.object({ month: z.union([z.literal('current'), z.lite
 export const monthUpdate = z
   .object({ status: z.enum(['open', 'closed']), note: optionalText })
   .partial();
+
+// Asking to take a piece of equipment, or (for people who manage equipment) recording it directly.
+export const checkoutCreate = z
+  .object({
+    equipment_id: id,
+    purpose: z.string().trim().max(300).nullish(),
+    project_id: id.nullish(),
+    start_date: date.nullish(),
+    due_back: date.nullish(),
+    // Only for people who manage equipment: who takes it, and handing it over now without a request.
+    holder_id: id.nullish(),
+    take_now: z.boolean().optional(),
+  })
+  .refine((value) => !value.due_back || !value.start_date || value.due_back >= value.start_date, {
+    message: 'The return date must be on or after the start date.',
+    path: ['due_back'],
+  });
+
+export const checkoutAction = z.object({
+  action: z.enum(['approve', 'decline', 'return', 'cancel']),
+  note: z.string().trim().max(500).nullish(),
+});

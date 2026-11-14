@@ -183,3 +183,20 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 ## Team guide welcome (update 35)
 
 - `profiles.guide_seen_at`: when the person answered the one-time welcome pop-up. It appears right after someone fills in their profile for the first time and offers the team guide (Updates → Announcements, pinned). `mark_guide_seen()` sets it for the signed-in person. People whose profile was already complete were marked as having seen it.
+
+## Deadlines, shoots and equipment checkouts (update 36)
+
+- `notify_deadlines()` runs in the daily job (`/api/cron/daily`, 07:00 Dhaka). It sends:
+  - **Due tomorrow:** to the assignee of an unfinished task (`tasks.reminder_sent_at`).
+  - **Deadline missed:** to the assignee and the admins, once (`tasks.deadline_notified_at`).
+  - **Project past its due date:** to the admins and the team, once (`projects.deadline_notified_at`).
+  - **Shoot not confirmed:** two days before `projects.shoot_date` while the shoot isn't confirmed, or before a shoot deliverable's due date (`shoot_alerted_at`).
+  - **Please return / Equipment overdue:** a checkout past `due_back` (`equipment_checkouts.overdue_notified_at`).
+  - Changing a date clears its alert stamps, so the new date is reminded again.
+- `equipment_checkouts`: who takes which item (`holder_id`), why (`purpose`, `project_id`), from `start_date` until `due_back`, with `taken_at` and `returned_at`.
+  - `status` is one of requested, out, returned, declined or cancelled. Only one checkout per item can be `out` at a time.
+  - Anyone can request an item for themselves. Admins and roles that edit equipment approve, decline or record a checkout directly (`/api/equipment-checkouts`).
+  - The holder can cancel their own request or hand the item back (`my_checkout_action`).
+  - Going out sets `equipment.current_holder_id` and status `in_use`; coming back returns it to storage.
+- Everyone in the company can now read the equipment list, so they can ask for items.
+- In the app, My Tasks shows a red count in the menu for one's own tasks that are overdue or due within two days (`src/lib/domain/deadlines.ts`).

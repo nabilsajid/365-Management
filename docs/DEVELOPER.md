@@ -14,7 +14,7 @@ Start here. This guide explains how the app is built, how to run it, and how to 
 UniDock is a company workspace for small teams, first built for 365 Frames, a media production company. It covers:
 
 - **Projects & Clients**: one-time projects and monthly clients (a monthly package, a month for each calendar month, and extras), deliverables (videos, thumbnails, graphics, shoots), submissions as Drive or Dropbox links, review, comments with @mentions, and client review links.
-- **Logistics & Costs**: the equipment list and who holds it, needed items, fixed monthly costs, and travel costs per trip.
+- **Logistics & Costs**, split into tabs: the equipment list, checkouts (who took which item, for how long, and returns), needed items, fixed monthly costs, and travel costs per trip.
 - **Cash Flow & Invoices**: accounts, invoices (printable and shareable), payments, expenses, balances, CSV exports and a monthly summary.
 - **Employees & Rewards**: profiles, roles, attendance, monthly points, deductions, bonuses, leave and the points statement.
 - **Admin**: dashboard, approvals, roles and access, settings, delete log, system check, and companies.
@@ -165,6 +165,7 @@ Everyone can always see and act on their own things: assigned tasks, their own a
 Vercel calls `/api/cron/daily` at 01:00 UTC (07:00 in Dhaka). It runs:
 - `create_recurring_projects()`: opens the current month of every running monthly client, with its package's deliverables (`open_project_month`), once per month
 - `remind_overdue_invoices()`: reminds admins about each overdue invoice, at most once a week
+- `notify_deadlines()`: sends the day-before reminders, missed-deadline alerts, overdue projects, unconfirmed shoots two days ahead, and late equipment returns
 - `dispatchPushes()`
 
 ## 11. Tests and checks

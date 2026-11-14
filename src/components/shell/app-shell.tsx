@@ -91,10 +91,11 @@ function SidebarNav({
                     {badges[item.href] ? (
                       <span
                         className={cn(
-                          'rounded-full bg-warning px-1.5 text-[11px] font-semibold leading-5 text-white',
+                          // My Tasks shows deadlines close by or missed, so its marker is red.
+                          item.href === '/my-tasks' ? 'rounded-full bg-danger px-1.5 text-[11px] font-semibold leading-5 text-white' : 'rounded-full bg-warning px-1.5 text-[11px] font-semibold leading-5 text-white',
                           collapsed && 'absolute right-1.5 top-1 h-2 w-2 p-0 text-[0px] leading-none',
                         )}
-                        aria-label={`${badges[item.href]} waiting`}
+                        aria-label={item.href === '/my-tasks' ? `${badges[item.href]} due soon or overdue` : `${badges[item.href]} waiting`}
                       >
                         {badges[item.href]}
                       </span>

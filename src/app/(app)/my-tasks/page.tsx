@@ -1,5 +1,6 @@
 import { CalendarClock, Link2, Star } from 'lucide-react';
 import Link from 'next/link';
+import { dueLabel, dueState, type DueState } from '@/lib/domain/deadlines';
 import { ResourceManager } from '@/components/resource-manager';
 import { label } from '@/lib/format';
 import { asRows, getPageContext, rowsOf } from '@/lib/page';
@@ -30,6 +31,11 @@ function shortDate(date: string): string {
 // Everything a person is involved in: tasks assigned to them, the projects they
 // are on, and every task in those projects, so the whole team sees the work.
 // Shown as a board of cards by default, with the earlier tables under "List".
+/** Red when overdue or due today, amber when due within two days. */
+function dueClass(state: DueState): string {
+  return state === 'overdue' || state === 'today' ? 'badge badge-rejected' : state === 'soon' ? 'badge badge-pending' : 'badge';
+}
+
 export default async function MyTasksPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const view = (await searchParams).view === 'list' ? 'list' : 'board';
   const { supabase, orgId, userId, localDate } = await getPageContext();
@@ -76,6 +82,9 @@ export default async function MyTasksPage({ searchParams }: { searchParams: Prom
     assignee_name: task.assignee_id ? (person.get(task.assignee_id)?.full_name ?? '—') : 'Unassigned',
     href: `/tasks/${task.id}`,
     overdue: Boolean(task.due_date) && task.due_date! < today && task.status !== 'approved',
+    // Overdue, due today or within two days: a red or amber mark on the card.
+    due_state: dueState(task.due_date, today, task.status),
+    due_label: task.due_date ? dueLabel(task.due_date, today, dueState(task.due_date, today, task.status)) : '',
     link_count: (task.file_links ?? []).length,
   });
   const myRows = mine.map(toRow);
@@ -147,9 +156,9 @@ export default async function MyTasksPage({ searchParams }: { searchParams: Prom
                           ) : null}
                         </span>
                         {task.due_date ? (
-                          <span className={task.overdue ? 'badge badge-rejected' : 'badge'}>
-                            <CalendarClock size={12} aria-hidden className="mr-1" />
-                            {task.overdue ? 'Overdue · ' : ''}
+                          <span className={dueClass(task.due_state)}>
+                            {task.due_state ? <span className="due-dot" aria-hidden /> : <CalendarClock size={12} aria-hidden className="mr-1" />}
+                            {task.due_label ? `${task.due_label} · ` : ''}
                             {shortDate(task.due_date)}
                           </span>
                         ) : (
@@ -235,8 +244,9 @@ export default async function MyTasksPage({ searchParams }: { searchParams: Prom
                         <span className="project-meta ml-2">{task.assignee_name}</span>
                       </span>
                       {task.due_date ? (
-                        <span className={task.overdue ? 'badge badge-rejected' : 'badge'}>
-                          {task.overdue ? 'Overdue · ' : ''}
+                        <span className={dueClass(task.due_state)}>
+                          {task.due_state ? <span className="due-dot" aria-hidden /> : null}
+                          {task.due_label ? `${task.due_label} · ` : ''}
                           {shortDate(task.due_date)}
                         </span>
                       ) : null}

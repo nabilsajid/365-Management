@@ -1,11 +1,27 @@
-import { ResourceManager } from '@/components/resource-manager';
+import Link from 'next/link';
+import { CheckoutList, type CheckoutRow } from '@/components/checkout-list';
+import { ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { money } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, options, peopleOptions, rowsOf } from '@/lib/page';
 import type { Client, Equipment, EquipmentNeed, Expense, FixedExpense, Profile, Project } from '@/types/database';
 
-export default async function LogisticsPage() {
+const TABS = [
+  { key: 'equipment', label: 'Equipment' },
+  { key: 'checkouts', label: 'Checkouts' },
+  { key: 'needs', label: 'Needed items' },
+  { key: 'fixed', label: 'Fixed costs' },
+  { key: 'travel', label: 'Travel costs' },
+] as const;
+type Tab = (typeof TABS)[number]['key'];
+
+const DAY = 86_400_000;
+const daysBetween = (from: string, to: string) => Math.max(0, Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY));
+
+export default async function LogisticsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const requestedTab = (await searchParams).tab;
   const { supabase, orgId, userId, isAdmin, can, canEdit, localDate } = await getPageContext();
+  const today = localDate(new Date().toISOString());
   const seesInventory = can('equipment');
   const seesCosts = can('costs');
   // Viewing a part and changing it are separate: these say what this person may change.
@@ -17,7 +33,7 @@ export default async function LogisticsPage() {
   // Row level security narrows every query to what the viewer's roles allow:
   // without the equipment segment only the items they hold come back, and
   // without the costs segment the cost tables come back empty.
-  const [equipmentResult, peopleResult, fixedResult, tripsResult, needsResult, projectsResult, clientsResult, purposeProbe] = await Promise.all([
+  const [equipmentResult, peopleResult, fixedResult, tripsResult, needsResult, projectsResult, clientsResult, purposeProbe, checkoutsResult] = await Promise.all([
     supabase.from('equipment').select('*').eq('org_id', orgId).order('name'),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('fixed_expenses').select('*').eq('org_id', orgId).order('name'),
@@ -27,7 +43,13 @@ export default async function LogisticsPage() {
     supabase.from('clients').select('id, name').eq('org_id', orgId).order('name'),
     // The trip purpose columns arrive with a database update; until then the form leaves them out.
     supabase.from('expenses').select('project_id').limit(1),
+    // Who took which item, for how long (after the checkouts database update).
+    supabase.from('equipment_checkouts').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(300),
   ]);
+  const checkoutsReady = !checkoutsResult.error;
+  // Sections: everyone sees equipment, checkouts and needed items; costs need the costs role.
+  const tabs = TABS.filter((item) => (item.key === 'fixed' || item.key === 'travel' ? seesCosts : item.key !== 'checkouts' || checkoutsReady));
+  const tab: Tab = tabs.some((item) => item.key === requestedTab) ? (requestedTab as Tab) : 'equipment';
   const projects = rowsOf<Pick<Project, 'id' | 'name' | 'status'>>(projectsResult.data);
   const clients = rowsOf<Pick<Client, 'id' | 'name'>>(clientsResult.data);
   const hasTripPurpose = !purposeProbe.error;
@@ -40,6 +62,43 @@ export default async function LogisticsPage() {
   const needs = rowsOf<EquipmentNeed>(needsResult.data);
   const person = new Map(people.map((profile) => [profile.id, profile]));
   const staff = peopleOptions(people);
+  const itemName = new Map(equipment.map((item) => [item.id, item.name]));
+  const checkouts: CheckoutRow[] = rowsOf<{
+    id: string;
+    equipment_id: string;
+    holder_id: string;
+    requested_by: string | null;
+    status: CheckoutRow['status'];
+    purpose: string | null;
+    project_id: string | null;
+    start_date: string;
+    due_back: string | null;
+    taken_at: string | null;
+    returned_at: string | null;
+    decided_by: string | null;
+    note: string | null;
+    created_at: string;
+  }>(checkoutsResult.data).map((row) => {
+    const from = row.taken_at ? localDate(row.taken_at) : row.start_date;
+    const until = row.returned_at ? localDate(row.returned_at) : today;
+    return {
+      id: row.id,
+      item: itemName.get(row.equipment_id) ?? 'Removed item',
+      holder: person.get(row.holder_id)?.full_name ?? '—',
+      holderRole: person.get(row.holder_id)?.job_title ?? null,
+      mine: row.holder_id === userId,
+      status: row.status,
+      purpose: [row.project_id ? projectName.get(row.project_id) : null, row.purpose].filter(Boolean).join(' · ') || null,
+      from,
+      dueBack: row.due_back,
+      returnedOn: row.returned_at ? localDate(row.returned_at) : null,
+      days: row.status === 'out' || row.status === 'returned' ? daysBetween(from, until) : null,
+      overdue: row.status === 'out' && Boolean(row.due_back) && row.due_back! < today,
+      decidedBy: row.decided_by ? (person.get(row.decided_by)?.full_name ?? null) : null,
+      note: row.note,
+      askedOn: localDate(row.created_at),
+    };
+  });
 
   const equipmentRows = equipment.map((item) => {
     const holder = item.current_holder_id ? person.get(item.current_holder_id) : undefined;
@@ -98,45 +157,113 @@ export default async function LogisticsPage() {
     .filter((item) => item.status !== 'retired')
     .reduce((total, item) => total + Number(item.purchase_price ?? 0), 0);
 
+  const available = equipment.filter((item) => item.status !== 'retired');
+  const out = checkouts.filter((row) => row.status === 'out');
+  const waiting = checkouts.filter((row) => row.status === 'requested');
+  const history = checkouts.filter((row) => row.status === 'returned' || row.status === 'declined' || row.status === 'cancelled');
+  const manages = editsInventory;
+
   return (
     <>
       <div className="page-header">
         <div>
           <h1>Logistics &amp; Costs</h1>
-          <p className="muted">
-            {seesInventory || seesCosts ? 'Equipment, who holds it, and the running costs of the studio.' : 'The equipment you are responsible for.'}
-          </p>
+          <p className="muted">Equipment, who has it and until when, what the studio needs, and running costs.</p>
         </div>
       </div>
 
-      <ResourceManager
-        title={seesInventory ? 'Equipment' : 'Equipment you hold'}
-        description={
-          seesInventory
-            ? `Tracked on its own, not tied to projects. Known asset value: ${money(assetValue)}.`
-            : 'Items currently recorded as held by you.'
-        }
-        endpoint="/api/equipment"
-        rows={asRows(equipmentRows)}
-        columns={[
-          { key: 'name', label: 'Item' },
-          { key: 'category', label: 'Category' },
-          { key: 'serial_number', label: 'Serial' },
-          { key: 'purchase_price', label: 'Price', kind: 'money' },
-          { key: 'status', label: 'Status', kind: 'label' },
-          { key: 'condition', label: 'Condition', kind: 'label' },
-          { key: 'holder_name', label: 'Held by' },
-          { key: 'holder_role', label: 'Role' },
-          { key: 'held_since', label: 'Since' },
-          { key: 'origin', label: 'Source' },
-        ]}
-        fields={equipmentFields}
-        canWrite={editsInventory}
-        needsApproval={needsApproval}
-        addLabel="Register equipment"
-        emptyText={seesInventory ? 'No equipment registered yet.' : 'You are not holding any equipment.'}
-      />
+      <nav className="tabs" aria-label="Logistics sections">
+        {tabs.map((item) => (
+          <Link key={item.key} href={`/logistics?tab=${item.key}`} aria-current={tab === item.key ? 'page' : undefined}>
+            {item.label}
+            {item.key === 'checkouts' && (manages ? waiting.length : 0) > 0 ? <span className="count">{waiting.length}</span> : null}
+          </Link>
+        ))}
+      </nav>
 
+      {tab === 'equipment' ? (
+      <ResourceManager
+          title="Equipment"
+          description={
+            seesInventory
+              ? `Tracked on its own, not tied to projects. Known asset value: ${money(assetValue)}.`
+              : 'Everything the studio has, and who holds it. To take something, ask under Checkouts.'
+          }
+          endpoint="/api/equipment"
+          rows={asRows(equipmentRows)}
+          columns={[
+            { key: 'name', label: 'Item' },
+            { key: 'category', label: 'Category' },
+            { key: 'serial_number', label: 'Serial' },
+            ...(seesInventory ? [{ key: 'purchase_price', label: 'Price', kind: 'money' as const }] : []),
+            { key: 'status', label: 'Status', kind: 'label' },
+            { key: 'condition', label: 'Condition', kind: 'label' },
+            { key: 'holder_name', label: 'Held by' },
+            { key: 'holder_role', label: 'Role' },
+            { key: 'held_since', label: 'Since' },
+            { key: 'origin', label: 'Source' },
+          ]}
+          fields={equipmentFields}
+          canWrite={editsInventory}
+          needsApproval={needsApproval}
+          addLabel="Register equipment"
+          emptyText="No equipment registered yet."
+        />
+      ) : null}
+
+      {tab === 'checkouts' ? (
+        <>
+          <section className="panel">
+            <header className="panel-header">
+              <div>
+                <h2>{manages ? 'Hand out or ask for equipment' : 'Ask to take equipment'}</h2>
+                <p className="muted">
+                  {manages
+                    ? 'Record who takes an item and until when. Tick "Hand over now" when it leaves right away; otherwise it waits as a request.'
+                    : 'Choose the item, what it is for and when you will bring it back. An admin or the logistics team approves it.'}
+                </p>
+              </div>
+            </header>
+            <ApiForm
+              endpoint="/api/equipment-checkouts"
+              submitLabel={manages ? 'Save' : 'Send request'}
+              initial={{ start_date: today, take_now: manages }}
+              fields={[
+                { name: 'equipment_id', label: 'Item', type: 'select', required: true, options: available.map((item) => ({ value: item.id, label: `${item.name}${item.current_holder_id ? ` (with ${person.get(item.current_holder_id)?.full_name ?? 'someone'})` : ''}` })) },
+                ...(manages ? [{ name: 'holder_id', label: 'Taken by', type: 'select' as const, options: staff, hint: 'Leave empty for yourself.' }] : []),
+                { name: 'project_id', label: 'For project', type: 'select', options: options(projects, (project) => project.name) },
+                { name: 'purpose', label: 'Purpose', placeholder: 'Client shoot, location scout…' },
+                { name: 'start_date', label: 'From', type: 'date', required: true },
+                { name: 'due_back', label: 'Back by', type: 'date', hint: 'When it will be returned.' },
+                ...(manages ? [{ name: 'take_now', label: 'Hand over now (no request needed)', type: 'checkbox' as const }] : []),
+              ]}
+            />
+          </section>
+
+          {manages || waiting.some((row) => row.mine) ? (
+            <CheckoutList
+              title="Waiting for approval"
+              description={manages ? 'Approve to hand the item over, or decline.' : 'Your requests that are waiting.'}
+              rows={manages ? waiting : waiting.filter((row) => row.mine)}
+              manages={manages}
+              empty="No requests waiting."
+            />
+          ) : null}
+
+          <CheckoutList
+            title="Out now"
+            description="Who has which item, since when, for how long, and when it is due back. Late returns are marked red."
+            rows={out}
+            manages={manages}
+            empty="Everything is in storage."
+          />
+
+          <CheckoutList title="History" description="Returned, declined and cancelled." rows={history.slice(0, 60)} manages={false} empty="No history yet." />
+        </>
+      ) : null}
+
+      {tab === 'needs' ? (
+        <>
       <ResourceManager
         title="Urgently needed"
         description={
@@ -189,9 +316,10 @@ export default async function LogisticsPage() {
           canWrite={editsInventory}
         />
       ) : null}
+        </>
+      ) : null}
 
-      {seesCosts ? (
-        <>
+      {tab === 'fixed' && seesCosts ? (
           <ResourceManager
             title="Fixed monthly expenses"
             description={`Active total: ${money(fixedTotal)} per month.`}
@@ -214,7 +342,9 @@ export default async function LogisticsPage() {
             addLabel="Add fixed expense"
             emptyText="No fixed expenses yet."
           />
+      ) : null}
 
+      {tab === 'travel' && seesCosts ? (
           <ResourceManager
             title="Transport expenses"
             description="One entry per trip. These also appear under expenses in Cash Flow."
@@ -246,7 +376,6 @@ export default async function LogisticsPage() {
             addLabel="Add trip"
             emptyText="No trips recorded yet."
           />
-        </>
       ) : null}
     </>
   );

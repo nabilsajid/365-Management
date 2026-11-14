@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import { dueLabel, dueState } from '@/lib/domain/deadlines';
 import type { CSSProperties, ReactNode } from 'react';
 import { CashflowChart } from '@/components/dashboard/cashflow-chart';
 import { CountUp } from '@/components/dashboard/count-up';
@@ -98,6 +99,7 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
 
 export default async function DashboardPage() {
   const { supabase, orgId, isAdmin, userId, profile, can, localDate, timeZone } = await getPageContext();
+  const today = localDate(new Date().toISOString());
 
   const data = await getDashboard(supabase, orgId, await getOrgTimezone(supabase, orgId), userId);
   const waiting =
@@ -378,6 +380,11 @@ export default async function DashboardPage() {
                       <Badge tone="danger">
                         <AlertCircle size={12} aria-hidden className="mr-1" />
                         Overdue · {shortDate(item.due_date)}
+                      </Badge>
+                    ) : dueState(item.due_date, today) ? (
+                      <Badge tone={dueState(item.due_date, today) === 'today' ? 'danger' : 'warning'}>
+                        <span className="due-dot" aria-hidden />
+                        {dueLabel(item.due_date, today, dueState(item.due_date, today))} · {shortDate(item.due_date)}
                       </Badge>
                     ) : (
                       <Badge>{shortDate(item.due_date)}</Badge>

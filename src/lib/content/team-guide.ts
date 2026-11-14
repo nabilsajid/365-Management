@@ -56,6 +56,8 @@ export const TEAM_GUIDE: GuideSection[] = [
       'When you are assigned to a project or a deliverable you get a notification and a pop-up the next time you open the app. Everything assigned to you is under My Tasks.',
       'Open a task to see the brief, due date and links. When your work is ready, use "Submit work" with a Google Drive or Dropbox link (or a text note). Files are never uploaded into the app: always share them as a link.',
       'The reviewer either approves it or asks for changes with a note. You are told either way.',
+      'Deadlines: a task due within two days gets an amber "Due tomorrow" or "Due in 2 days" mark, and a red one when it is due today or overdue. A red number on My Tasks in the menu counts these. The day before a deadline you get a reminder; if it is missed, you and the admins are told.',
+      'Shoots: two days before a shoot that the client has not confirmed yet, the team and the admins are reminded.',
       'Comment on a task or project to ask questions. Write @ and someone\'s first name or nickname (for example @Rafi) to notify them.',
       'Projects show the client, team, links, shoot date (or "waiting for client confirmation") and every deliverable: videos, thumbnails, graphics and shoots.',
       'When your work is approved, or a project you worked on is completed, you get fireworks and a "Well done!" on your screen. The admin then gives points for completed projects.',
@@ -86,10 +88,10 @@ export const TEAM_GUIDE: GuideSection[] = [
     id: 'costs',
     title: 'Travel costs and equipment',
     points: [
-      'Spent money on transport for work? Add it under Equipment & Costs: where you went from and to, the amount, and what it was for (pick the project or client, or write the purpose, such as a new client meeting). It is recorded under your name.',
+      'Spent money on transport for work? Add it under Equipment & Costs → Travel costs: where you went from and to, the amount, and what it was for (pick the project or client, or write the purpose, such as a new client meeting). It is recorded under your name.',
       'Small costs may be accepted straight away; others wait for an admin. Follow them under My Requests.',
-      'Need something (a camera battery, a tripod)? Add it to the needed items list so the logistics team sees it.',
-      'Equipment you are holding is listed under your name.',
+      'Need something (a camera battery, a tripod)? Add it under Equipment & Costs → Needed items so the logistics team sees it.',
+      'Taking equipment out (a camera for a shoot, for example)? Ask under Equipment & Costs → Checkouts: choose the item, what it is for, and when you will bring it back. Once approved it is recorded under your name. Press "Mark returned" when you bring it back; if it is late, you get a reminder.',
     ],
   },
   {

@@ -314,8 +314,8 @@ select pg_temp.check(
   'a role with the team_points segment sees everyone''s points');
 select pg_temp.check((select count(*) > 0 from projects), 'without the projects segment, projects can still be seen');
 select pg_temp.check(
-  (select count(*) = 1 from equipment),
-  'without the equipment segment, only equipment you hold is visible');
+  (select count(*) >= 1 from equipment),
+  'everyone can see the equipment list, so they can ask to take an item');
 do $$
 declare n integer;
 begin
@@ -334,7 +334,7 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
 select pg_temp.check((select count(*) = 2 from tasks), 'an assignee still sees their own tasks');
 select pg_temp.check((select count(*) = 1 from projects), 'an assignee sees the project their tasks belong to');
 select pg_temp.check((select count(*) = 0 from clients), 'an assignee without the projects segment cannot list clients');
-select pg_temp.check((select count(*) = 0 from equipment), 'someone holding nothing sees no equipment');
+select pg_temp.check((select count(*) > 0 from equipment), 'someone holding nothing still sees the equipment list');
 
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 select set_profile_roles('00000000-0000-0000-0000-0000000000e2', array[
@@ -1091,6 +1091,73 @@ select pg_temp.check(
   (select guide_seen_at is not null from profiles where id = '00000000-0000-0000-0000-0000000000e1')
   and (select count(*) = 1 from profiles where guide_seen_at is not null),
   'answering the welcome pop-up marks only that person, so it does not show again');
+
+-- Deadlines, shoot reminders and equipment checkouts.
+reset role;
+set local request.jwt.claim.sub = '';
+delete from notifications;
+insert into projects (id, org_id, name, status, shoot_status, shoot_date, due_date) values
+  ('00000000-0000-0000-0000-00000000d001', '00000000-0000-0000-0000-000000000001', 'Deadline Co', 'active', 'waiting',
+   (now() at time zone 'Asia/Dhaka')::date + 1, (now() at time zone 'Asia/Dhaka')::date - 1);
+insert into project_members (project_id, profile_id, org_id) values
+  ('00000000-0000-0000-0000-00000000d001', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001');
+insert into tasks (org_id, project_id, title, assignee_id, due_date) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000d001', 'Due soon', '00000000-0000-0000-0000-0000000000e1', (now() at time zone 'Asia/Dhaka')::date + 1),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000d001', 'Late one', '00000000-0000-0000-0000-0000000000e1', (now() at time zone 'Asia/Dhaka')::date - 2);
+select notify_deadlines();
+select pg_temp.check(
+  (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Due tomorrow: Due soon')
+  and (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Deadline missed: Late one')
+  and (select count(*) >= 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000a1' and title = 'Deadline missed: Late one'),
+  'the assignee is reminded the day before, and the assignee and admins hear about a missed deadline');
+select pg_temp.check(
+  (select count(*) >= 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000a1' and title = 'Shoot not confirmed: Deadline Co')
+  and (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Shoot not confirmed: Deadline Co')
+  and (select count(*) >= 1 from notifications where title = 'Project past its due date: Deadline Co'),
+  'an unconfirmed shoot two days away and an overdue project are flagged');
+select notify_deadlines();
+select pg_temp.check((select count(*) = 1 from notifications where title = 'Due tomorrow: Due soon'), 'each alert is sent once');
+update tasks set due_date = (now() at time zone 'Asia/Dhaka')::date + 1 where title = 'Late one';
+select notify_deadlines();
+select pg_temp.check((select count(*) = 1 from notifications where title = 'Due tomorrow: Late one'), 'a new due date is reminded again');
+
+insert into equipment (id, org_id, name) values ('00000000-0000-0000-0000-00000000e0e1', '00000000-0000-0000-0000-000000000001', 'Sony A7 IV');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) >= 1 from equipment where id = '00000000-0000-0000-0000-00000000e0e1'), 'everyone can see the equipment list');
+insert into equipment_checkouts (id, org_id, equipment_id, holder_id, requested_by, purpose, due_back) values
+  ('00000000-0000-0000-0000-00000000c0c1', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000e0e1',
+   '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e1', 'Client shoot', (now() at time zone 'Asia/Dhaka')::date + 2);
+do $$ begin
+  insert into equipment_checkouts (org_id, equipment_id, holder_id, requested_by, status)
+  values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000e0e1', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e1', 'out');
+  raise exception 'FAILED: an employee took equipment without approval';
+exception when insufficient_privilege then raise notice 'ok - taking equipment needs approval';
+end $$;
+reset role;
+select pg_temp.check((select count(*) >= 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000a1' and title = 'Equipment request: Sony A7 IV'),
+  'admins hear about an equipment request');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+update equipment_checkouts set status = 'out', taken_at = now(), due_back = (now() at time zone 'Asia/Dhaka')::date - 1, start_date = (now() at time zone 'Asia/Dhaka')::date - 3
+where id = '00000000-0000-0000-0000-00000000c0c1';
+reset role;
+select pg_temp.check(
+  (select current_holder_id = '00000000-0000-0000-0000-0000000000e1' and status = 'in_use' from equipment where id = '00000000-0000-0000-0000-00000000e0e1')
+  and (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Equipment ready for you: Sony A7 IV'),
+  'an approved request hands the item to the person and tells them');
+set local request.jwt.claim.sub = '';
+select notify_deadlines();
+select pg_temp.check((select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Please return: Sony A7 IV'),
+  'a late return is flagged to the holder');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select my_checkout_action('00000000-0000-0000-0000-00000000c0c1', 'return');
+reset role;
+select pg_temp.check(
+  (select current_holder_id is null and status = 'available' from equipment where id = '00000000-0000-0000-0000-00000000e0e1')
+  and (select status = 'returned' and returned_at is not null from equipment_checkouts where id = '00000000-0000-0000-0000-00000000c0c1'),
+  'handing it back puts the item back in storage and keeps the record');
 
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;

@@ -3661,3 +3661,88 @@
   margin: 0 0 0.6rem;
   line-height: 1.55;
 }
+
+/* A small dot on deadline marks that are close or missed. */
+.due-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.35rem;
+  border-radius: 999px;
+  background: currentColor;
+  animation: due-pulse 1.6s ease-in-out infinite;
+}
+@keyframes due-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .due-dot {
+    animation: none;
+  }
+}
+
+/* Equipment checkouts. */
+.checkout-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checkout-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+}
+.checkout-list li.overdue {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, var(--color-line));
+  background: color-mix(in srgb, var(--color-danger) 6%, var(--color-card));
+}
+.checkout-main {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+.checkout-main p {
+  margin: 0;
+}
+.checkout-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+.checkout-meta {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.checkout-dates {
+  font-size: 0.8125rem;
+}
+.checkout-list li.overdue .checkout-dates strong {
+  color: var(--color-danger);
+}
+.checkout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+@media (max-width: 640px) {
+  .checkout-actions {
+    width: 100%;
+  }
+  .checkout-actions .action,
+  .checkout-actions .action button {
+    flex: 1;
+  }
+}

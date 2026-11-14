@@ -39,6 +39,7 @@ export const DATABASE_UPDATES: UpdateCheck[] = [
   { file: '20261112000031_companies.sql', adds: 'Several companies', table: 'company_views', column: 'org_id' },
   { file: '20261112000034_monthly_clients.sql', adds: 'Monthly clients', table: 'project_months', column: 'month' },
   { file: '20261112000035_guide_welcome.sql', adds: 'Team guide welcome pop-up', table: 'profiles', column: 'guide_seen_at' },
+  { file: '20261112000036_deadlines_shoots_checkouts.sql', adds: 'Deadline alerts, shoot reminders and equipment checkouts', table: 'equipment_checkouts', column: 'due_back' },
 ];
 
 /** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */
