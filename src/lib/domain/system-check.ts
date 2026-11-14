@@ -36,6 +36,7 @@ export const DATABASE_UPDATES: UpdateCheck[] = [
   { file: '20261112000027_task_comments.sql', adds: 'Comments on deliverables', table: 'task_comments', column: 'id' },
   { file: '20261112000028_files_review_invoices_recurring.sql', adds: 'Client review, invoice links and repeating projects', table: 'review_links', column: 'token' },
   { file: '20261112000029_invoice_options.sql', adds: 'Choosing what invoices show', table: 'organizations', column: 'invoice_options' },
+  { file: '20261112000031_companies.sql', adds: 'Several companies', table: 'company_views', column: 'org_id' },
 ];
 
 /** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */

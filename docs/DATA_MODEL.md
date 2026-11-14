@@ -161,3 +161,10 @@ Admins can read and edit everything. For everyone else, reading depends on the s
 - `invoices.share_token` — when set, the client can open `/invoice/<token>` and save it as a PDF. `invoices.reminded_at` — last overdue reminder (at most weekly).
 - `projects.recurs_monthly` — copied on the 1st of each month by `create_recurring_projects()`; copies carry `recurring_source_id` and `recurring_month`.
 - `/api/cron/daily` (Vercel cron, 01:00 UTC) runs `create_recurring_projects()` and `remind_overdue_invoices()`. If `CRON_SECRET` is set in Vercel, only Vercel can call it.
+
+## Several companies (update 31)
+
+- Every table was already kept apart by `org_id`; each company sees only its own rows.
+- `platform_owners` — the app's owner (the 365 Frames admin). Only the owner sees the Companies page (the company tag in the sidebar).
+- `company_views` — the company the owner has stepped into. While set, `current_org_id()` returns that company and `is_admin()` is true, so the owner works there as its admin. `view_company(null)` steps back.
+- New companies are made on the Companies page with their first admin (`/api/companies`), using the service key.
