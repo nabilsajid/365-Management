@@ -1816,8 +1816,36 @@
     animation: app-glow-b 58s ease-in-out infinite alternate;
   }
 
+  /* A cool blue light between the two warm ones. */
+  .app-glow-c {
+    top: 18vh;
+    left: 22vw;
+    width: 48vmax !important;
+    height: 48vmax !important;
+    background: radial-gradient(circle, rgb(59 130 246 / 0.8), transparent 70%);
+    animation: app-glow-c 52s ease-in-out infinite alternate;
+  }
+
   :root[data-theme='dark'] .app-glow span {
     opacity: 0.13;
+  }
+
+  /* A faint grid over the glow, fading out toward the edges. */
+  .app-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgb(0 0 0 / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(0 0 0 / 0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 55% 40%, #000 25%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 55% 40%, #000 25%, transparent 78%);
+  }
+
+  :root[data-theme='dark'] .app-grid {
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.03) 1px, transparent 1px);
   }
 
   /* Cards let a hint of the glow through, like frosted glass. */
@@ -2007,6 +2035,18 @@
   }
   100% {
     transform: translate(-22vmax, 3vmax) scale(0.96);
+  }
+}
+
+@keyframes app-glow-c {
+  0% {
+    transform: translate(0, 0) scale(0.95);
+  }
+  50% {
+    transform: translate(10vmax, 6vmax) scale(1.06);
+  }
+  100% {
+    transform: translate(-6vmax, 12vmax) scale(1);
   }
 }
 

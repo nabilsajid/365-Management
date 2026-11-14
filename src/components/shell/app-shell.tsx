@@ -345,10 +345,12 @@ export function AppShell({
 
   return (
     <div className="app-bg min-h-screen">
-      {/* A soft orange glow that drifts slowly behind everything. Decorative only. */}
+      {/* Soft orange and blue glows drifting slowly over a faint grid, behind everything. Decorative only. */}
       <div className="app-glow" aria-hidden>
+        <i className="app-grid" />
         <span className="app-glow-a" />
         <span className="app-glow-b" />
+        <span className="app-glow-c" />
       </div>
       <NavProgress />
       {/* Desktop sidebar */}
