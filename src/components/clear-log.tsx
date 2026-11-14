@@ -34,29 +34,33 @@ export function ClearLog({ count }: { count: number }) {
     }
   }
 
-  return (
-    <span className="action">
-      {confirming ? (
-        <>
-          <span className="muted">Clear all {count} entries?</span>{' '}
-          <button type="button" className="danger" disabled={busy} onClick={clear}>
-            {busy ? 'Clearing…' : 'Yes, clear'}
-          </button>{' '}
+  if (confirming) {
+    return (
+      <div className="clear-confirm" role="alertdialog" aria-label="Clear the delete log">
+        <p>
+          Clear all {count} {count === 1 ? 'entry' : 'entries'}? This cannot be undone.
+        </p>
+        <div className="clear-confirm-actions">
           <button type="button" disabled={busy} onClick={() => setConfirming(false)}>
             Cancel
           </button>
-        </>
-      ) : (
-        <button type="button" className="danger" onClick={() => setConfirming(true)}>
-          <Trash2 size={14} aria-hidden style={{ marginRight: 6 }} />
-          Clear log
-        </button>
-      )}
-      {error ? (
-        <span className="error" role="alert">
-          {error}
-        </span>
-      ) : null}
-    </span>
+          <button type="button" className="danger solid" disabled={busy} onClick={clear}>
+            {busy ? 'Clearing…' : 'Yes, clear all'}
+          </button>
+        </div>
+        {error ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" className="danger" onClick={() => setConfirming(true)}>
+      <Trash2 size={14} aria-hidden style={{ marginRight: 6 }} />
+      Clear log
+    </button>
   );
 }

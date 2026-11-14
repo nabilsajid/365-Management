@@ -1,5 +1,5 @@
-import { ChangeSummary } from '@/components/change-summary';
 import { ClearLog } from '@/components/clear-log';
+import { DeleteLogList, type DeleteLogItem } from '@/components/delete-log-list';
 import { changeDetails } from '@/lib/domain/changes';
 import { getPageContext, rowsOf } from '@/lib/page';
 import type { DeleteLogEntry, Profile } from '@/types/database';
@@ -17,7 +17,7 @@ const RESOURCE: Record<string, string> = {
 
 /** Everything deleted within the company's chosen period, and a button to clear it. */
 export async function DeleteLogSection() {
-  const { supabase, orgId, localDateTime } = await getPageContext();
+  const { supabase, orgId, localDate, timeZone } = await getPageContext();
 
   const [logR, peopleR, orgR, ...namedR] = await Promise.all([
     supabase.from('delete_log').select('*').eq('org_id', orgId).order('deleted_at', { ascending: false }).limit(500),
@@ -28,62 +28,57 @@ export async function DeleteLogSection() {
     supabase.from('accounts').select('id, name').eq('org_id', orgId),
   ]);
   const entries = rowsOf<DeleteLogEntry>(logR.data);
-  const days = Number((orgR.data as { delete_log_days?: number } | null)?.delete_log_days ?? 3);
+  const days = Number((orgR.data as { delete_log_days?: number } | null)?.delete_log_days ?? 30);
   const personName = new Map(rowsOf<Pick<Profile, 'id' | 'full_name'>>(peopleR.data).map((person) => [person.id, person.full_name]));
   const named = new Map(namedR.flatMap((result) => rowsOf<{ id: string; name: string }>(result.data).map((row) => [row.id, row.name] as const)));
   const nameOf = (id: string) => personName.get(id) ?? named.get(id);
 
-  return (
-    <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="muted">Everything deleted in the last {days} days, by anyone. Change the period under Rules.</p>
-        <ClearLog count={entries.length} />
-      </div>
+  // Each entry as a card: what, its name, who, when, and the details it held.
+  const today = localDate(new Date().toISOString());
+  const yesterday = localDate(new Date(Date.now() - 86400000).toISOString());
+  const clock = new Intl.DateTimeFormat('en-GB', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
+  const dayName = new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'short', day: 'numeric', month: 'short' });
+  const items: DeleteLogItem[] = entries.map((entry) => {
+    const day = localDate(entry.deleted_at);
+    const kind = thing(entry.table_name);
+    const details = changeDetails(
+      { method: 'POST', path: `/api/${RESOURCE[entry.table_name] ?? entry.table_name}`, body: entry.data, summary: '' },
+      nameOf,
+    );
+    return {
+      id: entry.id,
+      kind: kind.charAt(0).toUpperCase() + kind.slice(1),
+      thing: kind.charAt(0).toUpperCase() + kind.slice(1),
+      name: entry.label,
+      by: entry.deleted_by ? (personName.get(entry.deleted_by) ?? 'a former employee') : 'the system',
+      day: day === today ? 'Today' : day === yesterday ? 'Yesterday' : dayName.format(new Date(entry.deleted_at)),
+      time: clock.format(new Date(entry.deleted_at)).toLowerCase(),
+      fields: details.fields.filter((field) => field.value && field.value !== '—'),
+    };
+  });
 
-      <section className="panel">
-        {logR.error ? (
+  return (
+    <section className="panel delete-log">
+      <header className="panel-header">
+        <div>
+          <h2>Delete log</h2>
           <p className="muted">
-            The delete log needs a database update first. Run the file
-            <code> 20261112000020_delete_log_role_preview.sql </code>
-            in the Supabase SQL Editor, then reload this page.
+            {entries.length === 0
+              ? `Nothing was deleted in the last ${days} days.`
+              : `${entries.length} ${entries.length === 1 ? 'item' : 'items'} deleted in the last ${days} days, by anyone. Tap one to see what it held.`}{' '}
+            Change how long entries are kept under Rules.
           </p>
-        ) : entries.length === 0 ? (
-          <p className="muted empty">Nothing was deleted in the last {days} days.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Deleted</th>
-                  <th>By</th>
-                  <th>What</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>{localDateTime(entry.deleted_at)}</td>
-                    <td>{entry.deleted_by ? (personName.get(entry.deleted_by) ?? '—') : '—'}</td>
-                    <td>
-                      <ChangeSummary
-                        details={{
-                          ...changeDetails(
-                            { method: 'POST', path: `/api/${RESOURCE[entry.table_name] ?? entry.table_name}`, body: entry.data, summary: '' },
-                            nameOf,
-                          ),
-                          heading: `Deleted ${thing(entry.table_name)}`,
-                          name: entry.label,
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </>
+        </div>
+        <ClearLog count={entries.length} />
+      </header>
+      {logR.error ? (
+        <p className="muted">
+          The delete log needs a database update first. Open System check to see which updates are missing.
+        </p>
+      ) : entries.length === 0 ? null : (
+        <DeleteLogList items={items} />
+      )}
+    </section>
   );
 }
 
