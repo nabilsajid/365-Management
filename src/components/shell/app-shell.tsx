@@ -78,7 +78,7 @@ function SidebarNav({
                     className={cn(
                       'relative flex h-10 items-center gap-3 rounded-control px-3 text-[13px] font-medium no-underline transition-colors duration-100 hover:no-underline active:scale-[0.98]',
                       active
-                        ? 'bg-primary text-on-primary'
+                        ? 'nav-active'
                         : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white',
                       collapsed && 'justify-center px-0',
                     )}
@@ -150,11 +150,11 @@ function Toast() {
           key={toast.id}
           className={cn(
             'toast-in flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium shadow-lg',
-            toast.tone === 'success' ? 'border-success bg-success text-white' : 'border-line-strong bg-ink text-page',
+            'border-line-strong bg-ink text-page',
           )}
         >
           {toast.tone === 'success' ? (
-            <span className="pop flex h-5 w-5 items-center justify-center rounded-full bg-white/25">
+            <span className="pop flex h-5 w-5 items-center justify-center rounded-full bg-success text-white">
               <Check size={13} aria-hidden strokeWidth={3} />
             </span>
           ) : null}

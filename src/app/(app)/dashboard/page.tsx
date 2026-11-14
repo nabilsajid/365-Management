@@ -80,8 +80,24 @@ const ACTIVITY_ICON: Record<string, LucideIcon> = { submission: FileUp, payment:
 // One dashboard, different for every role: each card and section appears only
 // when the viewer's roles include its segment. Everyone gets their own tasks,
 // points and deadlines.
+/** "Good morning" and so on, by the time of day where the company is. */
+function greeting(timeZone: string): string {
+  let hour = 12;
+  try {
+    hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone }).format(new Date()));
+  } catch {
+    // Unknown time zone: a neutral greeting.
+  }
+  if (hour < 5) return 'Working late';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
+
 export default async function DashboardPage() {
-  const { supabase, orgId, isAdmin, userId, profile, can, localDate } = await getPageContext();
+  const { supabase, orgId, isAdmin, userId, profile, can, localDate, timeZone } = await getPageContext();
 
   const data = await getDashboard(supabase, orgId, await getOrgTimezone(supabase, orgId), userId);
   const waiting =
@@ -145,9 +161,14 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1>Welcome, {profile.full_name}</h1>
+        <h1>
+          {greeting(timeZone)}, {firstName(profile.nickname ?? profile.full_name)}{' '}
+          <span className="greeting-wave" aria-hidden>
+            👋
+          </span>
+        </h1>
         <p className="mt-0.5 text-muted">
-          {profile.job_title ?? 'No role yet'} · {monthLabel(data.month)}
+          {profile.job_title ?? 'No role yet'} · {monthLabel(data.month)} · Here&apos;s how things stand today.
         </p>
       </div>
 

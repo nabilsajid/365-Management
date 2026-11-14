@@ -3,13 +3,13 @@
 /* Design tokens. Tailwind turns each --color-* into utilities such as
    bg-primary, text-muted and border-line. */
 @theme {
-  /* Neutral surfaces with one accent: a deep orange, used sparingly (primary
-     buttons, the active sidebar item, money in). Green, amber and red are
-     only ever status colours. */
-  --color-primary: #c2410c;
-  --color-primary-hover: #9a3412;
-  --color-primary-strong: #9a3412;
-  --color-primary-soft: #fff1e6;
+  /* Neutral surfaces with one soft accent: a muted, warm clay orange, used
+     sparingly (primary buttons, the active sidebar item, money in). Green,
+     amber and red are only ever status colours. */
+  --color-primary: #b0643f;
+  --color-primary-hover: #9c5634;
+  --color-primary-strong: #8a4a2c;
+  --color-primary-soft: #f8ece4;
   --color-on-primary: #ffffff;
   --color-sidebar: #1c1c1c;
   --color-sidebar-hover: #2e2e2e;
@@ -35,8 +35,8 @@
   --color-danger-strong: #b91c1c;
   --color-danger-soft: #fef2f2;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --radius-card: 12px;
-  --radius-control: 8px;
+  --radius-card: 14px;
+  --radius-control: 10px;
 }
 
 /* Dark mode: the same tokens with dark values. The toggle in the top bar sets
@@ -49,11 +49,11 @@
   /* Neutral graphite with the same orange accent, a little brighter, and
      dark text on it so it stays easy to read. */
   color-scheme: dark;
-  --color-primary: #f97316;
-  --color-primary-hover: #fb923c;
-  --color-primary-strong: #fdba74;
-  --color-primary-soft: rgb(249 115 22 / 0.14);
-  --color-on-primary: #0a0a0a;
+  --color-primary: #e39a6c;
+  --color-primary-hover: #ebab82;
+  --color-primary-strong: #f0bd9b;
+  --color-primary-soft: rgb(227 154 108 / 0.14);
+  --color-on-primary: #1c1410;
   --color-sidebar: #0f0f0f;
   --color-sidebar-hover: #1f1f1f;
   --color-sidebar-line: #262626;
@@ -81,6 +81,8 @@
   body {
     background: var(--color-page);
     color: var(--color-ink);
+    /* Switching between light and dark fades instead of snapping. */
+    transition: background-color 0.3s ease, color 0.3s ease;
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
@@ -410,7 +412,7 @@
     font-size: 0.8125rem;
     font-weight: 500;
     min-height: 2.25rem;
-    transition: background-color 0.1s, border-color 0.1s, transform 0.1s;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.15s ease-out, box-shadow 0.15s;
     user-select: none;
   }
 
@@ -424,6 +426,7 @@
   .page-header button:hover:not(:disabled) {
     background: var(--color-subtle);
     border-color: var(--color-line-strong);
+    transform: translateY(-1px);
   }
 
   .panel button.primary,
@@ -432,6 +435,7 @@
     background: var(--color-primary);
     border-color: var(--color-primary);
     color: var(--color-on-primary);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
   }
 
   .panel button.primary:hover:not(:disabled),
@@ -439,6 +443,7 @@
   .login-card button.primary:hover:not(:disabled) {
     background: var(--color-primary-hover);
     border-color: var(--color-primary-hover);
+    box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-primary) 55%, transparent);
   }
 
   .panel button.danger,
@@ -1780,6 +1785,44 @@
     opacity: 0.07;
   }
 
+  /* The active sidebar item: a soft warm tint with a small marker, not a solid block. */
+  .nav-active {
+    background: rgb(227 154 108 / 0.14);
+    color: #f3c3a3;
+  }
+
+  .nav-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 22%;
+    bottom: 22%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: #e39a6c;
+    animation: nav-mark 0.25s ease-out both;
+  }
+
+  .nav-active:hover {
+    color: #f7d4bd;
+  }
+
+  /* Panels and cards ease in softly, and panels respond a little to the pointer. */
+  .panel {
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .panel:hover {
+    border-color: var(--color-line-strong);
+  }
+
+  /* Friendly greeting line under the page title. */
+  .greeting-wave {
+    display: inline-block;
+    transform-origin: 70% 70%;
+    animation: wave 1.6s ease-in-out 0.4s 1 both;
+  }
+
   /* Project comments. */
   .comments {
     display: grid;
@@ -1873,6 +1916,33 @@
   to {
     transform: scaleX(1);
     opacity: 0;
+  }
+}
+
+@keyframes nav-mark {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes wave {
+  0%, 60%, 100% {
+    transform: rotate(0deg);
+  }
+  10%, 30% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(10deg);
   }
 }
 
