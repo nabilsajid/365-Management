@@ -4,6 +4,7 @@ import { Search, Check, ChevronDown, ChevronRight, CircleUserRound, LogOut, Menu
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SearchBox } from '@/components/search-box';
 import { AppInstall } from '@/components/app-install';
 import { NavProgress } from '@/components/nav-progress';
 import { RolePreviewBar } from '@/components/role-preview';
@@ -511,10 +512,7 @@ export function AppShell({
               <span className="font-medium text-ink">365 Management</span>
             )}
           </nav>
-          <form action="/search" role="search" className="topbar-search">
-            <Search size={15} aria-hidden />
-            <input name="q" placeholder="Search" aria-label="Search projects, tasks, clients and people" />
-          </form>
+          <SearchBox />
           <Link href="/search" aria-label="Search" className="topbar-search-icon">
             <Search size={18} aria-hidden />
           </Link>

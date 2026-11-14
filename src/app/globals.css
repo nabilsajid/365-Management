@@ -2986,3 +2986,103 @@
     min-height: 2.75rem;
   }
 }
+
+/* Suggestions under the top-bar search while typing. */
+.topbar-search {
+  position: relative;
+}
+.search-suggest {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  width: max(100%, 22rem);
+  max-height: min(70vh, 30rem);
+  overflow-y: auto;
+  z-index: 40;
+  padding: 0.35rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card, 12px);
+  background: var(--color-card);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.35);
+  animation: suggest-in 0.12s ease-out;
+}
+.search-suggest-title {
+  margin: 0.4rem 0.6rem 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.search-suggest button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: transparent;
+  color: var(--color-ink);
+  text-align: left;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.search-suggest button svg {
+  flex: none;
+  color: var(--color-muted);
+}
+.search-suggest button.active {
+  background: var(--color-subtle);
+}
+.search-suggest-text {
+  display: grid;
+  min-width: 0;
+}
+.search-suggest-text > span,
+.search-suggest-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-suggest-text small {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+.search-suggest-empty {
+  margin: 0;
+  padding: 0.75rem 0.6rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.search-suggest .search-suggest-all {
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--color-line);
+  border-radius: 0;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+.search-suggest mark,
+.search-results mark {
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-primary) 60%, transparent);
+  text-underline-offset: 2px;
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes suggest-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
