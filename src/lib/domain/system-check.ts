@@ -39,4 +39,4 @@ export const DATABASE_UPDATES: UpdateCheck[] = [
 ];
 
 /** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */
-export const UNCHECKABLE = ['20261112000011_task_points_sync.sql', '20261112000023_quieter_live_updates.sql'];
+export const UNCHECKABLE = ['20261112000011_task_points_sync.sql', '20261112000023_quieter_live_updates.sql', '20261112000030_company_name.sql'];
