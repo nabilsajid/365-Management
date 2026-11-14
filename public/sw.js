@@ -50,7 +50,10 @@ function pageFreshFirst(request, key) {
         if (response.ok && !response.redirected && response.type === 'basic' && html) cache.put(key, response.clone());
         return response;
       });
-      const fallback = () => saved || caches.match('/offline.html');
+      // No copy of this exact address (a different tab or filter): the same page saved
+      // with any other filter is better than nothing.
+      const fallback = () =>
+        saved || cache.match(key, { ignoreSearch: true }).then((other) => other || caches.match('/offline.html'));
       if (!saved) return fromNetwork.catch(fallback);
       // With a saved copy in hand, a connection that hangs is not waited on forever.
       const tooSlow = new Promise((resolve) => setTimeout(() => resolve(saved), 7000));

@@ -793,6 +793,11 @@
     background: var(--tone, var(--color-primary));
   }
 
+  /* Coloured text for a number that carries a tone, such as points achieved. */
+  .tone-text {
+    color: color-mix(in srgb, var(--tone) 82%, var(--color-ink));
+  }
+
   /* A brief glow when something significant happens, such as reaching the points target. */
   .celebrate {
     animation: celebrate 1.3s ease-out 2;

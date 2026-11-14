@@ -2,13 +2,14 @@
 
 import { Check, Target } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { pointsTone, targetPercent } from '@/lib/domain/tone';
 import { cn } from '@/lib/utils';
 import { CountUp } from './count-up';
 
 /**
- * The viewer's points for the month against the target. Subtly red below the
+ * The viewer's points for the month against the target. The box itself stays
+ * neutral; only the points and the progress bar are coloured: red below the
  * mark, yellow when close, green once reached. The first time the target is
  * seen as reached in a month, the tile celebrates briefly.
  */
@@ -42,13 +43,15 @@ export function PointsTile({ points, target, month, className }: { points: numbe
   const remaining = Math.max(0, target - points);
 
   return (
-    <Link href="/employees" className={cn('tile', `tone-${tone}`, celebrate && 'celebrate', className)}>
+    <Link href="/employees" className={cn('tile', celebrate && 'celebrate', className)} style={celebrate ? ({ '--tone': `var(--color-${tone === 'green' ? 'success' : tone === 'yellow' ? 'warning' : 'danger'})` } as CSSProperties) : undefined}>
       <div className="flex items-center justify-between">
         <p className="tile-label">My points this month</p>
         <span className="tile-icon">{reached ? <Check size={16} aria-hidden className={celebrate ? 'pop' : undefined} /> : <Target size={16} aria-hidden />}</span>
       </div>
       <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-        <CountUp value={points} />
+        <span className={cn(`tone-${tone}`, 'tone-text')}>
+          <CountUp value={points} />
+        </span>
         <span className="ml-1.5 text-base font-medium text-muted">/ {target.toLocaleString('en-US')}</span>
       </p>
       <div
@@ -57,7 +60,7 @@ export function PointsTile({ points, target, month, className }: { points: numbe
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        className="mt-3 h-2 w-full overflow-hidden rounded-full bg-subtle"
+        className={cn('mt-3 h-2 w-full overflow-hidden rounded-full bg-subtle', `tone-${tone}`)}
       >
         <div className="tone-bar h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${filled}%` }} />
       </div>

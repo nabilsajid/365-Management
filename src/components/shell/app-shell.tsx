@@ -332,6 +332,82 @@ export function AppShell({
     });
   }
 
+  // Swiping the side panel open and closed on phones. While a finger is on the
+  // screen, `drag` is how far open the panel is (0 closed, 1 open) and the
+  // panel follows the finger; on release it settles open or closed.
+  const [drag, setDrag] = useState<number | null>(null);
+  const openRef = useRef(mobileOpen);
+  openRef.current = mobileOpen;
+
+  useEffect(() => {
+    const PANEL = () => Math.min(270, window.innerWidth * 0.85);
+    let start: { x: number; y: number; t: number; open: boolean } | null = null;
+    let decided: 'swipe' | 'scroll' | null = null;
+    let progress = 0;
+
+    // A sideways swipe inside something that scrolls sideways (a board, a wide
+    // table) scrolls it, unless it is already at its left edge.
+    const scrollsSideways = (target: EventTarget | null) => {
+      for (let el = target as HTMLElement | null; el && el !== document.body; el = el.parentElement) {
+        if (el.matches?.('input, textarea, select, [contenteditable="true"]')) return true;
+        const style = window.getComputedStyle(el);
+        if ((style.overflowX === 'auto' || style.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1 && el.scrollLeft > 0) return true;
+      }
+      return false;
+    };
+
+    const onStart = (event: TouchEvent) => {
+      if (window.innerWidth >= 1024 || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const open = openRef.current;
+      if (!open && scrollsSideways(event.target)) return;
+      start = { x: touch.clientX, y: touch.clientY, t: Date.now(), open };
+      decided = null;
+      progress = open ? 1 : 0;
+    };
+    const onMove = (event: TouchEvent) => {
+      if (!start) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+      if (!decided) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        // Mostly sideways, and in the direction that makes sense: right to open, left to close.
+        const sideways = Math.abs(dx) > Math.abs(dy) * 1.3;
+        decided = sideways && (start.open ? dx < 0 : dx > 0) ? 'swipe' : 'scroll';
+        if (decided === 'scroll') {
+          start = null;
+          return;
+        }
+      }
+      event.preventDefault();
+      progress = Math.max(0, Math.min(1, (start.open ? 1 : 0) + dx / PANEL()));
+      setDrag(progress);
+    };
+    const onEnd = () => {
+      if (!start || decided !== 'swipe') {
+        start = null;
+        return;
+      }
+      const fast = Date.now() - start.t < 250;
+      const open = start.open ? progress > (fast ? 0.85 : 0.6) : progress > (fast ? 0.15 : 0.35);
+      start = null;
+      setMobileOpen(open);
+      setDrag(null);
+    };
+
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
+
   // Close the mobile menu on navigation and on Escape.
   useEffect(() => setMobileOpen(false), [pathname]);
   useEffect(() => {
@@ -380,15 +456,19 @@ export function AppShell({
       </aside>
 
       {/* Mobile drawer */}
-      {mobileOpen ? (
+      {mobileOpen || drag !== null ? (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <button
             type="button"
             aria-label="Close navigation"
-            className="fade-in absolute inset-0 h-full w-full cursor-default bg-slate-950/60"
+            className={cn('absolute inset-0 h-full w-full cursor-default bg-slate-950/60', drag === null && 'fade-in')}
+            style={drag === null ? undefined : { opacity: drag }}
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="drawer-in relative flex h-full w-[270px] max-w-[85vw] flex-col bg-sidebar">
+          <aside
+            className={cn('relative flex h-full w-[270px] max-w-[85vw] flex-col bg-sidebar', drag === null && 'drawer-in')}
+            style={drag === null ? undefined : { transform: `translateX(${(drag - 1) * 100}%)` }}
+          >
             <Brand orgName={orgName} collapsed={false} />
             <button
               type="button"
