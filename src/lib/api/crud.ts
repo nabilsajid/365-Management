@@ -56,6 +56,11 @@ export interface ResourceConfig {
   onUpdate?: (ctx: ApiContext, data: Row) => Row;
   /** Values the server fixes on a proposed new record before it is stored for approval. */
   onPropose?: (ctx: ApiContext, data: Row) => Row;
+  /**
+   * For people whose changes normally wait for approval: true lets this one
+   * apply straight away (for example a cost under the company's limit).
+   */
+  directWhen?: (ctx: ApiContext, data: Row) => boolean | Promise<boolean>;
   /** The table has an approved_by column, filled when an admin approves someone's request. */
   recordsApprover?: boolean;
   /**
@@ -190,7 +195,8 @@ export function makeCrud(getContext: ContextProvider) {
 
       const body = await readJson(request, config.createSchema);
       if (body.response) return body.response;
-      const mode = await settle(config, ctx, auth.mode, body.data as Row);
+      let mode = await settle(config, ctx, auth.mode, body.data as Row);
+      if (mode === 'propose' && config.directWhen && (await config.directWhen(ctx, body.data as Row))) mode = 'apply';
 
       if (mode === 'propose') {
         const input: Row = { ...(body.data as Row), ...(config.onPropose ? config.onPropose(ctx, body.data as Row) : {}) };

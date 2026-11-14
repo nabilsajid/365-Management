@@ -1,8 +1,8 @@
 import {
   ClipboardCheck,
-  History,
-  Palette,
+  Settings,
   ContactRound,
+  Plane,
   Inbox,
   Megaphone,
   ShieldCheck,
@@ -61,6 +61,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: '/employees', label: 'Employees & Rewards', icon: Users },
       { href: '/profile', label: 'Profiles & Contacts', icon: ContactRound },
+      { href: '/leave', label: 'Leave', icon: Plane },
     ],
   },
   {
@@ -69,8 +70,7 @@ const GROUPS: NavGroup[] = [
       { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, adminOnly: true },
       { href: '/requests', label: 'My Requests', icon: Inbox, nonAdminOnly: true },
       { href: '/roles', label: 'Roles & Access', icon: ShieldCheck, adminOnly: true },
-      { href: '/delete-log', label: 'Delete Log', icon: History, adminOnly: true },
-      { href: '/appearance', label: 'Appearance', icon: Palette, adminOnly: true },
+      { href: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
     ],
   },
 ];

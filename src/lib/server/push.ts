@@ -1,4 +1,5 @@
 import { createPrivateKey, sign, type KeyObject } from 'node:crypto';
+import { wants } from '@/lib/domain/notification-kind';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Web Push without a message body: the push only wakes the device, which then
@@ -87,16 +88,22 @@ export async function dispatchPushes(): Promise<void> {
     const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const waiting = await admin
       .from('notifications')
-      .select('id, profile_id')
+      .select('id, profile_id, href')
       .is('pushed_at', null)
       .is('read_at', null)
       .gte('created_at', since)
       .limit(200);
-    const rows = (waiting.data ?? []) as { id: string; profile_id: string }[];
+    let rows = (waiting.data ?? []) as { id: string; profile_id: string; href: string | null }[];
     if (waiting.error || rows.length === 0) return;
 
     // Marked first, so two requests finishing together do not push twice.
     await admin.from('notifications').update({ pushed_at: new Date().toISOString() }).in('id', rows.map((row) => row.id));
+
+    // Only the kinds each person wants pushed to their devices.
+    const owners = [...new Set(rows.map((row) => row.profile_id))];
+    const prefsResult = await admin.from('profiles').select('id, notify_prefs').in('id', owners);
+    const prefs = new Map(((prefsResult.data ?? []) as { id: string; notify_prefs?: unknown }[]).map((row) => [row.id, row.notify_prefs]));
+    rows = rows.filter((row) => wants(prefs.get(row.profile_id), row.href));
 
     const people = [...new Set(rows.map((row) => row.profile_id))];
     const devices = await admin.from('push_subscriptions').select('id, endpoint').in('profile_id', people);

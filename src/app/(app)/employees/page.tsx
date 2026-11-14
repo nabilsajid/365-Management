@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { GivePointsForm } from '@/components/give-points-form';
 import { MonthPicker } from '@/components/month-picker';
+import { pointsStatement } from '@/lib/domain/points-statement';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { dateInZone, monthStart, nextMonth, parseMonth } from '@/lib/domain/points';
@@ -51,7 +52,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const canGivePoints = editsTeamPoints;
 
   // Everything the page needs is fetched in one parallel round.
-  const [rules, peopleR, attendanceR, entriesR, violationsR, settingsR, bonusesR, rolesR, heldR, totalsR] = await Promise.all([
+  const [rules, peopleR, attendanceR, entriesR, violationsR, settingsR, bonusesR, rolesR, heldR, totalsR, leaveR] = await Promise.all([
     getPointRules(supabase, orgId),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('attendance').select('*').eq('org_id', orgId).gte('work_date', month).lt('work_date', nextMonth(month)).order('work_date', { ascending: false }),
@@ -62,7 +63,10 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
     supabase.from('roles').select('*').eq('org_id', orgId).order('name'),
     supabase.from('profile_roles').select('*').eq('org_id', orgId),
     supabase.from('monthly_points').select('*').eq('org_id', orgId).eq('period_month', month),
+    // Approved leave overlapping this month, shown next to attendance.
+    supabase.from('leave_requests').select('*').eq('org_id', orgId).eq('status', 'approved').lte('start_date', nextMonth(month)).gte('end_date', month),
   ]);
+  const onLeave = rowsOf<{ id: string; employee_id: string; start_date: string; end_date: string; reason: string }>(leaveR.data);
   const people = rowsOf<Profile>(peopleR.data);
   const attendance = rowsOf<Attendance>(attendanceR.data);
   const entries = rowsOf<PointEntry>(entriesR.data);
@@ -76,6 +80,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   // Other people's points are only for roles that include the team points segment.
   if (!seesTeamPoints) summary = summary.filter((row) => row.employee_id === userId);
 
+  const statement = pointsStatement(entries);
   const person = new Map(people.map((profile) => [profile.id, profile]));
   const nameOf = (id: string | null) => (id ? (person.get(id)?.full_name ?? '—') : null);
   const staff = peopleOptions(people);
@@ -206,6 +211,49 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             </div>
           </section>
 
+          <section className="panel">
+            <header className="panel-header">
+              <div>
+                <h2>{seesTeamPoints ? 'Where the points came from' : 'Where my points came from'}</h2>
+                <p className="muted">Every point this month, split by its source. The full list is below.</p>
+              </div>
+            </header>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th className="num">Attendance</th>
+                    <th className="num">Tasks</th>
+                    <th className="num">Projects</th>
+                    <th className="num">Given</th>
+                    <th className="num">Deducted</th>
+                    <th className="num">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.map((row) => {
+                    const parts = statement.get(row.employee_id) ?? { attendance: 0, tasks: 0, projects: 0, given: 0, deducted: 0, total: 0 };
+                    const show = (value: number) => (value === 0 ? '—' : value.toLocaleString('en-US'));
+                    return (
+                      <tr key={row.employee_id}>
+                        <td>{row.full_name}</td>
+                        <td className="num">{show(parts.attendance)}</td>
+                        <td className="num">{show(parts.tasks)}</td>
+                        <td className="num">{show(parts.projects)}</td>
+                        <td className="num">{show(parts.given)}</td>
+                        <td className="num">{show(parts.deducted)}</td>
+                        <td className="num">
+                          <strong>{parts.total.toLocaleString('en-US')}</strong>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
           <ResourceManager
             title={seesTeamPoints ? 'Point history' : 'My point history'}
             description={
@@ -249,6 +297,30 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
 
       {tab === 'attendance' ? (
         <>
+          {onLeave.length > 0 ? (
+            <section className="panel">
+              <header className="panel-header">
+                <div>
+                  <h2>On leave this month</h2>
+                  <p className="muted">Approved leave. No attendance is expected on these days.</p>
+                </div>
+              </header>
+              <ul className="message-list">
+                {onLeave.map((leave) => (
+                  <li key={leave.id} className="message">
+                    <div className="min-w-0 flex-1">
+                      <p className="message-meta">
+                        <strong>{nameOf(leave.employee_id)}</strong>
+                      </p>
+                      <p className="message-body">
+                        {leave.start_date === leave.end_date ? leave.start_date : `${leave.start_date} to ${leave.end_date}`} · {leave.reason}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <section className="panel">
             <header className="panel-header">
               <div>

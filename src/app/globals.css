@@ -1939,6 +1939,53 @@
     overflow-wrap: anywhere;
   }
 
+  /* System check: one line per update or setting. */
+  .check-list {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .check-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    font-size: 0.8125rem;
+  }
+
+  .check-list li > svg {
+    flex-shrink: 0;
+    color: var(--color-success);
+  }
+
+  .check-list li.check-missing > svg {
+    color: var(--color-danger);
+  }
+
+  .check-list li > span:nth-child(2) {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    gap: 0.1rem;
+  }
+
+  .check-list code {
+    color: var(--color-muted);
+    font-size: 0.7rem;
+    overflow-wrap: anywhere;
+  }
+
+  .switch-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
   /* Project comments. */
   .comments {
     display: grid;

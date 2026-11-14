@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ApiForm, ResourceManager } from '@/components/resource-manager';
 import { DeviceAlerts } from '@/components/device-alerts';
+import { NotifySettings } from '@/components/notify-settings';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { SetPassword } from '@/components/set-password';
 import type { Field } from '@/components/types';
@@ -144,6 +145,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           }}
         />
       </section>
+      ) : null}
+
+      {tab === 'me' && 'notify_prefs' in profile ? (
+        <NotifySettings initial={(profile as { notify_prefs?: Record<string, boolean> }).notify_prefs ?? {}} isAdmin={isAdmin} />
       ) : null}
 
       {tab === 'me' ? <DeviceAlerts serverReady={pushConfigured()} isAdmin={isAdmin} /> : null}

@@ -781,10 +781,10 @@ select pg_temp.check(
   (select count(*) = 1 and bool_and(table_name = 'projects' and label = 'To be removed' and deleted_by = auth.uid()) from delete_log),
   'a delete is logged once, with what it was and who did it');
 reset role;
-update delete_log set deleted_at = now() - interval '4 days';
+update delete_log set deleted_at = now() - interval '31 days';
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
-select pg_temp.check((select count(*) = 0 from delete_log), 'the log shows only the last 3 days');
+select pg_temp.check((select count(*) = 0 from delete_log), 'the log shows only the company''s chosen period (30 days by default)');
 insert into notices (org_id, title) values ('00000000-0000-0000-0000-000000000001', 'Short lived');
 delete from notices where title = 'Short lived';
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
@@ -877,6 +877,65 @@ insert into expenses (id, org_id, category, description, amount) values
 select pg_temp.check(
   (select account_id is not null from expenses where id = '00000000-0000-0000-0000-00000000ee01'),
   'an expense with no account is taken from the main account');
+
+-- Company rules, notification settings and leave.
+reset role;
+delete from profile_roles where profile_id = '00000000-0000-0000-0000-0000000000e2';
+insert into roles (id, org_id, name, permissions, edit_permissions) values
+  ('00000000-0000-0000-0000-00000000aa05', '00000000-0000-0000-0000-000000000001', 'Cost keeper', '{costs}', '{costs}');
+insert into profile_roles (profile_id, role_id, org_id) values
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-00000000aa05', '00000000-0000-0000-0000-000000000001');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+do $$ begin
+  insert into expenses (org_id, category, description, amount, created_by, trip_origin, trip_destination)
+  values ('00000000-0000-0000-0000-000000000001', 'transport', 'Taxi', 300, auth.uid(), 'Office', 'Client');
+  raise exception 'FAILED: a cost was applied without approval while the limit is 0';
+exception when insufficient_privilege then raise notice 'ok - with no limit set, every cost waits for approval';
+end $$;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+update organizations set auto_approve_limit = 500, delete_log_days = 30 where id = current_org_id();
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+insert into expenses (org_id, category, description, amount, created_by, traveler_id, trip_origin, trip_destination)
+values ('00000000-0000-0000-0000-000000000001', 'transport', 'Taxi', 300, auth.uid(), auth.uid(), 'Office', 'Client');
+select pg_temp.check((select count(*) = 1 from expenses where description = 'Taxi' and amount = 300), 'a cost under the limit applies straight away');
+do $$ begin
+  insert into expenses (org_id, category, description, amount, created_by)
+  values ('00000000-0000-0000-0000-000000000001', 'general', 'Software', 900, auth.uid());
+  raise exception 'FAILED: a cost over the limit was applied';
+exception when insufficient_privilege then raise notice 'ok - a cost over the limit still waits for approval';
+end $$;
+do $$ begin
+  insert into expenses (org_id, category, description, amount, created_by)
+  values ('00000000-0000-0000-0000-000000000001', 'equipment', 'Cable', 50, auth.uid());
+  raise exception 'FAILED: an equipment purchase skipped approval';
+exception when insufficient_privilege then raise notice 'ok - equipment purchases always wait for approval';
+end $$;
+
+select set_my_notify_prefs('{"updates": false, "hacked": true, "approvals": "no"}');
+select pg_temp.check(
+  (select notify_prefs = '{"updates": false}'::jsonb from profiles where id = auth.uid()),
+  'a person keeps only real notification settings, for themselves');
+
+insert into leave_requests (id, org_id, employee_id, start_date, end_date, reason)
+values ('00000000-0000-0000-0000-00000000ac01', '00000000-0000-0000-0000-000000000001', auth.uid(), '2026-12-01', '2026-12-03', 'Family visit');
+do $$
+declare n integer;
+begin
+  update leave_requests set status = 'approved' where id = '00000000-0000-0000-0000-00000000ac01';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAILED: an employee approved their own leave'; end if;
+  raise notice 'ok - an employee cannot approve their own leave';
+end $$;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from leave_requests), 'waiting leave is private to the person and those who manage the team');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select pg_temp.check((select count(*) >= 1 from notifications where title like 'Leave requested by%'), 'admins are told about a leave request');
+update leave_requests set status = 'approved', decided_by = auth.uid(), decided_at = now() where id = '00000000-0000-0000-0000-00000000ac01';
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 1 from leave_requests where status = 'approved'), 'approved leave is visible to everyone, for the calendar');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+select pg_temp.check((select count(*) = 1 from notifications where title = 'Your leave was approved'), 'the person is told their leave was approved');
 
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;

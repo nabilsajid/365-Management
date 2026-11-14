@@ -88,8 +88,21 @@ export const expenses: ResourceConfig = {
   updateSchema: v.expenseUpdate,
   filters: ['category', 'account_id', 'fixed_expense_id'],
   orderBy: { column: 'expense_date', ascending: false },
-  onCreate: (ctx) => ({ created_by: ctx.userId }),
+  onCreate: (ctx, data) => ({
+    created_by: ctx.userId,
+    // Only an admin chooses who travelled.
+    ...(ctx.profile.access_role !== 'admin' && data.category === 'transport' ? { traveler_id: ctx.userId } : {}),
+  }),
   recordsApprover: true,
+  // Small costs skip approval: up to the amount an admin set under Settings, Rules.
+  // Equipment purchases always wait. The database checks the same rule.
+  directWhen: async (ctx, data) => {
+    const amount = Number(data.amount);
+    if (data.category === 'equipment' || !Number.isFinite(amount) || amount <= 0) return false;
+    const { data: org, error } = await ctx.supabase.from('organizations').select('*').eq('id', ctx.profile.org_id).maybeSingle();
+    const limit = Number((org as { auto_approve_limit?: number | string } | null)?.auto_approve_limit ?? 0);
+    return !error && limit > 0 && amount <= limit;
+  },
   // Only an admin chooses who travelled. A trip anyone else records is their own.
   onPropose: (ctx, data) => (data.category === 'transport' ? { traveler_id: ctx.userId } : {}),
 };

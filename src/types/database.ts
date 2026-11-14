@@ -38,6 +38,21 @@ export interface Profile {
   contact?: string | null;
   /** Set the first time a person fills in their profile; empty means they have not yet. */
   profile_completed_at?: string | null;
+  /** Which kinds of notification the person wants; missing kinds are on. */
+  notify_prefs?: Record<string, boolean>;
+}
+
+export interface LeaveRequest {
+  id: string;
+  org_id: string;
+  employee_id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'denied';
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
 }
 
 /** Private details: visible to the person themselves and to admins only. */

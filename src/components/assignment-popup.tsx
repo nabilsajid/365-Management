@@ -17,6 +17,7 @@ function sectionOf(href: string | null): { href: string; label: string } {
   if (path.startsWith('/approvals') || path.includes('#award')) return { href: '/approvals', label: 'Open Approvals' };
   if (path.startsWith('/updates')) return { href: path.includes('tab=messages') ? '/updates?tab=messages' : path.includes('tab=broadcasts') ? '/updates?tab=broadcasts' : '/updates', label: 'Open Updates' };
   if (path.startsWith('/tasks') || path.startsWith('/projects')) return { href: '/my-tasks', label: 'Open My Tasks' };
+  if (path.startsWith('/leave')) return { href: '/leave', label: 'Open Leave' };
   return { href: path || '/dashboard', label: 'Open' };
 }
 

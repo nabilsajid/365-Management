@@ -1,0 +1,39 @@
+// The database updates, in order, and one thing each adds that can be looked
+// for. Used by the System check page to show which have been run.
+
+export interface UpdateCheck {
+  file: string;
+  adds: string;
+  table: string;
+  column: string;
+}
+
+export const DATABASE_UPDATES: UpdateCheck[] = [
+  { file: '20261112000001_core.sql', adds: 'Projects, clients and tasks', table: 'projects', column: 'id' },
+  { file: '20261112000002_logistics.sql', adds: 'Equipment', table: 'equipment', column: 'id' },
+  { file: '20261112000003_cashflow_logistics.sql', adds: 'Cash flow and costs', table: 'expenses', column: 'id' },
+  { file: '20261112000004_rewards.sql', adds: 'Points and bonuses', table: 'point_entries', column: 'id' },
+  { file: '20261112000005_access.sql', adds: 'Access rules', table: 'organizations', column: 'id' },
+  { file: '20261112000006_roles.sql', adds: 'Roles as tags', table: 'roles', column: 'permissions' },
+  { file: '20261112000007_broadcasts_logistics.sql', adds: 'Broadcasts and needed items', table: 'broadcasts', column: 'id' },
+  { file: '20261112000008_project_team_links.sql', adds: 'Project teams and links', table: 'project_members', column: 'profile_id' },
+  { file: '20261112000009_change_requests_role_colors.sql', adds: 'Approvals for changes', table: 'change_requests', column: 'id' },
+  { file: '20261112000010_attendance_times.sql', adds: 'Entry and exit times', table: 'attendance', column: 'check_in' },
+  { file: '20261112000012_password_requests.sql', adds: 'Forgotten-password requests', table: 'password_requests', column: 'id' },
+  { file: '20261112000013_profiles_notices.sql', adds: 'Profiles and announcements', table: 'notices', column: 'id' },
+  { file: '20261112000014_login_details.sql', adds: 'Login details', table: 'profile_credentials', column: 'profile_id' },
+  { file: '20261112000015_trip_purpose.sql', adds: 'What a trip was for', table: 'expenses', column: 'purpose' },
+  { file: '20261112000016_project_comments.sql', adds: 'Project comments', table: 'project_comments', column: 'id' },
+  { file: '20261112000017_view_edit_access.sql', adds: 'View or edit access', table: 'roles', column: 'edit_permissions' },
+  { file: '20261112000018_deliverable_types_shoot.sql', adds: 'Deliverable types and shoots', table: 'tasks', column: 'kind' },
+  { file: '20261112000019_project_rules_notifications.sql', adds: 'Notifications', table: 'notifications', column: 'id' },
+  { file: '20261112000020_delete_log_role_preview.sql', adds: 'Delete log and "view as a role"', table: 'delete_log', column: 'id' },
+  { file: '20261112000021_device_alerts.sql', adds: 'Alerts on devices', table: 'push_subscriptions', column: 'id' },
+  { file: '20261112000022_live_updates_alerts.sql', adds: 'Live updates and project points', table: 'org_activity', column: 'version' },
+  { file: '20261112000024_appearance.sql', adds: 'Appearance', table: 'organizations', column: 'appearance' },
+  { file: '20261112000025_updates_messages.sql', adds: 'Personal messages', table: 'broadcasts', column: 'recipient_id' },
+  { file: '20261112000026_rules_leave_notifications.sql', adds: 'Rules, leave and notification settings', table: 'leave_requests', column: 'id' },
+];
+
+/** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */
+export const UNCHECKABLE = ['20261112000011_task_points_sync.sql', '20261112000023_quieter_live_updates.sql'];

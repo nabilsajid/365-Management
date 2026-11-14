@@ -10,7 +10,7 @@ import { toast } from './resource-manager';
 const KEEP = [
   '/dashboard', '/updates', '/updates?tab=broadcasts', '/updates?tab=messages', '/projects', '/projects?view=list', '/my-tasks', '/my-tasks?view=list',
   '/cashflow', '/logistics', '/employees', '/profile', '/profile?tab=me', '/profile?tab=team', '/approvals', '/requests',
-  '/roles', '/delete-log',
+  '/roles', '/settings', '/leave',
 ];
 const KEEP_EVERY = 30 * 60 * 1000;
 const KEPT_KEY = 'offline-kept-at';

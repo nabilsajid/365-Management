@@ -18,7 +18,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const { supabase, orgId, isAdmin, localDate, localDateTime } = await getPageContext();
   if (!isAdmin) redirect('/dashboard');
 
-  const [submissionsR, attendanceR, bonusesR, peopleR, tasksR, changesR, passwordsR, ...namedR] = await Promise.all([
+  const [submissionsR, attendanceR, bonusesR, peopleR, tasksR, changesR, passwordsR, leaveR, ...namedR] = await Promise.all([
     supabase.from('task_submissions').select('*').eq('org_id', orgId).eq('review_status', 'pending').order('created_at'),
     month
       ? supabase.from('attendance').select('*').eq('org_id', orgId).eq('status', 'pending').gte('work_date', month).lt('work_date', nextMonth(month)).order('work_date')
@@ -28,6 +28,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     supabase.from('tasks').select('id, title').eq('org_id', orgId),
     supabase.from('change_requests').select('*').eq('org_id', orgId).eq('status', 'pending').order('created_at'),
     supabase.from('password_requests').select('*').eq('org_id', orgId).eq('status', 'pending').order('created_at'),
+    supabase.from('leave_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
     // Names for the ids a change request can mention.
     supabase.from('projects').select('*').eq('org_id', orgId),
     supabase.from('clients').select('id, name').eq('org_id', orgId),
@@ -46,6 +47,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const finished = rowsOf<{ id: string; name: string; status: string; points_awarded_at?: string | null }>(namedR[0]?.data).filter(
     (project) => project.status === 'completed' && 'points_awarded_at' in project && !project.points_awarded_at,
   );
+  const leaveWaiting = rowsOf<{ id: string }>(leaveR.data).length;
   const changes = rowsOf<ChangeRequest>(changesR.data);
   const passwordRows = rowsOf<PasswordRequest>(passwordsR.data).map((row) => ({
     id: row.id,
@@ -88,6 +90,20 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
       </div>
 
       {passwordRows.length > 0 ? <PasswordRequests rows={passwordRows} /> : null}
+
+      {leaveWaiting > 0 ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>
+                Leave requests <span className="count">{leaveWaiting}</span>
+              </h2>
+              <p className="muted">Approve or deny them on the Leave page.</p>
+            </div>
+            <Link href="/leave">Open Leave</Link>
+          </header>
+        </section>
+      ) : null}
 
       {finished.length > 0 ? (
         <section className="panel">

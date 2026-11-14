@@ -7,6 +7,7 @@ import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { ApiForm } from '@/components/resource-manager';
 import { AppShell } from '@/components/shell/app-shell';
 import { appearanceCss } from '@/lib/domain/appearance';
+import { wants } from '@/lib/domain/notification-kind';
 import { getPageContext } from '@/lib/page';
 import { dispatchPushes, pushConfigured } from '@/lib/server/push';
 
@@ -28,6 +29,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           supabase.from('password_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
           // Finished projects whose team has not been given points yet.
           supabase.from('projects').select('id').eq('org_id', orgId).eq('status', 'completed').is('points_awarded_at', null),
+          supabase.from('leave_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
         ])
       : Promise.resolve([]),
     // New assignments, shown in a pop-up until the person has seen them.
@@ -36,7 +38,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     supabase.from('organizations').select('appearance').eq('id', orgId).maybeSingle(),
   ]);
   const lookCss = !look.error && look.data?.appearance && Object.keys(look.data.appearance).length > 0 ? appearanceCss(look.data.appearance) : null;
-  const notifications = ((unread.data ?? []) as NotificationItem[]);
+  // Only the kinds this person wants; they choose under Profiles & Contacts, My profile.
+  const prefs = (profile as { notify_prefs?: unknown }).notify_prefs;
+  const notifications = ((unread.data ?? []) as NotificationItem[]).filter((item) => wants(prefs, item.href));
 
   // Whatever anyone just did may have created notifications; send them to people's devices once this page is out.
   if (pushConfigured()) after(dispatchPushes);

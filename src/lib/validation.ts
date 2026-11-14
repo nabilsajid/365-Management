@@ -400,3 +400,28 @@ export const appearanceUpdate = z
     glow: z.boolean(),
   })
   .partial();
+
+// An admin changes the company rules.
+export const orgRulesUpdate = z
+  .object({
+    auto_approve_limit: z.coerce.number().min(0, 'Use 0 or more.').max(100000000),
+    delete_log_days: z.coerce.number().int('Use whole days.').min(1, 'At least 1 day.').max(365, 'At most 365 days.'),
+  })
+  .partial();
+
+// Someone asks for leave.
+export const leaveCreate = z
+  .object({
+    start_date: date,
+    end_date: date,
+    reason: z.string().trim().min(1, 'Say what the leave is for.').max(500),
+  })
+  .refine((value) => value.end_date >= value.start_date, { message: 'The last day cannot be before the first.', path: ['end_date'] });
+export const leaveDecision = z.object({ status: z.enum(['approved', 'denied']) });
+
+// Which kinds of notification a person wants.
+export const notifyPrefs = z.object({
+  assignments: z.boolean(),
+  updates: z.boolean(),
+  approvals: z.boolean(),
+});
