@@ -1,0 +1,40 @@
+# Signs in to a test copy of the app and opens the main pages in a real
+# browser. Off until these secrets point at a separate test (staging) setup —
+# never the live company data:
+#   E2E_BASE_URL   – e.g. the Vercel preview or staging address
+#   E2E_EMAIL, E2E_PASSWORD – a test admin account on the staging Supabase project
+name: Browser tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - name: Skip when not set up
+        id: ready
+        run: |
+          if [ -z "$E2E_BASE_URL" ] || [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ]; then
+            echo "Browser test secrets are not set; nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - if: steps.ready.outputs.go == 'true'
+        run: |
+          npm install --no-save @playwright/test@1.49.1
+          npx playwright install --with-deps chromium
+      - if: steps.ready.outputs.go == 'true'
+        run: npx playwright test

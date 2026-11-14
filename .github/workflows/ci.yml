@@ -1,0 +1,52 @@
+# Checks every push and pull request: types, unit tests, a production build,
+# and the database rules (all migrations applied to a fresh PostgreSQL, then
+# tests/db/smoke.sql). Nothing here touches the live database.
+name: Checks
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          # Placeholders: the build only needs the values to exist.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply the migrations in order
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f tests/db/supabase-stub.sql
+          for file in $(ls supabase/migrations/*.sql | sort); do
+            echo "Applying $file"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$file" > /dev/null
+          done
+      - run: npm run test:db

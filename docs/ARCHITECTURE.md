@@ -213,3 +213,16 @@ Notices and broadcasts share one page, `/updates`, with three tabs: Announcement
 - `/search` (and the box in the top bar) looks for projects, tasks, clients, people and announcements by name. Row level security decides what each person can find.
 - `task_comments` hold comments on a task. A database trigger notifies anyone mentioned as `@FirstName` or `@nickname`, and the assignee.
 - On phones, tables drawn by `ResourceManager` become one card per row (`table.cards-on-phone`, each cell labelled from `data-label`).
+
+## Checks and automatic database updates
+
+- **Checks** (`.github/workflows/ci.yml`) run on every push: typecheck, unit tests, a production build, and the database rules (every migration applied to a fresh PostgreSQL, then `tests/db/smoke.sql`).
+- **Database update** (`.github/workflows/db-update.yml`) runs new files in `supabase/migrations` on the live project when they reach `main`. It stays off until the secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` and `SUPABASE_DB_PASSWORD` are added in GitHub.
+  One-time step before adding them: tell Supabase which updates were already run by hand, with the Supabase CLI on your computer:
+  ```
+  supabase link --project-ref <project id>
+  supabase migration repair --status applied 20261112000001 20261112000002 … 20261112000028
+  ```
+  (list every file number you have already run in the SQL Editor). After that, new updates run by themselves.
+- **Browser tests** (`.github/workflows/e2e.yml`, `tests/e2e`) sign in and open the main pages on phone and desktop sizes. They stay off until `E2E_BASE_URL`, `E2E_EMAIL` and `E2E_PASSWORD` point at a separate staging setup with test data.
+- **Daily job**: Vercel calls `/api/cron/daily` at 01:00 UTC (07:00 in Dhaka) to create repeating projects and remind admins about overdue invoices. Optional: set `CRON_SECRET` in Vercel so only Vercel can call it.
