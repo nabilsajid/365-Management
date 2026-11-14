@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Check, ChevronDown, ChevronRight, CircleUserRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
+import { Search, Check, ChevronDown, ChevronRight, ChevronsUpDown, CircleUserRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -9,6 +9,7 @@ import { UniDockLogo, UniDockMark } from '@/components/unidock-logo';
 import { AppInstall } from '@/components/app-install';
 import { NavProgress } from '@/components/nav-progress';
 import { RolePreviewBar } from '@/components/role-preview';
+import { CompanyViewBar } from '@/components/company-switch';
 import { cn } from '@/lib/utils';
 import { locate, navFor, type Viewer } from './nav';
 
@@ -109,24 +110,41 @@ function SidebarNav({
   );
 }
 
-function Brand({ orgName, collapsed }: { orgName: string; collapsed: boolean }) {
+function Brand({ orgName, collapsed, owner = false }: { orgName: string; collapsed: boolean; owner?: boolean }) {
   // The app's own logo (UniDock) on top, and the company using it just below,
-  // so everyone can see whose workspace this is.
+  // so everyone can see whose workspace this is. For the owner it opens the
+  // list of companies, to switch or add one.
+  const tag = (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo-mark.png" alt="" width={20} height={19} />
+      {collapsed ? null : (
+        <span className="min-w-0 flex-1">
+          <small>Company</small>
+          <span className="block truncate">{orgName}</span>
+        </span>
+      )}
+      {owner && !collapsed ? <ChevronsUpDown size={14} aria-hidden className="shrink-0 opacity-60" /> : null}
+    </>
+  );
   return (
     <>
       <div className={cn('flex h-14 shrink-0 items-center border-b border-white/10 px-4', collapsed && 'justify-center px-0')}>
         {collapsed ? <UniDockMark size={28} /> : <UniDockLogo />}
       </div>
-      <div className={cn('company-tag', collapsed && 'collapsed')} title={collapsed ? `Company: ${orgName}` : undefined}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-mark.png" alt="" width={20} height={19} />
-        {collapsed ? null : (
-          <span>
-            <small>Company</small>
-            {orgName}
-          </span>
-        )}
-      </div>
+      {owner ? (
+        <Link
+          href="/companies"
+          className={cn('company-tag company-tag-link', collapsed && 'collapsed')}
+          title={collapsed ? `Company: ${orgName} (switch)` : 'Switch or add a company'}
+        >
+          {tag}
+        </Link>
+      ) : (
+        <div className={cn('company-tag', collapsed && 'collapsed')} title={collapsed ? `Company: ${orgName}` : undefined}>
+          {tag}
+        </div>
+      )}
     </>
   );
 }
@@ -301,6 +319,8 @@ export function AppShell({
   notice,
   badges = {},
   previewRole = null,
+  owner = false,
+  viewingCompany = null,
   children,
 }: {
   orgName: string;
@@ -313,6 +333,10 @@ export function AppShell({
   badges?: Record<string, number>;
   /** Set while an admin is viewing the app as another role. */
   previewRole?: string | null;
+  /** The app's owner: the company tag opens the list of companies. */
+  owner?: boolean;
+  /** Set while the owner is inside another company. */
+  viewingCompany?: string | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -442,7 +466,7 @@ export function AppShell({
           collapsed ? 'w-16' : 'w-[250px]',
         )}
       >
-        <Brand orgName={orgName} collapsed={collapsed} />
+        <Brand orgName={orgName} collapsed={collapsed} owner={owner} />
         <SidebarNav viewer={viewer} badges={badges} collapsed={collapsed} pathname={pathname} />
         <div className="border-t border-white/10 p-3">
           <button
@@ -475,7 +499,7 @@ export function AppShell({
             className={cn('relative flex h-full w-[270px] max-w-[85vw] flex-col bg-sidebar', drag === null && 'drawer-in')}
             style={drag === null ? undefined : { transform: `translateX(${(drag - 1) * 100}%)` }}
           >
-            <Brand orgName={orgName} collapsed={false} />
+            <Brand orgName={orgName} collapsed={false} owner={owner} />
             <button
               type="button"
               aria-label="Close navigation"
@@ -528,6 +552,7 @@ export function AppShell({
           <ThemeToggle />
           <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} />
         </header>
+        {viewingCompany ? <CompanyViewBar orgName={viewingCompany} /> : null}
         {previewRole ? <RolePreviewBar roleName={previewRole} /> : null}
         <main className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">
           {notice ? (

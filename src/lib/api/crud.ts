@@ -28,6 +28,10 @@ export interface ApiContext {
   realAdmin?: boolean;
   /** Set while an admin is viewing the app as another role. */
   preview?: { roleId: string; roleName: string };
+  /** The owner of the whole app, who can add companies and step into them. */
+  owner?: boolean;
+  /** Set while the owner is working inside another company (as its admin). */
+  companyView?: { orgId: string; orgName: string; homeOrgId: string };
 }
 
 export type ContextProvider = () => Promise<ApiContext | null>;

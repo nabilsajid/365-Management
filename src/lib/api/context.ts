@@ -29,11 +29,14 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
   }
   if (!userId) return null;
 
-  const [profileResult, splitRoles, previewResult] = await Promise.all([
+  const [profileResult, splitRoles, previewResult, ownerResult, viewResult] = await Promise.all([
     supabase.from('profiles').select('*, organization:organizations(name, timezone)').eq('id', userId).maybeSingle(),
     supabase.from('profile_roles').select('roles(permissions, edit_permissions)').eq('profile_id', userId),
     // Set while an admin is viewing the app as another role. Errors (before the database update) mean no preview.
     supabase.from('role_previews').select('role_id, roles(name, permissions, edit_permissions)').eq('profile_id', userId).maybeSingle(),
+    // The app's owner, and the company they have stepped into. Errors (before the companies update) mean neither.
+    supabase.from('platform_owners').select('profile_id').eq('profile_id', userId).maybeSingle(),
+    supabase.from('company_views').select('org_id, organization:organizations(name, timezone)').eq('profile_id', userId).maybeSingle(),
   ]);
   // Until the view/edit database update has been run there is no edit column;
   // fall back to the old rule, where seeing a part also meant editing it.
@@ -44,6 +47,26 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
   if (!loaded || !loaded.is_active) return null;
   const { organization, ...profile } = loaded;
   if (organization) primeOrg(profile.org_id, organization);
+  const owner = Boolean(ownerResult.data) && !ownerResult.error;
+
+  // The owner working inside another company: everywhere they are that company's admin.
+  const viewRow = owner && !viewResult.error ? (viewResult.data as { org_id: string; organization: unknown } | null) : null;
+  const viewedOrg = (Array.isArray(viewRow?.organization) ? viewRow?.organization[0] : viewRow?.organization) as
+    | { name: string; timezone: string }
+    | undefined;
+  if (viewRow && viewedOrg && viewRow.org_id !== profile.org_id) {
+    primeOrg(viewRow.org_id, viewedOrg);
+    return {
+      supabase,
+      userId,
+      profile: { ...profile, org_id: viewRow.org_id, access_role: 'admin' },
+      segments: new Set<string>(),
+      editSegments: new Set<string>(),
+      realAdmin: true,
+      owner,
+      companyView: { orgId: viewRow.org_id, orgName: viewedOrg.name, homeOrgId: profile.org_id },
+    };
+  }
 
   // Each row carries the joined role; tolerate either an object or a one-item list.
   const held = ((rolesResult.data ?? []) as unknown as { roles: unknown }[]).flatMap((row) =>
@@ -67,10 +90,11 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
       editSegments: editSegmentsFromRoles([previewRole]),
       realAdmin,
       preview: { roleId: previewRow.role_id, roleName: previewRole.name },
+      owner,
     };
   }
 
-  return { supabase, userId, profile, segments: segmentsFromRoles(held), editSegments: editSegmentsFromRoles(held), realAdmin };
+  return { supabase, userId, profile, segments: segmentsFromRoles(held), editSegments: editSegmentsFromRoles(held), realAdmin, owner };
 });
 
 export const crud = makeCrud(getApiContext);

@@ -436,3 +436,15 @@ export const clientFeedbackCreate = z.object({
   decision: z.enum(['approved', 'changes']),
   comment: z.string().trim().max(2000).nullish(),
 });
+
+// The owner adds a company together with its first admin.
+export const companyCreate = z.object({
+  name: z.string().trim().min(2, 'Write the company name.').max(80),
+  timezone: z.string().trim().min(3).max(60).default('Asia/Dhaka'),
+  currency: z.string().trim().length(3).toUpperCase().default('BDT'),
+  admin_name: z.string().trim().min(2, 'Write the admin\'s name.').max(80),
+  admin_email: z.string().trim().toLowerCase().email('Write a valid email.'),
+  admin_password: loginPassword,
+});
+
+export const companyView = z.object({ org_id: id.nullable() });

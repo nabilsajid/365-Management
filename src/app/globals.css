@@ -3136,3 +3136,59 @@
   margin: 0.6rem 0.5rem 0.25rem;
   padding: 0.45rem 0;
 }
+
+/* Owner: the company tag opens the list of companies. */
+.company-tag-link {
+  text-decoration: none;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.company-tag-link:hover {
+  background: rgb(255 255 255 / 0.07);
+  border-color: rgb(255 255 255 / 0.16);
+  text-decoration: none;
+}
+
+/* Companies page. */
+.company-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.company-card {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  margin: 0;
+}
+.company-card.current {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-line));
+}
+.company-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.company-card-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.company-card-head .muted,
+.company-card > .muted {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+.company-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+}
+.company-card .action,
+.company-card .badge {
+  justify-self: start;
+}

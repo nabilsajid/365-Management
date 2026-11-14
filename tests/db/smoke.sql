@@ -1020,6 +1020,37 @@ do $$ begin
 exception when insufficient_privilege then raise notice 'ok - files are kept in the company''s own folder';
 end $$;
 
+-- Several companies: each sees only its own data; the owner can step into any.
+reset role;
+insert into organizations (id, name) values ('00000000-0000-0000-0000-00000000c0b1', 'Second Co');
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000c0b2', 'boss@second.test');
+insert into profiles (id, org_id, full_name, access_role) values ('00000000-0000-0000-0000-00000000c0b2', '00000000-0000-0000-0000-00000000c0b1', 'Second Boss', 'admin');
+insert into projects (org_id, name) values ('00000000-0000-0000-0000-00000000c0b1', 'Second Co secret project');
+insert into platform_owners (profile_id) values ('00000000-0000-0000-0000-0000000000a1') on conflict do nothing;
+
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-00000000c0b2';
+select pg_temp.check((select count(*) = 0 from projects where org_id = '00000000-0000-0000-0000-000000000001'), 'another company cannot see 365 Frames projects');
+select pg_temp.check((select count(*) = 1 from projects), 'a company sees its own projects');
+do $$ begin
+  perform view_company('00000000-0000-0000-0000-000000000001');
+  raise exception 'FAILED: a company admin switched into another company';
+exception when insufficient_privilege then raise notice 'ok - only the owner can switch companies';
+end $$;
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from projects where org_id = '00000000-0000-0000-0000-00000000c0b1'), 'employees never see another company');
+select pg_temp.check((select count(*) = 0 from company_views), 'nobody can see who is switched');
+
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select view_company('00000000-0000-0000-0000-00000000c0b1');
+select pg_temp.check(current_org_id() = '00000000-0000-0000-0000-00000000c0b1' and is_admin(), 'the owner works inside the other company as its admin');
+select pg_temp.check((select count(*) = 1 from projects) and (select count(*) = 1 from profiles where id = auth.uid()),
+  'and sees only that company, while still reading their own profile');
+select view_company(null);
+select pg_temp.check(current_org_id() = '00000000-0000-0000-0000-000000000001', 'and steps back to their own company');
+reset role;
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

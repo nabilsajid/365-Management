@@ -14,7 +14,7 @@ import { dispatchPushes, pushConfigured } from '@/lib/server/push';
 export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { supabase, orgId, userId, orgName, profile, isAdmin, segments, preview } = await getPageContext();
+  const { supabase, orgId, userId, orgName, profile, isAdmin, segments, preview, owner, companyView } = await getPageContext();
   // Counts for the sidebar badges. Row level security makes them personal:
   // admins get everything waiting for them, everyone else only their own.
   const [pendingChanges, openBroadcasts, pendingOther, unread, look] = await Promise.all([
@@ -71,6 +71,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       segments={[...segments]}
       badges={badges}
       previewRole={preview?.roleName ?? null}
+      owner={Boolean(owner)}
+      viewingCompany={companyView?.orgName ?? null}
     >
       <LiveRefresh orgId={orgId} />
       <OfflineStatus userId={userId} />
