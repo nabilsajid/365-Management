@@ -41,9 +41,10 @@ export default async function ReviewPage({ params }: { params: Promise<{ token: 
   let monthLabel: string | null = null;
   if (project.kind === 'monthly') {
     const latest = await admin.from('project_months').select('id, month').eq('project_id', projectId).order('month', { ascending: false }).limit(1).maybeSingle();
-    if (latest.data) {
-      tasks = tasks.filter((task) => task.month_id === latest.data.id);
-      monthLabel = new Date(`${latest.data.month}T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const month = latest.data as { id: string; month: string } | null;
+    if (month) {
+      tasks = tasks.filter((task) => task.month_id === month.id);
+      monthLabel = new Date(`${month.month}T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     }
   }
   const ids = tasks.map((task) => task.id);
