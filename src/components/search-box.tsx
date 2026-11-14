@@ -95,7 +95,7 @@ export function SearchBox() {
         name="q"
         value={text}
         autoComplete="off"
-        placeholder="Search"
+        placeholder="Search anything"
         aria-label="Search projects, tasks, clients and people"
         role="combobox"
         aria-expanded={showList}

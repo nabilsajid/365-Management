@@ -9,15 +9,15 @@ import Link from 'next/link';
 // Results update as you type; everyone only finds what they are allowed to see.
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const query = ((await searchParams).q ?? '').trim().slice(0, 80);
-  const { supabase, orgId } = await getPageContext();
-  const groups = await runSearch(supabase, orgId, query, 10);
+  const { supabase, orgId, isAdmin, segments } = await getPageContext();
+  const groups = await runSearch(supabase, orgId, query, { isAdmin, segments }, 10);
 
   return (
     <>
       <div className="page-header">
         <div>
           <h1>Search</h1>
-          <p className="muted">Projects, tasks, clients, people and announcements.</p>
+          <p className="muted">Everything in the app: pages, projects, tasks, people, clients, invoices, costs, equipment, announcements, messages, comments and leave.</p>
         </div>
       </div>
       <LiveSearchInput initial={query} />

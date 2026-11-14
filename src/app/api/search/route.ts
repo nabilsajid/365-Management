@@ -8,6 +8,7 @@ export async function GET(request: Request): Promise<Response> {
   if (auth.response) return auth.response;
   const { ctx } = auth;
   const text = new URL(request.url).searchParams.get('q') ?? '';
-  const groups = await runSearch(ctx.supabase, ctx.profile.org_id, text, 4);
+  const viewer = { isAdmin: ctx.profile.access_role === 'admin', segments: ctx.segments };
+  const groups = await runSearch(ctx.supabase, ctx.profile.org_id, text, viewer, 4);
   return ok(groups);
 }

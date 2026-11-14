@@ -3,6 +3,7 @@
 import { BellRing } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Celebration } from './celebration';
 
 export interface NotificationItem {
   id: string;
@@ -32,10 +33,14 @@ function destinations(items: NotificationItem[]): { href: string; label: string 
 }
 
 /** Shown while there are unread notifications: a new assignment, a notice, or (for admins) something to approve. */
-export function AssignmentPopup({ items }: { items: NotificationItem[] }) {
+export function AssignmentPopup({ items: all }: { items: NotificationItem[] }) {
   const router = useRouter();
-  const [open, setOpen] = useState(items.length > 0);
+  const [open, setOpen] = useState(all.length > 0);
   const [busy, setBusy] = useState(false);
+  // Finished work gets its own moment first: fireworks and "Well done!".
+  const wins = all.filter((item) => item.title.startsWith('Well done!'));
+  const items = all.filter((item) => !item.title.startsWith('Well done!'));
+  const [celebrating, setCelebrating] = useState(wins.length > 0);
 
   useEffect(() => {
     if (!open) return;
@@ -47,7 +52,21 @@ export function AssignmentPopup({ items }: { items: NotificationItem[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!open || items.length === 0) return null;
+  if (!open || all.length === 0) return null;
+
+  if (celebrating) {
+    return (
+      <Celebration
+        items={wins}
+        busy={busy}
+        onClose={(goTo) => {
+          // Other news waits behind the celebration; with none, everything is marked read now.
+          if (items.length > 0 && !goTo) setCelebrating(false);
+          else void done(goTo);
+        }}
+      />
+    );
+  }
 
   async function done(goTo: string | null) {
     setBusy(true);

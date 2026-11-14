@@ -1,6 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type SearchKind = 'project' | 'task' | 'client' | 'person' | 'notice';
+export type SearchKind =
+  | 'page'
+  | 'project'
+  | 'task'
+  | 'person'
+  | 'client'
+  | 'invoice'
+  | 'expense'
+  | 'equipment'
+  | 'need'
+  | 'notice'
+  | 'message'
+  | 'comment'
+  | 'leave'
+  | 'other';
+
 export interface SearchItem {
   href: string;
   title: string;
@@ -11,39 +26,178 @@ export interface SearchGroup {
   title: string;
   items: SearchItem[];
 }
+export interface SearchViewer {
+  isAdmin: boolean;
+  segments: ReadonlySet<string>;
+}
 
-/** Turns what was typed into a safe "contains" pattern: % and _ are matched literally. */
-const pattern = (text: string) => `%${text.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+/** The words typed, cleaned of characters that would break a database filter. Every word must match. */
+export function searchWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[%_\\"'(),:;*]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .slice(0, 5);
+}
 
-type Row = Record<string, string | null>;
-const rows = (data: unknown) => (Array.isArray(data) ? (data as Row[]) : []);
+/** A PostgREST "or" filter: the word in any of the columns. Quoted, so dots and other marks are safe. */
+export function anyColumn(columns: string[], word: string): string {
+  return columns.map((column) => `${column}.ilike."%${word}%"`).join(',');
+}
+
+/** Places in the app, found by name or by what they hold. `need` is a section, or 'admin'. */
+const PAGES: { title: string; href: string; words: string; need?: string }[] = [
+  { title: 'Dashboard', href: '/dashboard', words: 'home overview today' },
+  { title: 'Updates · Announcements', href: '/updates', words: 'notice board news announcement team guide help' },
+  { title: 'Updates · Broadcasts', href: '/updates?tab=broadcasts', words: 'broadcast urgent message admin' },
+  { title: 'Updates · Messages', href: '/updates?tab=messages', words: 'personal message inbox' },
+  { title: 'Team guide', href: '/updates#guide', words: 'guide tutorial help how to start new joiner' },
+  { title: 'Projects', href: '/projects', words: 'project board client work' },
+  { title: 'My Tasks', href: '/my-tasks', words: 'task deliverable assigned work todo' },
+  { title: 'Calendar', href: '/calendar', words: 'calendar date due shoot schedule month' },
+  { title: 'Cash Flow & Invoices', href: '/cashflow', words: 'cash flow money finance balance income', need: 'cashflow' },
+  { title: 'Invoices', href: '/cashflow?tab=income', words: 'invoice payment due client bill', need: 'cashflow' },
+  { title: 'Expenses', href: '/cashflow?tab=expenses', words: 'expense cost spend', need: 'cashflow' },
+  { title: 'Accounts', href: '/cashflow?tab=accounts', words: 'account bank cash bkash balance', need: 'cashflow' },
+  { title: 'Equipment & Costs', href: '/logistics', words: 'equipment logistics inventory camera travel transport cost trip needed items' },
+  { title: 'Employees & Rewards · Points', href: '/employees', words: 'points reward score statement target' },
+  { title: 'Attendance', href: '/employees?tab=attendance', words: 'attendance entry exit check in office day' },
+  { title: 'Bonuses', href: '/employees?tab=bonuses', words: 'bonus reward money' },
+  { title: 'Point rules & violations', href: '/employees?tab=settings', words: 'rules violation deduction late target', need: 'team_points' },
+  { title: 'Profiles & Contacts', href: '/profile', words: 'profile contact phone team people number address' },
+  { title: 'My profile & notifications', href: '/profile', words: 'my profile notification alert device password' },
+  { title: 'Leave', href: '/leave', words: 'leave holiday vacation sick off' },
+  { title: 'My Requests', href: '/requests', words: 'request pending approval status' },
+  { title: 'Search', href: '/search', words: 'search find' },
+  { title: 'Approvals', href: '/approvals', words: 'approve approval pending request verify', need: 'admin' },
+  { title: 'Roles & Access', href: '/roles', words: 'role access permission tag view as', need: 'admin' },
+  { title: 'Settings · Rules', href: '/settings?tab=rules', words: 'settings rules approval limit', need: 'admin' },
+  { title: 'Settings · Appearance', href: '/settings?tab=appearance', words: 'appearance colour color theme look', need: 'admin' },
+  { title: 'Settings · Delete log', href: '/settings?tab=delete-log', words: 'delete log deleted removed history', need: 'admin' },
+  { title: 'Settings · System check', href: '/settings?tab=system', words: 'system check database update', need: 'admin' },
+  { title: 'Monthly summary', href: '/report', words: 'report summary monthly print pdf export', need: 'admin' },
+];
+
+/** Pages and sections this person can open whose name or contents match every word. */
+export function matchPages(words: string[], viewer: SearchViewer): SearchItem[] {
+  if (words.length === 0) return [];
+  return PAGES.filter((page) => {
+    if (page.need === 'admin' && !viewer.isAdmin) return false;
+    if (page.need && page.need !== 'admin' && !viewer.isAdmin && !viewer.segments.has(page.need)) return false;
+    const text = `${page.title} ${page.words}`.toLowerCase();
+    return words.every((word) => text.includes(word));
+  }).map((page) => ({ href: page.href, title: page.title }));
+}
+
+type Row = Record<string, unknown>;
+const text = (value: unknown) => (typeof value === 'string' ? value : value == null ? '' : String(value));
+const snippet = (value: unknown, words: string[]) => {
+  const full = text(value).replace(/\s+/g, ' ').trim();
+  if (full.length <= 90) return full;
+  const at = Math.max(0, full.toLowerCase().indexOf(words[0] ?? ''));
+  const start = Math.max(0, at - 30);
+  return `${start > 0 ? '…' : ''}${full.slice(start, start + 90)}…`;
+};
+const money = (value: unknown) => (value == null ? '' : `৳${Number(value).toLocaleString('en-US')}`);
 
 /**
- * Projects, tasks, clients, people and announcements matching the text. Row
- * level security means everyone only finds what they are allowed to see.
+ * Everything in the app matching every word typed: pages, projects, tasks,
+ * people, clients, invoices, costs, equipment, needed items, announcements,
+ * messages, comments and leave. Row level security means each person only
+ * finds what they are allowed to see; a part they cannot see simply has no results.
  */
-export async function runSearch(supabase: SupabaseClient, orgId: string, text: string, perGroup = 10): Promise<SearchGroup[]> {
-  const query = text.trim().slice(0, 80);
-  if (query.length < 2) return [];
-  const like = pattern(query);
-  const safe = like.replace(/[,()]/g, ' ');
-  const [projectsR, clientsR, tasksR, peopleR, noticesR] = await Promise.all([
-    supabase.from('projects').select('id, name, status').eq('org_id', orgId).ilike('name', like).limit(perGroup),
-    supabase.from('clients').select('id, name, contact_name').eq('org_id', orgId).ilike('name', like).limit(perGroup),
-    supabase.from('tasks').select('id, title, status').eq('org_id', orgId).ilike('title', like).limit(perGroup),
-    supabase.from('profiles').select('id, full_name, job_title, contact').eq('org_id', orgId).or(`full_name.ilike.${safe},nickname.ilike.${safe}`).limit(perGroup),
-    supabase.from('notices').select('id, title').eq('org_id', orgId).ilike('title', like).limit(perGroup),
+export async function runSearch(
+  supabase: SupabaseClient,
+  orgId: string,
+  raw: string,
+  viewer: SearchViewer,
+  perGroup = 10,
+): Promise<SearchGroup[]> {
+  const words = searchWords(raw.slice(0, 80));
+  if (words.length === 0 || words.join('').length < 2) return [];
+
+  // One query per kind; each word must appear in at least one of its columns.
+  const find = (table: string, select: string, columns: string[], order = 'created_at') => {
+    let query = supabase.from(table).select(select).eq('org_id', orgId);
+    for (const word of words) query = query.or(anyColumn(columns, word));
+    return query.order(order, { ascending: false }).limit(perGroup);
+  };
+  const results = await Promise.all([
+    find('projects', 'id, name, status, brief', ['name', 'brief']),
+    find('tasks', 'id, title, status, description, project_id', ['title', 'description']),
+    find('profiles', 'id, full_name, nickname, job_title, contact', ['full_name', 'nickname', 'job_title', 'contact']),
+    find('clients', 'id, name, contact_name, email, phone', ['name', 'contact_name', 'email', 'phone']),
+    find('invoices', 'id, invoice_number, amount, status, notes', ['invoice_number', 'notes']),
+    find('expenses', 'id, description, amount, expense_date, category, purpose, trip_origin, trip_destination', ['description', 'purpose', 'trip_origin', 'trip_destination']),
+    find('equipment', 'id, name, category, serial_number, condition', ['name', 'category', 'serial_number']),
+    find('equipment_needs', 'id, item_name, note, status', ['item_name', 'note']),
+    find('notices', 'id, title, body', ['title', 'body']),
+    find('broadcasts', 'id, message, recipient_id', ['message']),
+    find('project_comments', 'id, body, project_id', ['body']),
+    find('task_comments', 'id, body, task_id', ['body']),
+    find('leave_requests', 'id, reason, start_date, end_date, status', ['reason']),
   ]);
+  const rows = (index: number) => (results[index].error ? [] : ((results[index].data ?? []) as unknown as Row[]));
+  const canSeeMoney = viewer.isAdmin || viewer.segments.has('cashflow');
+
   const groups: SearchGroup[] = [
-    { kind: 'project', title: 'Projects', items: rows(projectsR.data).map((row) => ({ href: `/projects/${row.id}`, title: row.name ?? '', detail: row.status })) },
-    { kind: 'task', title: 'Tasks', items: rows(tasksR.data).map((row) => ({ href: `/tasks/${row.id}`, title: row.title ?? '', detail: row.status?.replace(/_/g, ' ') })) },
-    { kind: 'client', title: 'Clients', items: rows(clientsR.data).map((row) => ({ href: '/projects?view=clients', title: row.name ?? '', detail: row.contact_name })) },
+    { kind: 'page', title: 'Pages', items: matchPages(words, viewer) },
+    { kind: 'project', title: 'Projects', items: rows(0).map((row) => ({ href: `/projects/${row.id}`, title: text(row.name), detail: text(row.status) })) },
+    { kind: 'task', title: 'Tasks', items: rows(1).map((row) => ({ href: `/tasks/${row.id}`, title: text(row.title), detail: text(row.status).replace(/_/g, ' ') })) },
     {
       kind: 'person',
       title: 'People',
-      items: rows(peopleR.data).map((row) => ({ href: '/profile?tab=team', title: row.full_name ?? '', detail: [row.job_title, row.contact].filter(Boolean).join(' · ') })),
+      items: rows(2).map((row) => ({ href: '/profile?tab=team', title: text(row.full_name), detail: [row.job_title, row.contact].filter(Boolean).map(text).join(' · ') })),
     },
-    { kind: 'notice', title: 'Announcements', items: rows(noticesR.data).map((row) => ({ href: '/updates', title: row.title ?? '' })) },
+    {
+      kind: 'client',
+      title: 'Clients',
+      items: rows(3).map((row) => ({
+        href: canSeeMoney ? '/cashflow?tab=clients' : '/projects',
+        title: text(row.name),
+        detail: [row.contact_name, row.phone, row.email].filter(Boolean).map(text).join(' · '),
+      })),
+    },
+    {
+      kind: 'invoice',
+      title: 'Invoices',
+      items: rows(4).map((row) => ({ href: `/invoices/${row.id}`, title: `Invoice ${text(row.invoice_number)}`, detail: [money(row.amount), text(row.status)].filter(Boolean).join(' · ') })),
+    },
+    {
+      kind: 'expense',
+      title: 'Costs',
+      items: rows(5).map((row) => ({
+        href: canSeeMoney ? `/cashflow?tab=expenses&month=${text(row.expense_date).slice(0, 7)}` : '/logistics',
+        title: row.trip_origin ? `${text(row.trip_origin)} → ${text(row.trip_destination)}` : text(row.description),
+        detail: [money(row.amount), text(row.expense_date), text(row.purpose || row.category)].filter(Boolean).join(' · '),
+      })),
+    },
+    {
+      kind: 'equipment',
+      title: 'Equipment',
+      items: rows(6).map((row) => ({ href: '/logistics', title: text(row.name), detail: [row.category, row.serial_number, row.condition].filter(Boolean).map(text).join(' · ') })),
+    },
+    { kind: 'need', title: 'Needed items', items: rows(7).map((row) => ({ href: '/logistics', title: text(row.item_name), detail: text(row.status) })) },
+    { kind: 'notice', title: 'Announcements', items: rows(8).map((row) => ({ href: '/updates', title: text(row.title), detail: snippet(row.body, words) })) },
+    {
+      kind: 'message',
+      title: 'Broadcasts & messages',
+      items: rows(9).map((row) => ({ href: row.recipient_id ? '/updates?tab=messages' : '/updates?tab=broadcasts', title: snippet(row.message, words) })),
+    },
+    {
+      kind: 'comment',
+      title: 'Comments',
+      items: [
+        ...rows(10).map((row) => ({ href: `/projects/${row.project_id}`, title: snippet(row.body, words), detail: 'On a project' })),
+        ...rows(11).map((row) => ({ href: `/tasks/${row.task_id}`, title: snippet(row.body, words), detail: 'On a task' })),
+      ].slice(0, perGroup),
+    },
+    {
+      kind: 'leave',
+      title: 'Leave',
+      items: rows(12).map((row) => ({ href: '/leave', title: snippet(row.reason, words), detail: `${text(row.start_date)} to ${text(row.end_date)} · ${text(row.status)}` })),
+    },
   ];
   return groups.filter((group) => group.items.length > 0);
 }

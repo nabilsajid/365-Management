@@ -1051,6 +1051,18 @@ select view_company(null);
 select pg_temp.check(current_org_id() = '00000000-0000-0000-0000-000000000001', 'and steps back to their own company');
 reset role;
 
+-- Well done: the assignee hears when their deliverable is approved; the whole team when the project is done.
+reset role;
+delete from notifications;
+update tasks set status = 'approved' where title = 'Video 1' and project_id = '00000000-0000-0000-0000-00000000f1a1';
+select pg_temp.check(
+  (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Well done! Task completed'),
+  'the assignee is congratulated when their deliverable is approved');
+update projects set status = 'completed' where id = '00000000-0000-0000-0000-00000000f1a1';
+select pg_temp.check(
+  (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Well done! Project completed'),
+  'everyone who worked on a project is congratulated once when it is completed');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

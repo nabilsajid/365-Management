@@ -26,7 +26,7 @@ export const TEAM_GUIDE: GuideSection[] = [
     points: [
       'The menu on the left (on a phone, swipe right from the left edge or press ☰) lists the sections your role can open. Different roles see different sections.',
       'Dashboard: your points this month, your tasks, and the latest announcements.',
-      'The search box at the top finds projects, tasks, clients, people and announcements as you type.',
+      'The search box at the top finds anything as you type: pages, projects, tasks, people, clients, costs, equipment, announcements, messages, comments and leave.',
       'Use the moon/sun switch at the top to change between dark and light mode.',
       'A number beside a menu item means something is waiting for you there.',
     ],
@@ -57,7 +57,7 @@ export const TEAM_GUIDE: GuideSection[] = [
       'The reviewer either approves it or asks for changes with a note. You are told either way.',
       'Comment on a task or project to ask questions. Write @ and someone\'s first name or nickname (for example @Rafi) to notify them.',
       'Projects show the client, team, links, shoot date (or "waiting for client confirmation") and every deliverable: videos, thumbnails, graphics and shoots.',
-      'When a project is completed, the admin gives points to the people who worked on it.',
+      'When your work is approved, or a project you worked on is completed, you get fireworks and a "Well done!" on your screen. The admin then gives points for completed projects.',
       'The Calendar shows due dates, shoots and leave for the month.',
     ],
   },

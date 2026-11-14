@@ -3466,3 +3466,87 @@
     gap: 0;
   }
 }
+
+/* "Well done!": fireworks over everything, and a card in the middle. */
+.fireworks {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 70;
+  pointer-events: none;
+}
+.celebrate-back {
+  background: rgb(0 0 0 / 0.45);
+}
+.popup.celebrate {
+  text-align: center;
+  animation: celebrate-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.celebrate-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffd36e, #ff8f5a);
+  color: #fff;
+  box-shadow: 0 10px 30px -10px rgb(255 143 90 / 0.8);
+  animation: celebrate-wiggle 0.9s ease-in-out 0.3s 2;
+}
+.popup.celebrate h2 {
+  font-size: 1.6rem;
+  margin: 0.25rem 0;
+}
+.celebrate-lead {
+  margin: 0 0 0.75rem;
+  color: var(--color-muted);
+}
+.celebrate-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.celebrate-list li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-subtle);
+}
+.celebrate-list li span {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.popup.celebrate .popup-actions {
+  justify-content: center;
+}
+@keyframes celebrate-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(10px);
+  }
+}
+@keyframes celebrate-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-12deg) scale(1.08);
+  }
+  75% {
+    transform: rotate(10deg) scale(1.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .popup.celebrate,
+  .celebrate-icon {
+    animation: none;
+  }
+}
