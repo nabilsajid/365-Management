@@ -1774,7 +1774,7 @@
     height: 56vmax;
     margin-left: -40vmax;
     border-radius: 999px;
-    background: radial-gradient(closest-side, rgb(249 115 22 / 0.9), transparent);
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--glow-color, #f97316) 90%, transparent), transparent);
     filter: blur(80px);
     opacity: 0.06;
     animation: app-glow-a 60s ease-in-out infinite alternate;
@@ -1787,8 +1787,8 @@
 
   /* The active sidebar item: a soft warm tint with a small marker, not a solid block. */
   .nav-active {
-    background: rgb(227 154 108 / 0.14);
-    color: #f3c3a3;
+    background: color-mix(in srgb, var(--accent-nav, #e39a6c) 14%, transparent);
+    color: color-mix(in srgb, var(--accent-nav, #e39a6c) 65%, #ffffff);
   }
 
   .nav-active::before {
@@ -1799,12 +1799,12 @@
     bottom: 22%;
     width: 3px;
     border-radius: 0 3px 3px 0;
-    background: #e39a6c;
+    background: var(--accent-nav, #e39a6c);
     animation: nav-mark 0.25s ease-out both;
   }
 
   .nav-active:hover {
-    color: #f7d4bd;
+    color: color-mix(in srgb, var(--accent-nav, #e39a6c) 45%, #ffffff);
   }
 
   /* Panels and cards ease in softly, and panels respond a little to the pointer. */
@@ -1821,6 +1821,84 @@
     display: inline-block;
     transform-origin: 70% 70%;
     animation: wave 1.6s ease-in-out 0.4s 1 both;
+  }
+
+  /* Appearance settings: colour swatches, a segmented choice and the preview row. */
+  .swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .panel .swatch,
+  .swatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.8rem 0.35rem 0.4rem;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: var(--color-card);
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+
+  .panel .swatch-on,
+  .swatch-on {
+    border-color: var(--color-ink);
+  }
+
+  .swatch-dot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    color: #ffffff;
+  }
+
+  .swatch input[type='color'] {
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    cursor: pointer;
+  }
+
+  .segmented {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: var(--color-subtle);
+  }
+
+  .panel .segmented button {
+    min-height: 2rem;
+    border: 0;
+    background: transparent;
+    color: var(--color-muted);
+    transform: none;
+  }
+
+  .panel .segmented button.segmented-on {
+    background: var(--color-card);
+    color: var(--color-ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  }
+
+  .appearance-preview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .appearance-preview .flow-bar {
+    margin-top: 0;
   }
 
   /* Project comments. */

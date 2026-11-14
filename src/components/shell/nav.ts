@@ -1,6 +1,7 @@
 import {
   ClipboardCheck,
   History,
+  Palette,
   ContactRound,
   Pin,
   Inbox,
@@ -71,6 +72,7 @@ const GROUPS: NavGroup[] = [
       { href: '/requests', label: 'My Requests', icon: Inbox, nonAdminOnly: true },
       { href: '/roles', label: 'Roles & Access', icon: ShieldCheck, adminOnly: true },
       { href: '/delete-log', label: 'Delete Log', icon: History, adminOnly: true },
+      { href: '/appearance', label: 'Appearance', icon: Palette, adminOnly: true },
     ],
   },
 ];

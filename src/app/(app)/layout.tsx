@@ -6,6 +6,7 @@ import { OfflineStatus } from '@/components/offline-status';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { ApiForm } from '@/components/resource-manager';
 import { AppShell } from '@/components/shell/app-shell';
+import { appearanceCss } from '@/lib/domain/appearance';
 import { getPageContext } from '@/lib/page';
 import { dispatchPushes, pushConfigured } from '@/lib/server/push';
 
@@ -15,7 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const { supabase, orgId, userId, orgName, profile, isAdmin, segments, preview } = await getPageContext();
   // Counts for the sidebar badges. Row level security makes them personal:
   // admins get everything waiting for them, everyone else only their own.
-  const [pendingChanges, openBroadcasts, pendingOther, unread] = await Promise.all([
+  const [pendingChanges, openBroadcasts, pendingOther, unread, look] = await Promise.all([
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
     isAdmin ? supabase.from('broadcasts').select('id').eq('org_id', orgId).eq('status', 'open') : Promise.resolve({ data: [] }),
     isAdmin
@@ -30,7 +31,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       : Promise.resolve([]),
     // New assignments, shown in a pop-up until the person has seen them.
     supabase.from('notifications').select('id, title, body, href').eq('profile_id', userId).is('read_at', null).order('created_at', { ascending: false }).limit(8),
+    // The company's chosen look. Before the appearance update this simply fails and the built-in look is used.
+    supabase.from('organizations').select('appearance').eq('id', orgId).maybeSingle(),
   ]);
+  const lookCss = !look.error && look.data?.appearance && Object.keys(look.data.appearance).length > 0 ? appearanceCss(look.data.appearance) : null;
   const notifications = ((unread.data ?? []) as NotificationItem[]);
 
   // Whatever anyone just did may have created notifications; send them to people's devices once this page is out.
@@ -50,6 +54,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const needsProfile = 'profile_completed_at' in profile && !profile.profile_completed_at;
 
   return (
+    <>
+      {/* Only checked colour values and fixed words reach this; see appearanceCss. */}
+      {lookCss ? <style id="appearance" dangerouslySetInnerHTML={{ __html: lookCss }} /> : null}
     <AppShell
       orgName={orgName}
       userName={profile.full_name}
@@ -91,5 +98,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         ) : null}
       </div>
     </AppShell>
+    </>
   );
 }

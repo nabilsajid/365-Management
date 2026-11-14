@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TASK_KINDS } from './domain/deliverables';
+import { CORNERS } from './domain/appearance';
 import { NOTICE_DURATION_VALUES } from './domain/notices';
 import { ROLE_COLORS, SEGMENT_KEYS } from './domain/roles';
 import { submissionProblem } from './domain/submissions';
@@ -388,3 +389,12 @@ export const passwordRequestResolve = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter the new password.', path: ['password'] });
     }
   });
+
+// An admin changes how the app looks for everyone.
+export const appearanceUpdate = z
+  .object({
+    accent: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Choose a colour.').transform((value) => value.toLowerCase()),
+    corners: z.enum(Object.keys(CORNERS) as [keyof typeof CORNERS, ...(keyof typeof CORNERS)[]]),
+    glow: z.boolean(),
+  })
+  .partial();
