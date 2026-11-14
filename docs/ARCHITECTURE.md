@@ -217,7 +217,7 @@ Notices and broadcasts share one page, `/updates`, with three tabs: Announcement
 ## Checks and automatic database updates
 
 - **Checks** (`.github/workflows/ci.yml`) run on every push: typecheck, unit tests, a production build, and the database rules (every migration applied to a fresh PostgreSQL, then `tests/db/smoke.sql`).
-- **Database update** (`.github/workflows/db-update.yml`) runs new files in `supabase/migrations` on the live project when they reach `main`. It stays off until the secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` and `SUPABASE_DB_PASSWORD` are added in GitHub.
+- **Database update** (`.github/workflows/db-update.yml`) runs new files in `supabase/migrations` on the live project when they reach `main`. It stays off until the secret `SUPABASE_DB_URL` (Supabase → Connect → Session pooler connection string, with the password filled in) is added in GitHub.
   One-time step before adding them: tell Supabase which updates were already run by hand, with the Supabase CLI on your computer:
   ```
   supabase link --project-ref <project id>
