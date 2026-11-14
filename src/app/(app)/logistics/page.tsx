@@ -219,7 +219,9 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
                 <h2>{manages ? 'Hand out or ask for equipment' : 'Ask to take equipment'}</h2>
                 <p className="muted">
                   {manages
-                    ? 'Record who takes an item and until when. Tick "Hand over now" when it leaves right away; otherwise it waits as a request.'
+                    ? isAdmin
+                      ? 'Record who takes an item and until when. Tick "Hand over now" when it leaves right away; otherwise it waits as a request.'
+                      : 'Record an item you are taking, and until when. Tick "Hand over now" when it leaves right away; otherwise it waits as a request.'
                     : 'Choose the item, what it is for and when you will bring it back. An admin or the logistics team approves it.'}
                 </p>
               </div>
@@ -230,7 +232,8 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
               initial={{ start_date: today, take_now: manages }}
               fields={[
                 { name: 'equipment_id', label: 'Item', type: 'select', required: true, options: available.map((item) => ({ value: item.id, label: `${item.name}${item.current_holder_id ? ` (with ${person.get(item.current_holder_id)?.full_name ?? 'someone'})` : ''}` })) },
-                ...(manages ? [{ name: 'holder_id', label: 'Taken by', type: 'select' as const, options: staff, hint: 'Leave empty for yourself.' }] : []),
+                // Only an admin chooses who takes it; everyone else takes it for themselves.
+                ...(isAdmin ? [{ name: 'holder_id', label: 'Taken by', type: 'select' as const, options: staff, hint: 'Leave empty for yourself.' }] : []),
                 { name: 'project_id', label: 'For project', type: 'select', options: options(projects, (project) => project.name) },
                 { name: 'purpose', label: 'Purpose', placeholder: 'Client shoot, location scout…' },
                 { name: 'start_date', label: 'From', type: 'date', required: true },

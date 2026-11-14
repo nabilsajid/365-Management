@@ -195,7 +195,7 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
   - Changing a date clears its alert stamps, so the new date is reminded again.
 - `equipment_checkouts`: who takes which item (`holder_id`), why (`purpose`, `project_id`), from `start_date` until `due_back`, with `taken_at` and `returned_at`.
   - `status` is one of requested, out, returned, declined or cancelled. Only one checkout per item can be `out` at a time.
-  - Anyone can request an item for themselves. Admins and roles that edit equipment approve, decline or record a checkout directly (`/api/equipment-checkouts`).
+  - Anyone can request an item for themselves; the taker is always the person asking. Only an admin can record a checkout for someone else. Admins and roles that edit equipment approve or decline requests, and can record their own checkout directly (`/api/equipment-checkouts`).
   - The holder can cancel their own request or hand the item back (`my_checkout_action`).
   - Going out sets `equipment.current_holder_id` and status `in_use`; coming back returns it to storage.
 - Everyone in the company can now read the equipment list, so they can ask for items.
