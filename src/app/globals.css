@@ -3192,3 +3192,73 @@
 .company-card .badge {
   justify-self: start;
 }
+
+/* The team guide pinned to the notice board. */
+.team-guide {
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-line));
+}
+.team-guide h2 .badge {
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+.guide-topics {
+  display: grid;
+  gap: 0.4rem;
+}
+.guide-topics details {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+}
+.guide-topics summary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  list-style: none;
+}
+.guide-topics summary::-webkit-details-marker {
+  display: none;
+}
+.guide-topics summary::after {
+  content: '+';
+  margin-left: auto;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.guide-topics details[open] summary::after {
+  content: '–';
+}
+.guide-number {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+}
+.guide-body {
+  padding: 0 0.85rem 0.85rem 3rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.guide-body p {
+  margin: 0 0 0.5rem;
+}
+.guide-body ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+@media (max-width: 640px) {
+  .guide-body {
+    padding-left: 0.85rem;
+  }
+}

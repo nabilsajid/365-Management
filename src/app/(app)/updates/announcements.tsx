@@ -1,5 +1,6 @@
 import { NoticeList } from '@/components/notice-list';
 import { ApiForm, ResourceManager } from '@/components/resource-manager';
+import { TeamGuide } from '@/components/team-guide';
 import { NOTICE_DURATIONS, isNoticeActive, noticeTimeLeft, sortNotices } from '@/lib/domain/notices';
 import { asRows, getPageContext, rowsOf } from '@/lib/page';
 import type { Notice, Profile } from '@/types/database';
@@ -28,6 +29,7 @@ export async function Announcements() {
 
   return (
     <>
+      <TeamGuide />
       {noticesR.error ? (
         <section className="panel">
           <p className="muted">
