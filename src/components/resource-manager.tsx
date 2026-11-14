@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent, type ReactNode } from 'react';
 import { formatFileLinks, parseFileLinks, type FileLinkInput } from '@/lib/domain/deliverables';
 import { label as humanize, money } from '@/lib/format';
+import { enqueue, queueLabel } from '@/lib/offline-queue';
 import type { Column, Field, Row } from './types';
 
 type FormState = Record<string, string | boolean | string[]>;
@@ -54,7 +55,16 @@ async function callApi(endpoint: string, method: string, body?: unknown): Promis
     const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
     return payload?.error?.message ?? `Request failed (${response.status}).`;
   } catch {
-    return 'Could not reach the server. Check your connection and try again.';
+    // No connection. Things that only add something are kept on the device and
+    // sent later; everything else needs a connection.
+    const label = queueLabel(method, endpoint, body);
+    if (label && enqueue(method, endpoint, body, label)) {
+      toast("Saved on this device. It will be sent when you're back online.");
+      return null;
+    }
+    return label
+      ? 'Could not reach the server. Check your connection and try again.'
+      : "You're offline. This can only be done with a connection.";
   }
 }
 

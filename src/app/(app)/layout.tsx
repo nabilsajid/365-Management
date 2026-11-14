@@ -2,6 +2,7 @@ import { after } from 'next/server';
 import type { ReactNode } from 'react';
 import { AssignmentPopup, type NotificationItem } from '@/components/assignment-popup';
 import { LiveRefresh } from '@/components/live-refresh';
+import { OfflineStatus } from '@/components/offline-status';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { ApiForm } from '@/components/resource-manager';
 import { AppShell } from '@/components/shell/app-shell';
@@ -59,6 +60,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       previewRole={preview?.roleName ?? null}
     >
       <LiveRefresh orgId={orgId} />
+      <OfflineStatus userId={userId} />
       <div className="page-in">
         {needsProfile ? (
           <section className="panel mx-auto max-w-2xl">

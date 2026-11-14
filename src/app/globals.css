@@ -1702,6 +1702,79 @@
     animation: nav-progress-done 0.3s ease-out both;
   }
 
+  /* The bar that says there is no connection, or that offline changes are being sent. */
+  .offline-bar {
+    margin-bottom: 1.25rem;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-line));
+    border-radius: var(--radius-control);
+    background: color-mix(in srgb, var(--color-warning) 10%, var(--color-card));
+    color: var(--color-ink);
+    font-size: 0.8125rem;
+    animation: card-in 0.25s ease-out both;
+  }
+
+  .offline-bar-online {
+    border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-line));
+    background: color-mix(in srgb, var(--color-success) 8%, var(--color-card));
+  }
+
+  .offline-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .offline-line > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  .offline-line svg {
+    flex-shrink: 0;
+  }
+
+  .offline-bar button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.55rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-ink);
+    font-size: 0.75rem;
+  }
+
+  .offline-list {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--color-line);
+  }
+
+  .offline-list p {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .offline-list ul {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0.3rem 0 0.6rem;
+    padding-left: 1rem;
+    list-style: disc;
+  }
+
   /* Project comments. */
   .comments {
     display: grid;

@@ -189,3 +189,12 @@ The app updates itself. Every main table bumps a per-organization counter (`org_
 ## Who is notified of what
 
 Database triggers write notifications for: being put on a project or given a deliverable (that person); a new notice (everyone except its author); and, for admins, a change waiting for approval, submitted work, attendance to verify, a forgotten password, a new broadcast, and a project being marked completed. A completed project stays under Approvals until an admin gives its team points, or declines to, on the project page (`POST /api/projects/[id]/award`).
+
+## Working offline
+
+Two pieces, both on the device:
+
+- **Saved pages.** The service worker (`public/sw.js`) saves a copy of every page that loads and of the app's own code. Online, pages always come fresh from the network; without a connection (or when it hangs for 7 seconds) the last saved copy opens. `OfflineStatus` also fetches the main pages, and the tasks and projects they link to, every half hour while connected, so they are on the device before they are needed. Saved pages are removed on sign-out and when the login page is reached.
+- **Queued actions.** When a request cannot reach the server, `callApi` keeps it in `src/lib/offline-queue.ts` if it is on the short list of things that only add something: marking attendance, a project comment, a work submission, a trip or cost, a needed item, a broadcast. They are sent oldest first when the connection returns. One the server turns down (a day already marked, a project deleted meanwhile) is dropped and shown with the reason. Because these only add records, two people doing them offline never overwrite each other.
+
+Everything else needs a connection and says so: editing or deleting existing records, and anything about money, points, bonuses, approvals, roles or passwords. A rare double entry is possible if the connection drops after the server saved an action but before the device heard back; the action is then sent again.

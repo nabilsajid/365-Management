@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { createClient } from '@/lib/supabase/browser';
 
 export function LoginForm({ notice }: { notice?: string }) {
@@ -13,6 +13,12 @@ export function LoginForm({ notice }: { notice?: string }) {
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Arriving here signed out: pages saved for offline use belonged to whoever
+  // was signed in before, so they are removed from this device.
+  useEffect(() => {
+    if (navigator.onLine && 'caches' in window) void caches.delete('pages-v1').catch(() => false);
+  }, []);
 
   async function signIn(event: FormEvent) {
     event.preventDefault();
