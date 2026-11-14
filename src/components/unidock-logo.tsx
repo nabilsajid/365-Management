@@ -1,6 +1,6 @@
 import { useId } from 'react';
 
-/** The UniDock app mark: a dock (the U) holding one item, on the warm accent. */
+/** The UniDock mark: a U and a D joined (the U's right arm is the D's stem), on the warm accent. */
 export function UniDockMark({ size = 28 }: { size?: number }) {
   const id = useId().replace(/:/g, '');
   return (
@@ -12,8 +12,8 @@ export function UniDockMark({ size = 28 }: { size?: number }) {
         </linearGradient>
       </defs>
       <rect width="32" height="32" rx="9" fill={`url(#ud-${id})`} />
-      <path d="M9 8.5v8.5a7 7 0 0 0 14 0V8.5" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
-      <rect x="13" y="13" width="6" height="6" rx="1.8" fill="#fff" fillOpacity="0.9" />
+      <path d="M7.5 9v7.5a4.25 4.25 0 0 0 8.5 0V9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 9h3a6.5 6.5 0 0 1 0 13h-3" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

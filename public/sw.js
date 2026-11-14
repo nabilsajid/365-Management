@@ -120,8 +120,8 @@ self.addEventListener('push', (event) => {
       .then((alert) =>
         self.registration.showNotification(alert.title, {
           body: alert.body,
-          icon: '/icons/unidock-192.png',
-          badge: '/icons/unidock-192.png',
+          icon: '/icons/ud-192.png',
+          badge: '/icons/ud-192.png',
           tag: 'updates',
           renotify: true,
           data: { href: alert.href },

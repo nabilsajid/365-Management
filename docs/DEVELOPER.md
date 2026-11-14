@@ -179,7 +179,7 @@ npm run test:e2e    # Playwright against E2E_BASE_URL (optional)
 - **The owner account** is set in `platform_owners`. To add another owner, insert a row there with the SQL editor.
 - **Branding:**
   - The sidebar shows the UniDock logo (`src/components/unidock-logo.tsx`) and the company's name.
-  - The app icons are `public/icons/unidock-*.png`, `src/app/icon.png` and `src/app/apple-icon.png`.
+  - The app icons (black and white U–D monogram) are `public/icons/ud-*.png`, `src/app/icon.png` and `src/app/apple-icon.png`.
   - The splash screen and sign-in page still use the 365 Frames logo.
   - Invoices use `public/logo-dark.png`.
 - **Time zone.** Dates are shown in the company's time zone (`organizations.timezone`). Use `localDate` and `localDateTime` from the page context, never the server's clock.
