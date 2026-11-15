@@ -47,7 +47,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (note) changes.note = note;
   const { error } = await ctx.supabase.from('equipment_checkouts').update(changes).eq('id', id).eq('org_id', ctx.profile.org_id);
   if (error) {
-    if (error.code === '23505') return fail(409, 'That item is already out with someone else. Mark it returned first.');
+    if (error.code === '23505') return fail(409, 'That item is already out (every one of it). Mark one returned first.');
     return fromDbError(error);
   }
   after(dispatchPushes);

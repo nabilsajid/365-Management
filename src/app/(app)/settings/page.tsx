@@ -2,13 +2,16 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getPageContext } from '@/lib/page';
 import { AppearanceSection } from './appearance-section';
+import { CompanySection, RemindersSection } from './company-section';
 import { DeleteLogSection } from './delete-log-section';
 import { RulesSection } from './rules-section';
 import { SystemSection } from './system-section';
 
 const TABS = [
   { key: 'appearance', label: 'Appearance' },
+  { key: 'company', label: 'Company' },
   { key: 'rules', label: 'Rules' },
+  { key: 'reminders', label: 'Reminders' },
   { key: 'delete-log', label: 'Delete log' },
   { key: 'system', label: 'System check' },
 ] as const;
@@ -26,7 +29,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <div className="page-header">
         <div>
           <h1>Settings</h1>
-          <p className="muted">How the app looks and behaves for everyone, what was deleted, and whether everything is set up.</p>
+          <p className="muted">How the app looks and behaves for everyone: company details, menu, rules, reminders, what was deleted, and whether everything is set up.</p>
         </div>
       </div>
       <nav className="tabs" aria-label="Settings sections">
@@ -36,7 +39,15 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </Link>
         ))}
       </nav>
-      {tab === 'appearance' ? <AppearanceSection /> : tab === 'rules' ? <RulesSection /> : tab === 'delete-log' ? <DeleteLogSection /> : <SystemSection />}
+      {tab === 'appearance' ? (
+        <AppearanceSection />
+      ) : tab === 'company' ? (
+        <CompanySection />
+      ) : tab === 'reminders' ? (
+        <RemindersSection />
+      ) : tab === 'rules' ? (
+        <RulesSection />
+      ) : tab === 'delete-log' ? <DeleteLogSection /> : <SystemSection />}
     </>
   );
 }

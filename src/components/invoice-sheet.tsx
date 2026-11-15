@@ -3,6 +3,8 @@ import { money } from '@/lib/format';
 
 export interface InvoiceSheetData {
   orgName: string;
+  /** Address, phone, email and website from Settings → Company. */
+  orgLines?: string[];
   invoiceNumber: string;
   issueDate: string;
   dueDate: string | null;
@@ -39,6 +41,11 @@ export function InvoiceSheet({ data, options = readInvoiceOptions({}) }: { data:
             <img src="/logo-dark.png" alt={data.orgName} width={161} height={48} className="invoice-logo" />
           ) : null}
           {show.company_name ? <p className="invoice-muted">{data.orgName}</p> : null}
+          {show.company_name && data.orgLines && data.orgLines.length > 0 ? (
+            <p className="invoice-muted" style={{ margin: 0, fontSize: '0.8rem' }}>
+              {data.orgLines.join(' · ')}
+            </p>
+          ) : null}
           <h1>{show.invoice_number ? `Invoice ${data.invoiceNumber}` : 'Invoice'}</h1>
         </div>
         {facts.length > 0 ? (
@@ -108,9 +115,12 @@ export async function loadInvoiceSheet(db: Loader, invoice: Record<string, unkno
     db.from('invoice_balances').select('paid').eq('invoice_id', invoice.id as string).maybeSingle(),
   ]);
   const c = client.data as { name: string; contact_name: string | null; email: string | null; phone: string | null } | null;
-  const orgRow = org.data as { name: string; invoice_options?: unknown } | null;
+  const orgRow = org.data as
+    | { name: string; invoice_options?: unknown; contact_address?: string | null; contact_phone?: string | null; contact_email?: string | null; website?: string | null }
+    | null;
   const data: InvoiceSheetData = {
     orgName: orgRow?.name ?? '',
+    orgLines: [orgRow?.contact_address, orgRow?.contact_phone, orgRow?.contact_email, orgRow?.website].filter((line): line is string => Boolean(line)),
     invoiceNumber: invoice.invoice_number as string,
     issueDate: invoice.issue_date as string,
     dueDate: (invoice.due_date as string | null) ?? null,

@@ -18,6 +18,7 @@ UniDock is a company workspace for small teams, first built for 365 Frames, a me
 - **Cash Flow & Invoices**: accounts, invoices (printable and shareable), payments, expenses, balances, CSV exports and a monthly summary.
 - **Employees & Rewards**: profiles, roles, attendance, monthly points, deductions, bonuses, leave and the points statement.
 - **Admin**: dashboard, approvals, roles and access, settings, delete log, system check, and companies.
+  - Settings tabs: Appearance, Company (invoice details, menu sections), Rules, Reminders, Delete log and System check. All of them save through `PATCH /api/org-settings`.
 
 Several companies can use one deployment. Every row belongs to one company (`org_id`), and companies never see each other's data.
 

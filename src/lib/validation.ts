@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OPTIONAL_SECTIONS } from './domain/sections';
 import { TASK_KINDS } from './domain/deliverables';
 import { CORNERS } from './domain/appearance';
 import { NOTICE_DURATION_VALUES } from './domain/notices';
@@ -118,6 +119,7 @@ export const submissionReview = z.object({
 export const equipmentCreate = z.object({
   name: text,
   category: optionalText,
+  quantity: z.coerce.number().int('Use a whole number.').min(1, 'At least 1.').max(9999).optional(),
   serial_number: optionalText,
   purchase_price: money.nullish(),
   purchase_date: date.nullish(),
@@ -419,6 +421,22 @@ export const orgRulesUpdate = z
     delete_log_days: z.coerce.number().int('Use whole days.').min(1, 'At least 1 day.').max(365, 'At most 365 days.'),
     // What invoices show: each part on or off, and a footer.
     invoice_options: z.record(z.union([z.boolean(), z.string().max(1000, 'Keep the footer under 1000 characters.')])),
+    // Company details printed on invoices.
+    contact_address: z.string().trim().max(300).nullish(),
+    contact_phone: z.string().trim().max(40).nullish(),
+    contact_email: z.string().trim().max(120).nullish(),
+    website: z.string().trim().max(200).nullish(),
+    // Reminders the daily job sends, and optional menu sections.
+    reminders: z
+      .object({
+        due_tomorrow: z.coerce.boolean(),
+        missed: z.coerce.boolean(),
+        invoices: z.coerce.boolean(),
+        equipment_late: z.coerce.boolean(),
+        shoot_days: z.coerce.number().int().min(0, '0 turns it off.').max(14, 'At most 14 days.'),
+      })
+      .partial(),
+    hidden_sections: z.array(z.enum(OPTIONAL_SECTIONS)).max(10),
   })
   .partial();
 

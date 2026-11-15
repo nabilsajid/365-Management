@@ -12,10 +12,23 @@ export async function PATCH(request: Request): Promise<Response> {
   const body = await readJson(request, orgRulesUpdate);
   if (body.response) return body.response;
   if (Object.keys(body.data).length === 0) return fail(400, 'Nothing to update.');
-  const { invoice_options: invoiceOptions, ...rules } = body.data;
+  const { invoice_options: invoiceOptions, reminders, hidden_sections: hiddenSections, ...rules } = body.data;
   const changes: Record<string, unknown> = { ...rules };
+  // Empty company details are stored as nothing.
+  for (const key of ['contact_address', 'contact_phone', 'contact_email', 'website'] as const) {
+    if (key in changes) changes[key] = (changes[key] as string | null | undefined) || null;
+  }
   // Only known parts are stored.
   if (invoiceOptions) changes.invoice_options = storeInvoiceOptions(readInvoiceOptions(invoiceOptions));
+  // Reminders and menu sections live together in settings; the rest of it is kept.
+  if (reminders || hiddenSections) {
+    const current = await ctx.supabase.from('organizations').select('settings').eq('id', ctx.profile.org_id).maybeSingle();
+    if (current.error) return fromDbError(current.error);
+    const settings = { ...((current.data?.settings as Record<string, unknown> | null) ?? {}) };
+    if (reminders) settings.reminders = { ...((settings.reminders as Record<string, unknown>) ?? {}), ...reminders };
+    if (hiddenSections) settings.hidden_sections = hiddenSections;
+    changes.settings = settings;
+  }
   const { data, error } = await ctx.supabase
     .from('organizations')
     .update(changes)

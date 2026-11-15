@@ -33,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
   };
   const { data, error } = await ctx.supabase.from('equipment_checkouts').insert(row).select('*').single();
   if (error) {
-    if (error.code === '23505') return fail(409, 'That item is already out with someone. Mark it returned first.');
+    if (error.code === '23505') return fail(409, 'That item is already out (every one of it). Mark one returned first.');
     return fromDbError(error);
   }
   after(dispatchPushes);

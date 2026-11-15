@@ -100,11 +100,20 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
     };
   });
 
+  // How many of each item are out right now, from the checkout list.
+  const outCount = new Map<string, number>();
+  for (const row of rowsOf<{ equipment_id: string; status: string }>(checkoutsResult.data)) {
+    if (row.status === 'out') outCount.set(row.equipment_id, (outCount.get(row.equipment_id) ?? 0) + 1);
+  }
   const equipmentRows = equipment.map((item) => {
     const holder = item.current_holder_id ? person.get(item.current_holder_id) : undefined;
+    const quantity = Number((item as { quantity?: number }).quantity ?? 1);
+    const out = outCount.get(item.id) ?? 0;
     return {
       ...item,
-      holder_name: holder?.full_name ?? 'In storage',
+      quantity,
+      // Several of a kind: "2 of 4 out" instead of one holder.
+      holder_name: quantity > 1 ? (out > 0 ? `${out} of ${quantity} out` : `All ${quantity} in storage`) : (holder?.full_name ?? 'In storage'),
       holder_role: holder?.job_title ?? null,
       held_since: item.holder_since ? item.holder_since.slice(0, 10) : null,
       origin: item.source_expense_id ? 'Cash flow purchase' : 'Registered manually',
@@ -143,8 +152,9 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
   const equipmentFields: Field[] = [
     { name: 'name', label: 'Name', required: true },
     { name: 'category', label: 'Category', placeholder: 'Camera, lens, audio…' },
-    { name: 'serial_number', label: 'Serial number' },
-    { name: 'purchase_price', label: 'Purchase price', type: 'number', hint: 'Optional. Leave empty if unknown.' },
+    { name: 'quantity', label: 'Quantity', type: 'number', defaultValue: '1', hint: 'How many of this item there are, e.g. 4 lights. As many can be checked out at once.' },
+    { name: 'serial_number', label: 'Serial number', hint: 'For several of a kind, list them in Notes.' },
+    { name: 'purchase_price', label: 'Purchase price', type: 'number', hint: 'Optional, for all of them together. Leave empty if unknown.' },
     { name: 'purchase_date', label: 'Purchase date', type: 'date' },
     { name: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'available', options: enumOptions(['available', 'in_use', 'maintenance', 'retired']) },
     { name: 'condition', label: 'Condition', type: 'select', options: enumOptions(['perfect', 'moderate', 'weak']), hint: 'Leave empty if not checked yet.' },
@@ -193,6 +203,7 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
           rows={asRows(equipmentRows)}
           columns={[
             { key: 'name', label: 'Item' },
+            { key: 'quantity', label: 'Qty' },
             { key: 'category', label: 'Category' },
             { key: 'serial_number', label: 'Serial' },
             ...(seesInventory ? [{ key: 'purchase_price', label: 'Price', kind: 'money' as const }] : []),

@@ -6,6 +6,7 @@ import { LiveRefresh } from '@/components/live-refresh';
 import { OfflineStatus } from '@/components/offline-status';
 import { PROFILE_FIELDS } from '@/components/profile-fields';
 import { ApiForm } from '@/components/resource-manager';
+import { hiddenSections } from '@/lib/domain/sections';
 import { AppShell } from '@/components/shell/app-shell';
 import { appearanceCss } from '@/lib/domain/appearance';
 import { wants } from '@/lib/domain/notification-kind';
@@ -38,7 +39,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // New assignments, shown in a pop-up until the person has seen them.
     supabase.from('notifications').select('id, title, body, href').eq('profile_id', userId).is('read_at', null).order('created_at', { ascending: false }).limit(8),
     // The company's chosen look. Before the appearance update this simply fails and the built-in look is used.
-    supabase.from('organizations').select('appearance').eq('id', orgId).maybeSingle(),
+    supabase.from('organizations').select('*').eq('id', orgId).maybeSingle(),
     // The person's own unfinished work that is overdue or due within two days: a red marker on My Tasks.
     supabase.from('tasks').select('id').eq('org_id', orgId).eq('assignee_id', userId).lte('due_date', soonLimit(today)).not('status', 'in', '(submitted,approved)'),
     // Equipment requests waiting for a decision (admins).
@@ -75,6 +76,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {/* Only checked colour values and fixed words reach this; see appearanceCss. */}
       {lookCss ? <style id="appearance" dangerouslySetInnerHTML={{ __html: lookCss }} /> : null}
     <AppShell
+      hiddenSections={look.error ? [] : hiddenSections((look.data as { settings?: unknown } | null)?.settings)}
       orgName={orgName}
       userName={profile.full_name}
       jobTitle={profile.job_title}

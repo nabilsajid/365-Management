@@ -228,3 +228,13 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
   - `notify_task_changed()` tells a task's assignee when its title, notes, points, due date, type or links change.
   - `notify_project_changed()` tells the project's team when its name, brief, dates, shoot, links or client change.
   - The person making the change is never told.
+
+## Quantity, company details and settings (update 39)
+
+- `equipment.quantity` (default 1). As many checkouts can be `out` at once as there are (`check_equipment_available`).
+  - A single item shows its holder.
+  - Several of a kind turn `in_use` only once all are out.
+- `organizations.contact_address`, `contact_phone`, `contact_email` and `website` are printed on invoices under the company name.
+- `organizations.settings` (jsonb):
+  - `reminders`: `due_tomorrow`, `missed`, `invoices`, `equipment_late`, `shoot_days`. Unset means on, and 2 days for shoots. `notify_deadlines` and `remind_overdue_invoices` respect them.
+  - `hidden_sections`: optional menu sections switched off (`src/lib/domain/sections.ts`).

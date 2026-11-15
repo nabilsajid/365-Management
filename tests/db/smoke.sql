@@ -1199,6 +1199,30 @@ select pg_temp.check(
 select pg_temp.check((select count(*) = 0 from notifications where profile_id = '00000000-0000-0000-0000-0000000000a1' and title like '%updated:%'),
   'the person making a change is not told about it');
 
+-- Several of a kind, and reminders a company switched off.
+reset role;
+insert into equipment (id, org_id, name, quantity) values ('00000000-0000-0000-0000-00000000e0e2', '00000000-0000-0000-0000-000000000001', 'Godox SL60', 2);
+insert into equipment_checkouts (org_id, equipment_id, holder_id, status, taken_at) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000e0e2', '00000000-0000-0000-0000-0000000000e1', 'out', now());
+select pg_temp.check((select status = 'available' and current_holder_id is null from equipment where id = '00000000-0000-0000-0000-00000000e0e2'),
+  'one of two lights out leaves the other available');
+insert into equipment_checkouts (org_id, equipment_id, holder_id, status, taken_at) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000e0e2', '00000000-0000-0000-0000-0000000000a1', 'out', now());
+select pg_temp.check((select status = 'in_use' from equipment where id = '00000000-0000-0000-0000-00000000e0e2'), 'both out marks the item in use');
+do $$ begin
+  insert into equipment_checkouts (org_id, equipment_id, holder_id, status, taken_at) values
+    ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000e0e2', '00000000-0000-0000-0000-0000000000e1', 'out', now());
+  raise exception 'FAILED: a third light went out of two';
+exception when unique_violation then raise notice 'ok - no more can go out than there are';
+end $$;
+update organizations set settings = '{"reminders": {"due_tomorrow": false}}' where id = '00000000-0000-0000-0000-000000000001';
+delete from notifications;
+update tasks set due_date = (now() at time zone 'Asia/Dhaka')::date + 1, reminder_sent_at = null where title = 'Late one';
+set local request.jwt.claim.sub = '';
+select notify_deadlines();
+select pg_temp.check((select count(*) = 0 from notifications where title like 'Due tomorrow:%'), 'a reminder switched off in Settings is not sent');
+update organizations set settings = '{}' where id = '00000000-0000-0000-0000-000000000001';
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

@@ -322,6 +322,7 @@ export function AppShell({
   previewRole = null,
   owner = false,
   viewingCompany = null,
+  hiddenSections = [],
   children,
 }: {
   orgName: string;
@@ -338,10 +339,16 @@ export function AppShell({
   owner?: boolean;
   /** Set while the owner is inside another company. */
   viewingCompany?: string | null;
+  /** Menu sections the company switched off. */
+  hiddenSections?: string[];
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const viewer = useMemo<Viewer>(() => ({ isAdmin, segments: new Set(segments) }), [isAdmin, segments]);
+  const hiddenKey = hiddenSections.join(',');
+  const viewer = useMemo<Viewer>(
+    () => ({ isAdmin, segments: new Set(segments), hidden: new Set(hiddenKey ? hiddenKey.split(',') : []) }),
+    [isAdmin, segments, hiddenKey],
+  );
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const here = locate(pathname, viewer);

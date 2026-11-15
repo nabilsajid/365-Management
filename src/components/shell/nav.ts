@@ -36,6 +36,8 @@ export interface NavGroup {
 export interface Viewer {
   isAdmin: boolean;
   segments: ReadonlySet<string>;
+  /** Sections the company switched off in Settings. */
+  hidden?: ReadonlySet<string>;
 }
 
 // Only pages that exist are listed. Items without a rule are for everyone:
@@ -79,7 +81,9 @@ const GROUPS: NavGroup[] = [
 
 export function navFor(viewer: Viewer): NavGroup[] {
   const allowed = (item: NavItem) =>
-    viewer.isAdmin
+    viewer.hidden?.has(item.href)
+      ? false
+      : viewer.isAdmin
       ? !item.nonAdminOnly
       : !item.adminOnly && (!item.segment || viewer.segments.has(item.segment));
   return GROUPS.map((group) => ({ ...group, items: group.items.filter(allowed) })).filter(

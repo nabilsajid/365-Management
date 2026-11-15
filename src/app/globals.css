@@ -3099,8 +3099,8 @@
   line-height: 1;
 }
 .unidock-logo b {
-  color: #eaa77a;
-  font-weight: 650;
+  color: #ffffff;
+  font-weight: 800;
 }
 
 /* The company using the app, under the logo. */
@@ -3946,4 +3946,30 @@
 }
 .fold-inline[open] > summary {
   margin-bottom: 0.6rem;
+}
+
+/* Settings: on/off rows. */
+.settings-toggles {
+  display: grid;
+  gap: 0.6rem;
+}
+.toggle-row {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.toggle-row input {
+  margin-top: 0.2rem;
+  accent-color: var(--color-primary);
+}
+.toggle-row span {
+  display: grid;
+  gap: 0.1rem;
+}
+.toggle-row small {
+  font-size: 0.78rem;
 }
