@@ -1159,6 +1159,25 @@ select pg_temp.check(
   and (select status = 'returned' and returned_at is not null from equipment_checkouts where id = '00000000-0000-0000-0000-00000000c0c1'),
   'handing it back puts the item back in storage and keeps the record');
 
+-- Monthly targets and the new deliverable types.
+reset role;
+insert into tasks (org_id, project_id, title, kind) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'Post 1', 'post'),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'Photo set', 'photo');
+select pg_temp.check((select count(*) = 2 from tasks where kind in ('post', 'photo')), 'photos and social media posts are deliverable types');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into project_targets (org_id, project_id, kind, quantity) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'video', 5);
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 1 from project_targets), 'everyone can see a monthly client''s targets');
+do $$ begin
+  insert into project_targets (org_id, project_id, kind, quantity) values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'post', 3);
+  raise exception 'FAILED: a member without project editing set a target';
+exception when insufficient_privilege then raise notice 'ok - only people who edit projects set targets';
+end $$;
+reset role;
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

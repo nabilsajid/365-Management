@@ -62,13 +62,15 @@ const projectFields = {
   shoot_date: date.nullish(),
   file_links: z.array(fileLink).max(50).optional(),
   member_ids: z.array(id).max(100).optional(),
-  // One-time, or a monthly client: one project with a monthly package and a month for each calendar month.
+  // One-time, or a monthly client: one project with a month for each calendar month.
   kind: z.enum(['one_time', 'monthly']).optional(),
 };
 
 export const projectCreate = z.object({
   ...projectFields,
   deliverables: z.array(deliverable).max(100).default([]),
+  // A monthly client's optional targets, e.g. { video: 5, thumbnail: 5, post: 3 }.
+  targets: z.record(z.enum(TASK_KINDS), z.coerce.number().int().min(1).max(999)).optional(),
 });
 export const projectUpdate = z.object(projectFields).partial();
 
@@ -495,4 +497,9 @@ export const checkoutCreate = z
 export const checkoutAction = z.object({
   action: z.enum(['approve', 'decline', 'return', 'cancel']),
   note: z.string().trim().max(500).nullish(),
+});
+
+// A monthly client's targets: how many of each type a month. Empty means no fixed number.
+export const deliveryTargets = z.object({
+  targets: z.record(z.enum(TASK_KINDS), z.coerce.number().int('Use whole numbers.').min(1).max(999).nullable()),
 });

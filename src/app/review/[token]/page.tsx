@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Review', robots: { index: false, follow: false } };
 
-const KIND: Record<string, string> = { video: 'Video', thumbnail: 'Thumbnail', shoot: 'Shoot', other: 'Deliverable' };
+const KIND: Record<string, string> = { video: 'Video', thumbnail: 'Thumbnail', photo: 'Photo', post: 'Social media post', graphic: 'Graphic', shoot: 'Shoot', other: 'Deliverable' };
 const STATUS: Record<string, string> = {
   todo: 'Not started',
   in_progress: 'In progress',

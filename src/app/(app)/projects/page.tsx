@@ -4,6 +4,7 @@ import { ProjectOnboardingForm } from '@/components/project-onboarding-form';
 import { ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { monthName } from '@/components/month-bar';
+import { TASK_KIND_LABEL, deliveryCounts } from '@/lib/domain/deliverables';
 import { monthStart } from '@/lib/domain/points';
 import { label } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, peopleOptions, rowsOf } from '@/lib/page';
@@ -51,8 +52,14 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   ]);
   const months = monthsResult.error ? [] : rowsOf<{ id: string; project_id: string; month: string; status: string }>(monthsResult.data);
   const monthlyReady = !monthsResult.error;
-  const monthTasksResult = monthlyReady ? await supabase.from('tasks').select('month_id, status, is_extra').eq('org_id', orgId).not('month_id', 'is', null) : { data: [] };
-  const monthTasks = rowsOf<{ month_id: string; status: string; is_extra: boolean }>(monthTasksResult.data);
+  const [monthTasksResult, targetsResult] = monthlyReady
+    ? await Promise.all([
+        supabase.from('tasks').select('month_id, status, is_extra, kind').eq('org_id', orgId).not('month_id', 'is', null),
+        supabase.from('project_targets').select('project_id, kind, quantity').eq('org_id', orgId),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const allTargets = rowsOf<{ project_id: string; kind: string; quantity: number }>(targetsResult.data);
+  const monthTasks = rowsOf<{ month_id: string; status: string; is_extra: boolean; kind: string | null }>(monthTasksResult.data);
   const typesReady = !typesProbe.error;
   // Clients are visible to roles that can view projects or cash flow.
   const seesClients = can('projects') || can('cashflow');
@@ -100,6 +107,10 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         total: own.length,
         extras: own.filter((task) => task.is_extra).length,
         percent: own.length === 0 ? 0 : Math.round((done / own.length) * 100),
+        // "3/5 videos · 2/5 thumbnails · 4 photos": delivered this month against targets.
+        counter: deliveryCounts(own, allTargets.filter((row) => row.project_id === project.id))
+          .map((row) => (row.target !== null ? `${row.delivered}/${row.target} ${TASK_KIND_LABEL[row.kind].toLowerCase()}` : `${row.delivered} ${TASK_KIND_LABEL[row.kind].toLowerCase()}`))
+          .join(' · '),
       };
     });
   const oneTimeRows = projectRows.filter((project) => !isMonthly(project));
@@ -189,8 +200,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   <span className="project-meta">
                     <ListChecks size={13} aria-hidden />
                     {project.month
-                      ? `${monthName(project.month.month, true)}: ${project.done} of ${project.total} done${project.extras > 0 ? ` · ${project.extras} extra` : ''}`
-                      : 'This month not opened yet'}
+                      ? `${monthName(project.month.month, true)}: ${project.counter || `${project.done} of ${project.total} done`}`
+                      : 'This month not started yet'}
                   </span>
                 </div>
                 <div className="project-foot">

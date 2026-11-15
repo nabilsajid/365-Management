@@ -200,3 +200,13 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
   - Going out sets `equipment.current_holder_id` and status `in_use`; coming back returns it to storage.
 - Everyone in the company can now read the equipment list, so they can ask for items.
 - In the app, My Tasks shows a red count in the menu for one's own tasks that are overdue or due within two days (`src/lib/domain/deadlines.ts`).
+
+## Monthly targets and delivery counts (update 37)
+
+- Monthly clients now **track deliveries** instead of copying a package.
+  - `project_targets`: an optional target per type and month (`kind`, `quantity`), e.g. 5 videos, 5 thumbnails, 3 social media posts.
+  - Types without a target are only counted.
+  - Each month's counter (`deliveryCounts` in `src/lib/domain/deliverables.ts`) counts that month's deliverables per type: delivered means approved, and it also tracks how many are in review.
+- Months start empty. Work is added to a month as it comes, and existing package lines were turned into targets.
+  - `project_package_items` remains in the database but is no longer used or shown.
+- Two new deliverable types: `photo` and `post` (social media post).

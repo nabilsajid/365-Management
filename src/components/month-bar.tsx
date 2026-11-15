@@ -78,7 +78,6 @@ export function MonthBar({
               <h2>{monthName(selected.month)}</h2>
               <p className="muted">
                 {selected.done} of {selected.total} deliverables done
-                {selected.extras > 0 ? ` · ${selected.extras} extra` : ''}
               </p>
             </div>
             <div className="month-status" role="group" aria-label="Month status">
@@ -128,7 +127,7 @@ export function MonthBar({
         <div className="month-head">
           <div>
             <h2>No month started yet</h2>
-            <p className="muted">Each month starts with the monthly package below. It starts by itself on the 1st, or press Start now.</p>
+            <p className="muted">Each month starts by itself on the 1st; add its work as it comes. Or start it now.</p>
           </div>
         </div>
       )}

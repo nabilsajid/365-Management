@@ -150,15 +150,15 @@ Everyone can always see and act on their own things: assigned tasks, their own a
 
 - A project has `kind` set to `one_time` or `monthly`.
 - A monthly client has:
-  - a package: `project_package_items`
+  - optional targets per type: `project_targets`, set by `PUT /api/projects/:id/targets`
   - months: `project_months`, opened by `open_project_month`
-  - deliverables tied to a month: `tasks.month_id`, with `tasks.is_extra` for extras
-- The project page (`src/app/(app)/projects/[id]/page.tsx`) shows one month at a time: `?month=<month id>`, defaulting to the current month. `MonthBar` shows the months as tabs (with "Start <month>"), the chosen month's progress and its status (In progress / Done). Below it, the month's deliverables by type, package and extras together, tagged "Package" or "Extra"; adding to a month always creates an extra. The Monthly package (the template) is folded away at the bottom.
+  - deliverables tied to a month: `tasks.month_id`
+- The project page (`src/app/(app)/projects/[id]/page.tsx`) shows one month at a time: `?month=<month id>`, defaulting to the current month. `MonthBar` shows the months as tabs (with "Start <month>"), the chosen month's progress and its status (In progress / Done). Below it, `DeliveryTracker` shows delivered against target per type for that month. Then come the month's deliverables by type, "Add to <month>", and the optional Monthly targets editor (`TargetsEditor`), folded.
 - Routes:
   - `POST /api/package-items` and `PATCH`/`DELETE /api/package-items/:id`
   - `POST /api/projects/:id/months` with `{ month: 'current' | 'next' | 'YYYY-MM' }`
   - `PATCH /api/project-months/:id` (close, reopen, note), and `DELETE` for admins only
-- Creating a monthly project (`createProjectWithDeliverables` with `kind: 'monthly'`) saves the deliverables as the package and opens the current month.
+- Creating a monthly project (`createProjectWithDeliverables` with `kind: 'monthly'`) saves its optional `targets` and starts the current month empty. The package routes (`/api/package-items`) still exist but are no longer used.
 
 ## 10. Scheduled job
 

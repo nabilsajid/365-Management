@@ -41,12 +41,14 @@ export function nextMonthStart(month: string): string {
 }
 
 /** What a deliverable is. The order here is the order the groups appear on a project. */
-export const TASK_KINDS = ['shoot', 'video', 'thumbnail', 'graphic', 'other'] as const;
+export const TASK_KINDS = ['shoot', 'video', 'thumbnail', 'photo', 'post', 'graphic', 'other'] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 export const TASK_KIND_LABEL: Record<TaskKind, string> = {
   shoot: 'Shoots',
   video: 'Videos',
   thumbnail: 'Thumbnails',
+  photo: 'Photos',
+  post: 'Social media posts',
   graphic: 'Graphics',
   other: 'Other deliverables',
 };
@@ -54,9 +56,48 @@ export const TASK_KIND_SINGLE: Record<TaskKind, string> = {
   shoot: 'Shoot',
   video: 'Video',
   thumbnail: 'Thumbnail',
+  photo: 'Photo',
+  post: 'Social media post',
   graphic: 'Graphic',
   other: 'Other',
 };
+
+/** "5 videos", "1 social media post": a count with the type's name. */
+export function countOf(kind: TaskKind, count: number): string {
+  const single = TASK_KIND_SINGLE[kind].toLowerCase();
+  return `${count} ${count === 1 ? single : TASK_KIND_LABEL[kind].toLowerCase().replace('other deliverables', 'other')}`;
+}
+
+export interface DeliveryCount {
+  kind: TaskKind;
+  /** The monthly target, or null when the client has no fixed number for this type. */
+  target: number | null;
+  delivered: number;
+  inReview: number;
+  /** All of this type in the month, finished or not. */
+  total: number;
+}
+
+/**
+ * The month's delivery counter: for every type with a target or with work this
+ * month, how many were delivered (approved) and how many wait for review.
+ */
+export function deliveryCounts(
+  tasks: { kind?: string | null; status: string }[],
+  targets: { kind: string; quantity: number }[],
+): DeliveryCount[] {
+  return TASK_KINDS.map((kind) => {
+    const own = tasks.filter((task) => (task.kind ?? 'other') === kind);
+    const target = targets.find((row) => row.kind === kind)?.quantity ?? null;
+    return {
+      kind,
+      target,
+      delivered: own.filter((task) => task.status === 'approved').length,
+      inReview: own.filter((task) => task.status === 'submitted').length,
+      total: own.length,
+    };
+  }).filter((row) => row.target !== null || row.total > 0);
+}
 
 /** Where a video's thumbnail stands: "Missing" when no thumbnail is tied to it. */
 export function thumbnailState(videoId: string, tasks: { kind?: string; for_task_id?: string | null; status: string }[]): string {

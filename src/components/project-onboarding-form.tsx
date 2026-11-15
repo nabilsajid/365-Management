@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent } from 'react';
-import { TASK_KINDS, TASK_KIND_SINGLE, parseFileLinks } from '@/lib/domain/deliverables';
+import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, parseFileLinks } from '@/lib/domain/deliverables';
 import { toast } from './resource-manager';
 import type { Option } from './types';
 
@@ -51,6 +51,7 @@ export function ProjectOnboardingForm({
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<'one_time' | 'monthly'>('one_time');
   const monthly = monthlyReady && kind === 'monthly';
+  const [targets, setTargets] = useState<Record<string, string>>({});
   const [name, setName] = useState('');
   const [clientName, setClientName] = useState('');
   const [brief, setBrief] = useState('');
@@ -133,9 +134,18 @@ export function ProjectOnboardingForm({
           start_date: startDate || null,
           due_date: monthly ? null : dueDate || null,
           ...(monthlyReady ? { kind } : {}),
+          ...(monthly
+            ? {
+                targets: Object.fromEntries(
+                  Object.entries(targets)
+                    .filter(([, value]) => String(value).trim() && Number(value) >= 1)
+                    .map(([key, value]) => [key, Math.round(Number(value))]),
+                ),
+              }
+            : {}),
           file_links: projectLinks.links,
           member_ids: team,
-          deliverables: payload,
+          deliverables: monthly ? [] : payload,
         }),
       });
       const result = (await response.json().catch(() => null)) as
@@ -260,14 +270,34 @@ export function ProjectOnboardingForm({
           </label>
         </div>
 
-        {deliverables.length > 0 ? <h3>{monthly ? 'Monthly package' : 'Deliverables'}</h3> : null}
         {monthly ? (
-          <p className="muted">
-            What this client gets every month. This month opens straight away with these deliverables; each new month
-            opens by itself on the 1st. Extras for a single month are added on the project later.
-          </p>
+          <>
+            <h3>Monthly targets (optional)</h3>
+            <p className="muted">
+              How many of each this client gets a month. Leave empty when there is no fixed number: deliveries are still
+              counted. You add each month&apos;s work on the project as it comes.
+            </p>
+            <div className="targets-grid">
+              {TASK_KINDS.map((kind) => (
+                <label key={kind} className="field">
+                  <span>{TASK_KIND_LABEL[kind]}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={999}
+                    inputMode="numeric"
+                    placeholder="—"
+                    autoComplete="off"
+                    value={targets[kind] ?? ''}
+                    onChange={(event) => setTargets((current) => ({ ...current, [kind]: event.target.value }))}
+                  />
+                </label>
+              ))}
+            </div>
+          </>
         ) : null}
-        {deliverables.map((item) => (
+        {!monthly && deliverables.length > 0 ? <h3>Deliverables</h3> : null}
+        {(monthly ? [] : deliverables).map((item) => (
           <fieldset key={item.key} className="deliverable">
             <div className="form-grid">
               <label className="field">
@@ -361,9 +391,11 @@ export function ProjectOnboardingForm({
           <button type="submit" className="primary" disabled={busy}>
             {busy ? 'Creating…' : monthly ? 'Create monthly client' : 'Create project'}
           </button>
-          <button type="button" onClick={addDeliverable} disabled={busy}>
-            {monthly ? 'Add to the monthly package' : 'Add a deliverable (shoot, video, thumbnail…)'}
-          </button>
+          {monthly ? null : (
+            <button type="button" onClick={addDeliverable} disabled={busy}>
+              Add a deliverable (shoot, video, thumbnail…)
+            </button>
+          )}
           <button type="button" onClick={() => setOpen(false)} disabled={busy}>
             Cancel
           </button>

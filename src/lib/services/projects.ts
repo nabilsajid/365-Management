@@ -15,6 +15,7 @@ export interface ProjectInput {
   member_ids?: string[];
   deliverables?: DeliverableInput[];
   kind?: 'one_time' | 'monthly';
+  targets?: Partial<Record<string, number>>;
 }
 
 type DbError = { code?: string; message: string };
@@ -51,7 +52,7 @@ export async function createProjectWithDeliverables(
   /** For a monthly project: the first day of the month to open straight away. */
   currentMonth?: string,
 ): Promise<Result<Record<string, unknown>>> {
-  const { deliverables = [], member_ids: memberIds = [], client_name: clientName, file_links: fileLinks = [], ...project } = input;
+  const { deliverables = [], member_ids: memberIds = [], client_name: clientName, file_links: fileLinks = [], targets: _targets, ...project } = input;
 
   const client = await resolveClient(supabase, orgId, clientName);
   if (client.error) return { error: client.error };
@@ -77,8 +78,15 @@ export async function createProjectWithDeliverables(
     if (team.error) return undo(team.error);
   }
 
-  // A monthly client: the deliverables are its monthly package, and this month opens with them.
+  // A monthly client: its optional targets, and this month started (empty; work is added as it comes).
   if (input.kind === 'monthly') {
+    const targets = Object.entries(input.targets ?? {}).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0);
+    if (targets.length > 0) {
+      const saved = await supabase
+        .from('project_targets')
+        .insert(targets.map(([kind, quantity]) => ({ org_id: orgId, project_id: projectId, kind, quantity })));
+      if (saved.error) return undo(saved.error);
+    }
     const items = buildPackageItems(orgId, projectId, deliverables);
     if (items.length > 0) {
       const saved = await supabase.from('project_package_items').insert(items).select('id, position');
