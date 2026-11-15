@@ -122,6 +122,7 @@ function autoCompleteFor(field: Field): string | undefined {
 
 function FieldForm({
   scope,
+  suggestions,
   fields,
   initial,
   submitLabel,
@@ -130,6 +131,8 @@ function FieldForm({
   resetOnSuccess,
 }: {
   scope: string;
+  /** Values already saved for a field, offered as you type (only for the same kind of record). */
+  suggestions?: Record<string, string[]>;
   fields: Field[];
   initial?: Values;
   submitLabel: string;
@@ -230,16 +233,26 @@ function FieldForm({
                   onChange={(event) => set(field.name, event.target.checked)}
                 />
               ) : (
-                <input
-                  id={id}
-                  name={inputName}
-                  autoComplete={autoCompleteFor(field)}
-                  type={field.type ?? 'text'}
-                  step={field.type === 'number' ? 'any' : undefined}
-                  value={String(value)}
-                  placeholder={field.placeholder}
-                  onChange={(event) => set(field.name, event.target.value)}
-                />
+                <>
+                  <input
+                    id={id}
+                    name={inputName}
+                    autoComplete={suggestions?.[field.name]?.length ? 'off' : autoCompleteFor(field)}
+                    list={suggestions?.[field.name]?.length ? `${id}-list` : undefined}
+                    type={field.type ?? 'text'}
+                    step={field.type === 'number' ? 'any' : undefined}
+                    value={String(value)}
+                    placeholder={field.placeholder}
+                    onChange={(event) => set(field.name, event.target.value)}
+                  />
+                  {suggestions?.[field.name]?.length ? (
+                    <datalist id={`${id}-list`}>
+                      {suggestions[field.name].map((option) => (
+                        <option key={option} value={option} />
+                      ))}
+                    </datalist>
+                  ) : null}
+                </>
               )}
               {field.hint ? <small>{field.hint}</small> : null}
             </label>
@@ -274,9 +287,12 @@ export function ApiForm({
   fixedValues,
   submitLabel = 'Save',
   resetOnSuccess = true,
+  suggestions,
 }: {
   endpoint: string;
   method?: 'POST' | 'PATCH';
+  /** Values to offer while typing, per field name. */
+  suggestions?: Record<string, string[]>;
   fields: Field[];
   initial?: Values;
   fixedValues?: Values;
@@ -288,6 +304,7 @@ export function ApiForm({
   return (
     <FieldForm
       scope={formScope(endpoint)}
+      suggestions={suggestions}
       fields={fields}
       initial={initial}
       submitLabel={submitLabel}
@@ -450,6 +467,19 @@ export function ResourceManager({
   // Forms close straight away; the table dims while the fresh rows arrive.
   const [refreshing, startTransition] = useTransition();
   const refresh = () => startTransition(() => router.refresh());
+  // Plain text fields suggest what is already saved in this list (equipment names in
+  // the equipment form, client names in the client form), never other kinds of record.
+  const suggestions: Record<string, string[]> = {};
+  for (const field of [...(fields ?? []), ...(editFields ?? [])]) {
+    if (field.type && field.type !== 'text') continue;
+    if (suggestions[field.name]) continue;
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const value = row[field.name];
+      if (typeof value === 'string' && value.trim() && value.length <= 120) seen.add(value.trim());
+    }
+    if (seen.size > 0) suggestions[field.name] = [...seen].sort((a, b) => a.localeCompare(b)).slice(0, 200);
+  }
 
   const formFields = editFields ?? fields;
   const canEdit = canWrite && formFields.length > 0;
@@ -503,6 +533,7 @@ export function ResourceManager({
       {canCreate && adding ? (
         <FieldForm
           scope={formScope(endpoint)}
+          suggestions={suggestions}
           fields={fields}
           submitLabel={addLabel}
           onCancel={() => setAdding(false)}
@@ -558,6 +589,7 @@ export function ResourceManager({
                     <td colSpan={columns.length + 1}>
                       <FieldForm
                         scope={formScope(endpoint)}
+                        suggestions={suggestions}
                         fields={formFields}
                         initial={row}
                         submitLabel="Save changes"

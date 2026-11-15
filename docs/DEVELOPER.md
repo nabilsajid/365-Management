@@ -153,7 +153,7 @@ Everyone can always see and act on their own things: assigned tasks, their own a
   - a package: `project_package_items`
   - months: `project_months`, opened by `open_project_month`
   - deliverables tied to a month: `tasks.month_id`, with `tasks.is_extra` for extras
-- The project page (`src/app/(app)/projects/[id]/page.tsx`) shows one month at a time: `?month=<month id>`, defaulting to the current month. Under it are `MonthBar`, the month's deliverables by type, Extras and the Monthly package.
+- The project page (`src/app/(app)/projects/[id]/page.tsx`) shows one month at a time: `?month=<month id>`, defaulting to the current month. `MonthBar` shows the months as tabs (with "Start <month>"), the chosen month's progress and its status (In progress / Done). Below it, the month's deliverables by type, package and extras together, tagged "Package" or "Extra"; adding to a month always creates an extra. The Monthly package (the template) is folded away at the bottom.
 - Routes:
   - `POST /api/package-items` and `PATCH`/`DELETE /api/package-items/:id`
   - `POST /api/projects/:id/months` with `{ month: 'current' | 'next' | 'YYYY-MM' }`

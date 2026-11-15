@@ -3598,11 +3598,6 @@
 .monthly-card {
   border-left: 3px solid var(--color-primary);
 }
-.month-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
 .month-progress {
   height: 6px;
   border-radius: 999px;
@@ -3646,15 +3641,6 @@
 .month-tabs a[aria-current='page'] {
   border-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card));
-}
-@media (max-width: 640px) {
-  .month-actions {
-    width: 100%;
-  }
-  .month-actions .action,
-  .month-actions .action button {
-    flex: 1;
-  }
 }
 
 .popup.welcome p {
@@ -3744,5 +3730,99 @@
   .checkout-actions .action,
   .checkout-actions .action button {
     flex: 1;
+  }
+}
+
+/* Monthly client: months as tabs, then the month's progress and status. */
+.month-bar .month-tabs {
+  align-items: stretch;
+  margin-bottom: 1rem;
+  padding-bottom: 0.25rem;
+}
+.month-bar .month-tabs .action button {
+  height: 100%;
+  white-space: nowrap;
+}
+.month-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.month-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.month-head p {
+  margin: 0.15rem 0 0;
+}
+.month-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.month-status-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 50%, var(--color-line));
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.month-status-on.done {
+  background: var(--color-success-soft);
+  border-color: color-mix(in srgb, var(--color-success) 50%, var(--color-line));
+  color: var(--color-success-strong);
+}
+.month-more {
+  margin-top: 0.6rem;
+  font-size: 0.8125rem;
+}
+.month-more summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  width: fit-content;
+}
+.month-more .action {
+  margin-top: 0.4rem;
+}
+.package-fold > summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+}
+.package-summary {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.package-fold > p {
+  margin: 0.6rem 0 0.75rem;
+}
+.package-fold .panel {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+@media (max-width: 640px) {
+  .month-status,
+  .month-status .action,
+  .month-status .action button {
+    width: 100%;
+  }
+  .month-status .action,
+  .month-status-on {
+    flex: 1;
+    justify-content: center;
   }
 }

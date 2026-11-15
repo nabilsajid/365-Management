@@ -85,12 +85,21 @@ export default async function ProjectPage({
     position: number;
   }>(packageResult.data);
   const thisMonth = monthStart(new Date(), timeZone);
+  // "Every month: 4 videos · 4 thumbnails · 1 shoot"
+  const packageSummary = TASK_KINDS.map((kind) => {
+    const count = packageItems.filter((item) => item.kind === kind).length;
+    if (count === 0) return null;
+    const name = TASK_KIND_SINGLE[kind].toLowerCase();
+    return `${count} ${count === 1 ? name : `${name}s`}`;
+  })
+    .filter(Boolean)
+    .join(' · ');
   const selectedMonth = monthly
     ? (months.find((row) => row.id === query.month) ?? months.find((row) => row.month === thisMonth) ?? months[0] ?? null)
     : null;
   const inMonth = (task: (typeof allTasks)[number]) => !monthly || (selectedMonth ? task.month_id === selectedMonth.id : !task.month_id);
-  const tasks = allTasks.filter((task) => inMonth(task) && !(monthly && task.is_extra));
-  const extras = monthly ? allTasks.filter((task) => inMonth(task) && task.is_extra) : [];
+  // A month shows everything in it together: package deliverables and extras (tagged "Extra").
+  const tasks = allTasks.filter(inMonth);
   const monthTabs: MonthTab[] = months.map((row) => {
     const own = allTasks.filter((task) => task.month_id === row.id);
     return {
@@ -106,7 +115,7 @@ export default async function ProjectPage({
   const clientAnswers = rowsOf<{ id: string; task_id: string; name: string; decision: string; created_at: string }>(feedbackResult.data).filter((row) =>
     titleOf.has(row.task_id),
   );
-  const videos = [...tasks, ...extras].filter((task) => task.kind === 'video');
+  const videos = tasks.filter((task) => task.kind === 'video');
 
   const toRow = (task: (typeof allTasks)[number]) => {
     const assignee = task.assignee_id ? person.get(task.assignee_id) : undefined;
@@ -119,10 +128,10 @@ export default async function ProjectPage({
       // On a video: where its thumbnail stands. On a thumbnail: which video it is for.
       thumbnail: task.kind === 'video' ? thumbnailState(task.id, tasks) : null,
       for_video: task.for_task_id ? (titleOf.get(task.for_task_id) ?? '—') : null,
+      from_tag: task.is_extra ? 'extra' : 'package',
     };
   };
   const taskRows = tasks.map(toRow);
-  const extraRows = extras.map(toRow);
 
   const kindField: Field = {
     name: 'kind',
@@ -170,6 +179,7 @@ export default async function ProjectPage({
   };
   const columnsFor = (kind: TaskKind | null) => [
     { key: 'title', label: 'Task', kind: 'nav' as const, hrefKey: 'href' },
+    ...(monthly ? [{ key: 'from_tag', label: 'Part of', kind: 'label' as const }] : []),
     ...(kind === 'video' ? [{ key: 'thumbnail', label: 'Thumbnail', kind: 'label' as const }] : []),
     ...(kind === 'thumbnail' ? [{ key: 'for_video', label: 'For video' }] : []),
     { key: 'description', label: 'Notes' },
@@ -462,61 +472,78 @@ export default async function ProjectPage({
           endpoint="/api/tasks"
           rows={asRows(taskRows.filter((task) => task.kind === kind))}
           columns={columnsFor(kind)}
-          fields={monthly ? undefined : fieldsFor(kind, false)}
+          fields={monthly && !selectedMonth ? undefined : fieldsFor(kind, false)}
           editFields={fieldsFor(kind, true)}
-          fixedValues={{ project_id: project.id, position: tasks.length, kind }}
-          canWrite={mayEdit}
+          fixedValues={{
+            project_id: project.id,
+            position: allTasks.length,
+            kind,
+            ...(monthly && selectedMonth ? { month_id: selectedMonth.id, is_extra: true } : {}),
+          }}
+          canWrite={mayEdit && !(monthly && selectedMonth?.status === 'closed')}
           needsApproval={needsApproval}
-          addLabel={`Add ${TASK_KIND_SINGLE[kind].toLowerCase()}`}
+          addLabel={monthly ? `Add an extra ${TASK_KIND_SINGLE[kind].toLowerCase()}` : `Add ${TASK_KIND_SINGLE[kind].toLowerCase()}`}
           pageSize={25}
         />
       ))}
 
       {monthly ? (
         <>
-          {selectedMonth ? (
+          {selectedMonth && mayEdit && selectedMonth.status === 'open' ? (
             <ResourceManager
-              title={`Extras in ${monthName(selectedMonth.month)}`}
-              description="Anything on top of the monthly package, for this month only. Marked as extra, so it is easy to bill separately."
+              title={groups.length === 0 ? `Deliverables for ${monthName(selectedMonth.month)}` : 'Add something extra this month'}
+              description="Anything on top of the monthly package, for this month only. It joins the lists above, tagged Extra, so it is easy to bill separately."
               endpoint="/api/tasks"
-              rows={asRows(extraRows)}
+              rows={[]}
               columns={columnsFor(null)}
               fields={fieldsFor(null, false)}
-              editFields={fieldsFor(null, true)}
               fixedValues={{ project_id: project.id, month_id: selectedMonth.id, is_extra: true, position: allTasks.length }}
-              canWrite={mayEdit && selectedMonth.status === 'open'}
+              canWrite
               needsApproval={needsApproval}
               addLabel="Add an extra"
-              emptyText="No extras this month."
+              emptyText={groups.length === 0 ? 'Nothing in this month yet.' : 'Choose a type when adding.'}
             />
           ) : null}
-          <ResourceManager
-            title="Monthly package"
-            description="What this client gets every month. A new month starts with these deliverables. Changes apply from the next month opened; to change this month, edit its deliverables above."
-            endpoint="/api/package-items"
-            rows={asRows(
-              packageItems.map((item) => ({
-                ...item,
-                kind_label: TASK_KIND_SINGLE[item.kind as TaskKind] ?? item.kind,
-                assignee_name: item.assignee_id ? (person.get(item.assignee_id)?.full_name ?? '—') : 'Unassigned',
-                due_text: item.due_day ? `Day ${item.due_day}` : '—',
-              })),
-            )}
-            columns={[
-              { key: 'title', label: 'Deliverable' },
-              { key: 'kind_label', label: 'Type' },
-              { key: 'assignee_name', label: 'Assignee' },
-              { key: 'due_text', label: 'Due each month' },
-              { key: 'points_value', label: 'Points', kind: 'number' as const },
-              { key: 'description', label: 'Notes' },
-            ]}
-            fields={packageFields}
-            editFields={packageFields}
-            fixedValues={{ project_id: project.id, position: packageItems.length }}
-            canWrite={mayEdit}
-            addLabel="Add to package"
-            emptyText="No package yet. Add what this client gets every month."
-          />
+          <details className="panel fold package-fold" open={packageItems.length === 0}>
+            <summary>
+              <span>
+                <strong>Monthly package</strong>
+                <span className="muted"> · repeats every month</span>
+              </span>
+              <span className="package-summary">{packageSummary || 'Not set up yet'}</span>
+            </summary>
+            <p className="muted">
+              This is the template, not this month&apos;s work. On the 1st of every month, a new month starts with one
+              deliverable for each line below. Editing it changes the coming months only; to change this month, edit its
+              deliverables above.
+            </p>
+            <ResourceManager
+              title="Package lines"
+              endpoint="/api/package-items"
+              rows={asRows(
+                packageItems.map((item) => ({
+                  ...item,
+                  kind_label: TASK_KIND_SINGLE[item.kind as TaskKind] ?? item.kind,
+                  assignee_name: item.assignee_id ? (person.get(item.assignee_id)?.full_name ?? '—') : 'Unassigned',
+                  due_text: item.due_day ? `Day ${item.due_day}` : '—',
+                })),
+              )}
+              columns={[
+                { key: 'title', label: 'Deliverable' },
+                { key: 'kind_label', label: 'Type' },
+                { key: 'assignee_name', label: 'Usually done by' },
+                { key: 'due_text', label: 'Due each month' },
+                { key: 'points_value', label: 'Points', kind: 'number' as const },
+                { key: 'description', label: 'Notes' },
+              ]}
+              fields={packageFields}
+              editFields={packageFields}
+              fixedValues={{ project_id: project.id, position: packageItems.length }}
+              canWrite={mayEdit}
+              addLabel="Add a line to the package"
+              emptyText="No package yet. Add what this client gets every month, one line per deliverable."
+            />
+          </details>
         </>
       ) : typesReady ? (
         mayEdit || groups.length === 0 ? (

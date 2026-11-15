@@ -1,4 +1,4 @@
-import { CalendarCheck2, CalendarPlus } from 'lucide-react';
+import { CalendarPlus, Check, CircleDot } from 'lucide-react';
 import Link from 'next/link';
 import { ActionButton } from './resource-manager';
 
@@ -20,8 +20,9 @@ export function monthName(month: string, short = false): string {
 }
 
 /**
- * For a monthly client: which month is shown, how far along it is, the other
- * months as history, and opening or closing a month.
+ * For a monthly client: the months as tabs (like pages of a calendar), the
+ * chosen month's progress, and its status, In progress or Done, set the same
+ * way a one-time project's status is.
  */
 export function MonthBar({
   projectId,
@@ -44,81 +45,93 @@ export function MonthBar({
   const hasThis = tabs.some((tab) => tab.month === thisMonth);
   const hasNext = tabs.some((tab) => tab.month === nextMonth);
   const percent = selected && selected.total > 0 ? Math.round((selected.done / selected.total) * 100) : 0;
+  const ordered = [...tabs].sort((a, b) => a.month.localeCompare(b.month));
+  // The month that can be started next: this month if it has not started, else next month.
+  const startable = !hasThis ? { key: 'current', month: thisMonth } : !hasNext ? { key: 'next', month: nextMonth } : null;
 
   return (
     <section className="panel month-bar">
-      <header className="panel-header">
-        <div>
-          <h2>
-            {selected ? monthName(selected.month) : 'No month opened yet'}{' '}
-            {selected ? (
-              <span className={selected.status === 'closed' ? 'badge badge-approved' : 'badge badge-active'}>
-                {selected.status === 'closed' ? 'Closed' : 'Open'}
-              </span>
-            ) : null}
-          </h2>
-          <p className="muted">
-            {selected
-              ? `${selected.done} of ${selected.total} deliverables done${selected.extras > 0 ? ` · ${selected.extras} extra` : ''}`
-              : 'A month starts with the monthly package. It opens by itself on the 1st, or open it now.'}
-          </p>
-        </div>
-        {canEdit ? (
-          <div className="month-actions">
-            {!hasThis ? (
-              <ActionButton endpoint={`/api/projects/${projectId}/months`} body={{ month: 'current' }} primary>
-                <CalendarPlus size={14} aria-hidden style={{ marginRight: 6 }} />
-                Open {monthName(thisMonth, true)}
-              </ActionButton>
-            ) : null}
-            {hasThis && !hasNext ? (
-              <ActionButton endpoint={`/api/projects/${projectId}/months`} body={{ month: 'next' }}>
-                <CalendarPlus size={14} aria-hidden style={{ marginRight: 6 }} />
-                Open {monthName(nextMonth, true)} early
-              </ActionButton>
-            ) : null}
-            {selected && selected.status === 'open' ? (
-              <ActionButton endpoint={`/api/project-months/${selected.id}`} method="PATCH" body={{ status: 'closed' }}>
-                <CalendarCheck2 size={14} aria-hidden style={{ marginRight: 6 }} />
-                Close {monthName(selected.month, true)}
-              </ActionButton>
-            ) : null}
-            {selected && selected.status === 'closed' ? (
-              <ActionButton endpoint={`/api/project-months/${selected.id}`} method="PATCH" body={{ status: 'open' }}>
-                Reopen
-              </ActionButton>
-            ) : null}
-            {selected && isAdmin ? (
-              <ActionButton endpoint={`/api/project-months/${selected.id}`} method="DELETE">
-                Remove month
-              </ActionButton>
-            ) : null}
-          </div>
+      <nav className="month-tabs" aria-label="Months">
+        {ordered.map((tab) => (
+          <Link
+            key={tab.id}
+            href={`/projects/${projectId}?month=${tab.id}`}
+            aria-current={tab.id === selectedId ? 'page' : undefined}
+            scroll={false}
+          >
+            <span>{monthName(tab.month, true)}</span>
+            <small>{tab.status === 'closed' ? 'Done' : `${tab.done}/${tab.total}`}</small>
+          </Link>
+        ))}
+        {canEdit && startable ? (
+          <ActionButton endpoint={`/api/projects/${projectId}/months`} body={{ month: startable.key }}>
+            <CalendarPlus size={14} aria-hidden style={{ marginRight: 6 }} />
+            Start {monthName(startable.month, true)}
+          </ActionButton>
         ) : null}
-      </header>
+      </nav>
+
       {selected ? (
-        <div className="month-progress" role="progressbar" aria-label="Month progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-          <div style={{ width: `${percent}%` }} />
+        <>
+          <div className="month-head">
+            <div>
+              <h2>{monthName(selected.month)}</h2>
+              <p className="muted">
+                {selected.done} of {selected.total} deliverables done
+                {selected.extras > 0 ? ` · ${selected.extras} extra` : ''}
+              </p>
+            </div>
+            <div className="month-status" role="group" aria-label="Month status">
+              {canEdit ? (
+                <>
+                  {selected.status === 'open' ? (
+                    <span className="month-status-on">
+                      <CircleDot size={14} aria-hidden /> In progress
+                    </span>
+                  ) : (
+                    <ActionButton endpoint={`/api/project-months/${selected.id}`} method="PATCH" body={{ status: 'open' }}>
+                      <CircleDot size={14} aria-hidden style={{ marginRight: 6 }} />
+                      In progress
+                    </ActionButton>
+                  )}
+                  {selected.status === 'closed' ? (
+                    <span className="month-status-on done">
+                      <Check size={14} aria-hidden /> Done
+                    </span>
+                  ) : (
+                    <ActionButton endpoint={`/api/project-months/${selected.id}`} method="PATCH" body={{ status: 'closed' }}>
+                      <Check size={14} aria-hidden style={{ marginRight: 6 }} />
+                      Mark month done
+                    </ActionButton>
+                  )}
+                </>
+              ) : (
+                <span className={selected.status === 'closed' ? 'month-status-on done' : 'month-status-on'}>
+                  {selected.status === 'closed' ? 'Done' : 'In progress'}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="month-progress" role="progressbar" aria-label="Month progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+            <div style={{ width: `${percent}%` }} />
+          </div>
+          {isAdmin && canEdit ? (
+            <details className="month-more">
+              <summary>More</summary>
+              <ActionButton endpoint={`/api/project-months/${selected.id}`} method="DELETE">
+                Remove {monthName(selected.month, true)} and its deliverables
+              </ActionButton>
+            </details>
+          ) : null}
+        </>
+      ) : (
+        <div className="month-head">
+          <div>
+            <h2>No month started yet</h2>
+            <p className="muted">Each month starts with the monthly package below. It starts by itself on the 1st, or press Start now.</p>
+          </div>
         </div>
-      ) : null}
-      {tabs.length > 1 ? (
-        <nav className="month-tabs" aria-label="Months">
-          {tabs.map((tab) => (
-            <Link
-              key={tab.id}
-              href={`/projects/${projectId}?month=${tab.id}`}
-              aria-current={tab.id === selectedId ? 'page' : undefined}
-              scroll={false}
-            >
-              <span>{monthName(tab.month, true)}</span>
-              <small>
-                {tab.done}/{tab.total}
-                {tab.status === 'closed' ? ' ✓' : ''}
-              </small>
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      )}
     </section>
   );
 }
