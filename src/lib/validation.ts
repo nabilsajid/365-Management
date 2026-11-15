@@ -211,6 +211,15 @@ export const investmentCreate = z.object({
   note: z.string().trim().max(500).nullish(),
 });
 export const investmentUpdate = investmentCreate.partial();
+// One form for both: the investor (found by name, or added) and the money they put in.
+export const investorReceive = z.object({
+  name: text,
+  phone: z.string().trim().max(40).nullish(),
+  amount: z.coerce.number().positive('Use an amount above 0.').max(100000000000),
+  account_id: id,
+  received_on: date.optional(),
+  note: z.string().trim().max(500).nullish(),
+});
 
 export const invoiceCreate = z.object({
   client_id: id,

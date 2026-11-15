@@ -477,51 +477,37 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
 
             <ResourceManager
               title="Investors"
-              description="What each investor put in, what has been paid back, and what the company still owes them. To pay one back, add an expense with the category Investment repayment and choose them."
+              description="Record money an investor put in: it goes into the account you choose, so the funds go up, and the company owes them the same amount. Type an existing name to add more from the same investor. To pay one back, add an expense with the category Investment repayment and choose them."
               endpoint="/api/investors"
-              rows={asRows(investorRows)}
+              rows={asRows(
+                investorRows.map((row) => ({
+                  ...row,
+                  history: investments
+                    .filter((item) => item.investor_id === row.id)
+                    .map((item) => `${money(Number(item.amount))} on ${item.received_on} into ${accountName.get(item.account_id) ?? '—'}`)
+                    .join(' · '),
+                })),
+              )}
               columns={[
                 { key: 'name', label: 'Investor' },
                 { key: 'invested', label: 'Invested', kind: 'money' },
                 { key: 'repaid', label: 'Paid back', kind: 'money' },
                 { key: 'due', label: 'Company due', kind: 'money' },
+                { key: 'history', label: 'Received' },
                 { key: 'phone', label: 'Phone' },
               ]}
               fields={[
-                { name: 'name', label: 'Name', required: true },
-                { name: 'phone', label: 'Phone' },
-                { name: 'notes', label: 'Notes', type: 'textarea' },
-              ]}
-              canWrite={editsCashflow}
-              needsApproval={needsApproval}
-              addLabel="Add investor"
-              emptyText="No investors yet."
-            />
-
-            <ResourceManager
-              title="Investments received"
-              description="Money an investor put in. It goes into the account you choose, so the funds go up, and the company owes the investor the same amount."
-              endpoint="/api/investments"
-              rows={asRows(
-                investments.map((row) => ({
-                  ...row,
-                  investor_name: investorName.get(row.investor_id) ?? '—',
-                  account_name: accountName.get(row.account_id) ?? '—',
-                })),
-              )}
-              columns={[
-                { key: 'received_on', label: 'Date' },
-                { key: 'investor_name', label: 'Investor' },
-                { key: 'amount', label: 'Amount', kind: 'money' },
-                { key: 'account_name', label: 'Into account' },
-                { key: 'note', label: 'Note' },
-              ]}
-              fields={[
-                { name: 'investor_id', label: 'Investor', type: 'select', required: true, options: options(investors, (investor) => investor.name), hint: 'Add the investor above first.' },
-                { name: 'amount', label: 'Amount', type: 'number', required: true },
+                { name: 'name', label: 'Investor', required: true, hint: 'A new name adds the investor.' },
+                { name: 'amount', label: 'Amount invested', type: 'number', required: true },
                 { name: 'account_id', label: 'Into account', type: 'select', required: true, options: options(accounts, (account) => account.name) },
                 { name: 'received_on', label: 'Date', type: 'date', required: true, defaultValue: defaultDate },
+                { name: 'phone', label: 'Phone' },
                 { name: 'note', label: 'Note' },
+              ]}
+              editFields={[
+                { name: 'name', label: 'Investor', required: true },
+                { name: 'phone', label: 'Phone' },
+                { name: 'notes', label: 'Notes', type: 'textarea' },
               ]}
               canWrite={editsCashflow}
               needsApproval={needsApproval}
