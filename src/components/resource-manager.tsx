@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition, type FormEvent, type ReactNode } from 'react';
+import { useId, useState, useTransition, type FormEvent, type ReactNode } from 'react';
 import { formatFileLinks, parseFileLinks, type FileLinkInput } from '@/lib/domain/deliverables';
+import { formScope } from '@/lib/domain/form-scope';
 import { label as humanize, money } from '@/lib/format';
 import { enqueue, queueLabel } from '@/lib/offline-queue';
 import type { Column, Field, Row } from './types';
@@ -112,7 +113,15 @@ function serialize(fields: Field[], state: FormState): { values: Values; error?:
   return { values };
 }
 
+/** Suggestions the browser may offer for a field: common kinds by type, otherwise its own history. */
+function autoCompleteFor(field: Field): string | undefined {
+  if (field.type === 'email') return 'email';
+  if (field.type === 'date' || field.type === 'number') return 'off';
+  return undefined;
+}
+
 function FieldForm({
+  scope,
   fields,
   initial,
   submitLabel,
@@ -120,6 +129,7 @@ function FieldForm({
   onCancel,
   resetOnSuccess,
 }: {
+  scope: string;
   fields: Field[];
   initial?: Values;
   submitLabel: string;
@@ -130,6 +140,8 @@ function FieldForm({
   const [state, setState] = useState<FormState>(() => initialState(fields, initial));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Unique ids per form on the page; names per kind of record, for the browser's suggestions.
+  const formId = useId().replace(/:/g, '');
 
   const set = (name: string, value: string | boolean | string[]) => setState((current) => ({ ...current, [name]: value }));
 
@@ -151,7 +163,8 @@ function FieldForm({
     <form className="form" onSubmit={handleSubmit}>
       <div className="form-grid">
         {fields.map((field) => {
-          const id = `field-${field.name}`;
+          const id = `${formId}-${field.name}`;
+          const inputName = `${scope}-${field.name}`;
           const value = state[field.name];
           const wide = field.type === 'textarea' || field.type === 'links' || field.type === 'multiselect';
           if (field.type === 'multiselect') {
@@ -194,13 +207,14 @@ function FieldForm({
               {field.type === 'textarea' || field.type === 'links' ? (
                 <textarea
                   id={id}
+                  name={inputName}
                   rows={3}
                   value={String(value)}
                   placeholder={field.type === 'links' ? 'One per line: Label | https://…' : field.placeholder}
                   onChange={(event) => set(field.name, event.target.value)}
                 />
               ) : field.type === 'select' ? (
-                <select id={id} value={String(value)} onChange={(event) => set(field.name, event.target.value)}>
+                <select id={id} name={inputName} value={String(value)} onChange={(event) => set(field.name, event.target.value)}>
                   <option value="">{field.required ? 'Choose…' : '—'}</option>
                   {(field.options ?? []).map((option) => (
                     <option key={option.value} value={option.value}>
@@ -218,6 +232,8 @@ function FieldForm({
               ) : (
                 <input
                   id={id}
+                  name={inputName}
+                  autoComplete={autoCompleteFor(field)}
                   type={field.type ?? 'text'}
                   step={field.type === 'number' ? 'any' : undefined}
                   value={String(value)}
@@ -271,6 +287,7 @@ export function ApiForm({
   const [, startTransition] = useTransition();
   return (
     <FieldForm
+      scope={formScope(endpoint)}
       fields={fields}
       initial={initial}
       submitLabel={submitLabel}
@@ -485,6 +502,7 @@ export function ResourceManager({
 
       {canCreate && adding ? (
         <FieldForm
+          scope={formScope(endpoint)}
           fields={fields}
           submitLabel={addLabel}
           onCancel={() => setAdding(false)}
@@ -539,6 +557,7 @@ export function ResourceManager({
                   <tr key={row.id}>
                     <td colSpan={columns.length + 1}>
                       <FieldForm
+                        scope={formScope(endpoint)}
                         fields={formFields}
                         initial={row}
                         submitLabel="Save changes"
