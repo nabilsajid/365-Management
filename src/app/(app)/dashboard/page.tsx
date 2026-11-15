@@ -228,9 +228,11 @@ export default async function DashboardPage() {
               </span>
             </div>
             <p className="mt-3 text-4xl font-semibold tracking-tight text-ink">
-              <CountUp value={data.funds} kind="money" />
+              <CountUp value={Math.max(0, data.funds)} kind="money" />
             </p>
-            <p className="mt-1 text-[13px] text-muted">Across all accounts</p>
+            <p className={cn('mt-1 text-[13px]', data.funds < 0 ? 'text-danger-strong' : 'text-muted')}>
+              {data.funds < 0 ? `Short by ${money(-data.funds)} across all accounts` : 'Across all accounts'}
+            </p>
             <div className="mt-auto pt-5">
               <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted">
                 <span>{monthLabel(data.month)}</span>

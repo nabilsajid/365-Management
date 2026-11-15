@@ -220,9 +220,11 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
       {tab === 'overview' && !monthIsEmpty ? (
         <>
           <div className="cards">
+            {/* What the company can actually use: never below zero; a shortfall is noted instead. */}
             <div className="card tone-green">
-              <span className="value">{money(funds)}</span>
+              <span className="value">{money(Math.max(0, funds))}</span>
               <span className="caption">Available funds, all accounts</span>
+              {funds < 0 ? <span className="caption text-danger-strong">Short by {money(-funds)}</span> : null}
             </div>
             <div className={dues > 0 ? 'card tone-yellow' : 'card'}>
               <span className="value">{money(dues)}</span>
