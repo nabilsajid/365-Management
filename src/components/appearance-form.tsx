@@ -23,11 +23,12 @@ export function AppearanceForm({ initial }: { initial: Required<Appearance> }) {
       tag.id = 'appearance-preview';
       document.head.appendChild(tag);
     }
-    // The saved look sits later on the page, so the preview is made more specific (":root:root") to win over it.
-    // Turning the glow back on must also undo a saved "glow off".
-    tag.textContent =
-      appearanceCss(look).replaceAll(':root', ':root:root').replaceAll('.app-glow', ':root .app-glow') +
-      (look.glow ? ':root .app-glow{display:block}' : '');
+    // The saved look is also on the page; marking every preview value !important makes the preview win
+    // whatever order the two styles load in. Turning the glow back on undoes a saved "glow off".
+    tag.textContent = (appearanceCss(look) + (look.glow ? '.app-glow{display:block}' : '')).replace(
+      /(--[\w-]+|display):([^;{}]+)(?=[;}])/g,
+      '$1:$2 !important',
+    );
     return () => tag?.remove();
   }, [look]);
 
