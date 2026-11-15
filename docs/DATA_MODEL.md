@@ -238,3 +238,11 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - `organizations.settings` (jsonb):
   - `reminders`: `due_tomorrow`, `missed`, `invoices`, `equipment_late`, `shoot_days`. Unset means on, and 2 days for shoots. `notify_deadlines` and `remind_overdue_invoices` respect them.
   - `hidden_sections`: optional menu sections switched off (`src/lib/domain/sections.ts`).
+
+## Investments (update 40)
+
+- `investors` (name, phone, notes).
+- `investments` records money an investor put in: `investor_id`, `account_id`, `amount` and `received_on`. It counts in `account_balances`, so the funds go up.
+- Paying an investor back is an expense with category `investment` and `investor_id` set. The database requires one exactly when the other is present.
+- `investor_balances` gives `invested`, `repaid` and `due` per investor. Cash Flow shows the total as "Company due to investors".
+- Cash flow readers can see all of it; changes go through approval like other cash flow entries.

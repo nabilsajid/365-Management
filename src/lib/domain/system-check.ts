@@ -43,6 +43,7 @@ export const DATABASE_UPDATES: UpdateCheck[] = [
   { file: '20261112000037_delivery_targets.sql', adds: 'Monthly targets and delivery counts', table: 'project_targets', column: 'quantity' },
   { file: '20261112000038_fixed_deliverables_change_alerts.sql', adds: 'Fixed deliverables and change alerts', table: 'project_targets', column: 'label' },
   { file: '20261112000039_quantity_company_settings.sql', adds: 'Equipment quantity, company details and settings', table: 'equipment', column: 'quantity' },
+  { file: '20261112000040_investments.sql', adds: 'Investors, investments and repayments', table: 'investors', column: 'name' },
 ];
 
 /** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */

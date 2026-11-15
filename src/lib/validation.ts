@@ -196,6 +196,22 @@ export const accountCreate = z.object({
 });
 export const accountUpdate = accountCreate.partial();
 
+// Investors, and the money they put into the company.
+export const investorCreate = z.object({
+  name: text,
+  phone: z.string().trim().max(40).nullish(),
+  notes: z.string().trim().max(1000).nullish(),
+});
+export const investorUpdate = investorCreate.partial();
+export const investmentCreate = z.object({
+  investor_id: id,
+  account_id: id,
+  amount: z.coerce.number().positive('Use an amount above 0.').max(100000000000),
+  received_on: date.optional(),
+  note: z.string().trim().max(500).nullish(),
+});
+export const investmentUpdate = investmentCreate.partial();
+
 export const invoiceCreate = z.object({
   client_id: id,
   project_id: id.nullish(),
@@ -219,8 +235,10 @@ export const paymentCreate = z.object({
 export const paymentUpdate = paymentCreate.partial();
 
 const expenseFields = z.object({
-  category: z.enum(['general', 'equipment', 'fixed', 'transport']).default('general'),
+  category: z.enum(['general', 'equipment', 'fixed', 'transport', 'investment']).default('general'),
   description: text,
+  // Paying an investor back: who it goes to.
+  investor_id: id.nullish(),
   amount: money.nullish(),
   expense_date: date.optional(),
   account_id: id.nullish(),
@@ -245,6 +263,12 @@ export const expenseCreate = expenseFields.superRefine((value, ctx) => {
       message: 'A transport expense needs where the trip started and ended.',
       path: [value.trip_origin ? 'trip_destination' : 'trip_origin'],
     });
+  }
+  if (value.category === 'investment' && !value.investor_id) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Choose which investor is being paid back.', path: ['investor_id'] });
+  }
+  if (value.investor_id && value.category !== 'investment') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'An investor is only chosen for the Investment category.', path: ['investor_id'] });
   }
   if (value.fixed_expense_id && value.category !== 'fixed') {
     ctx.addIssue({

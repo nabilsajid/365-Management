@@ -24,6 +24,7 @@ const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'income', label: 'Money in' },
   { key: 'expenses', label: 'Expenses' },
+  { key: 'investments', label: 'Investments' },
   { key: 'accounts', label: 'Accounts & clients' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
@@ -34,6 +35,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   equipment: 'blue',
   fixed: 'amber',
   transport: 'purple',
+  investment: 'teal',
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -41,6 +43,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   equipment: 'Equipment purchases',
   fixed: 'Fixed monthly costs',
   transport: 'Transport',
+  investment: 'Investment repayment',
 };
 
 // Entries are shown one month at a time, so each month starts with an empty
@@ -63,7 +66,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   // A role may be allowed to view cash flow without being allowed to change it.
   const editsCashflow = canEdit('cashflow');
 
-  const [accountsR, balancesR, invoicesR, invoiceBalancesR, paymentsR, expensesR, clientsR, projectsR, fixedR, peopleR] =
+  const [accountsR, balancesR, invoicesR, invoiceBalancesR, paymentsR, expensesR, clientsR, projectsR, fixedR, peopleR, investorsR, investorBalancesR, investmentsR] =
     await Promise.all([
       supabase.from('accounts').select('*').eq('org_id', orgId).order('name'),
       supabase.from('account_balances').select('*').eq('org_id', orgId),
@@ -75,7 +78,28 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
       supabase.from('projects').select('*').eq('org_id', orgId).order('name'),
       supabase.from('fixed_expenses').select('*').eq('org_id', orgId).order('name'),
       supabase.from('profiles').select('id, full_name').eq('org_id', orgId),
+      // Investors, what the company owes each, and every investment received (balances count all of them).
+      supabase.from('investors').select('*').eq('org_id', orgId).order('name'),
+      supabase.from('investor_balances').select('*').eq('org_id', orgId),
+      supabase.from('investments').select('*').eq('org_id', orgId).order('received_on', { ascending: false }),
     ]);
+  const investorsReady = !investorsR.error;
+  const investors = rowsOf<{ id: string; name: string; phone: string | null; notes: string | null }>(investorsR.data);
+  const investorDue = new Map(
+    rowsOf<{ investor_id: string; invested: number; repaid: number; due: number }>(investorBalancesR.data).map((row) => [row.investor_id, row]),
+  );
+  const investments = rowsOf<{ id: string; investor_id: string; account_id: string; amount: number; received_on: string; note: string | null }>(investmentsR.data);
+  const investorName = new Map(investors.map((investor) => [investor.id, investor.name]));
+  const investorRows = investors.map((investor) => ({
+    ...investor,
+    invested: Number(investorDue.get(investor.id)?.invested ?? 0),
+    repaid: Number(investorDue.get(investor.id)?.repaid ?? 0),
+    due: Number(investorDue.get(investor.id)?.due ?? 0),
+  }));
+  const owedToInvestors = investorRows.reduce((total, row) => total + Math.max(0, row.due), 0);
+  const investedThisMonth = investments
+    .filter((row) => row.received_on >= month && row.received_on < until)
+    .reduce((total, row) => total + Number(row.amount), 0);
   const personName = new Map(rowsOf<{ id: string; full_name: string }>(peopleR.data).map((person) => [person.id, person.full_name]));
   const accounts = rowsOf<Account>(accountsR.data);
   const invoices = rowsOf<Invoice>(invoicesR.data);
@@ -111,6 +135,11 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   }));
   const expenseRows = expenses.map((expense) => ({
     ...expense,
+    // A repayment shows who was paid back.
+    description: (() => {
+      const investor = (expense as unknown as { investor_id?: string | null }).investor_id;
+      return investor && investorName.get(investor) ? `${expense.description} · to ${investorName.get(investor)}` : expense.description;
+    })(),
     account_name: expense.account_id ? (accountName.get(expense.account_id) ?? '—') : null,
     // Who recorded it, and (when it came from someone else's request) the admin who approved it.
     entered_by: expense.created_by ? (personName.get(expense.created_by) ?? '—') : '—',
@@ -121,7 +150,8 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   const funds = accountRows.reduce((total, account) => total + account.balance, 0);
   const dues = invoiceRows.reduce((total, invoice) => total + Math.max(0, invoice.outstanding), 0);
   // This month's figures.
-  const moneyIn = payments.reduce((total, payment) => total + Number(payment.amount), 0);
+  // Cash that came in: client payments plus investments received.
+  const moneyIn = payments.reduce((total, payment) => total + Number(payment.amount), 0) + investedThisMonth;
   const moneyOut = expenses.reduce((total, expense) => total + Number(expense.amount ?? 0), 0);
   const byCategory = Object.keys(CATEGORY_LABEL).map((category) => {
     const own = expenses.filter((expense) => expense.category === category);
@@ -129,7 +159,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
   });
 
   // A month with nothing recorded in it shows a plain "No data found".
-  const monthIsEmpty = payments.length === 0 && expenses.length === 0 && issuedThisMonth.length === 0;
+  const monthIsEmpty = payments.length === 0 && expenses.length === 0 && issuedThisMonth.length === 0 && investedThisMonth === 0;
 
   const accountOptions = options(accounts, (account) => account.name);
   const defaultDate = month === currentMonth ? today : month;
@@ -162,8 +192,19 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
       required: true,
       defaultValue: 'general',
       options: Object.entries(CATEGORY_LABEL).map(([value, text]) => ({ value, label: text })),
-      hint: 'An equipment purchase is added to the inventory automatically.',
+      hint: 'An equipment purchase is added to the inventory automatically. Investment repayment pays an investor back.',
     },
+    ...(investorsReady
+      ? [
+          {
+            name: 'investor_id',
+            label: 'Paid back to (investor)',
+            type: 'select' as const,
+            options: options(investors, (investor) => investor.name),
+            hint: 'Only for Investment repayment: lowers what the company owes this investor.',
+          },
+        ]
+      : []),
     { name: 'description', label: 'Description', required: true, hint: 'For equipment, this becomes the item name.' },
     { name: 'amount', label: 'Amount', type: 'number', hint: 'May be left empty only for an equipment purchase.' },
     { name: 'expense_date', label: 'Date', type: 'date', required: true, defaultValue: defaultDate },
@@ -230,9 +271,18 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
               <span className="value">{money(dues)}</span>
               <span className="caption">Client dues outstanding</span>
             </div>
+            {owedToInvestors > 0 ? (
+              <Link href={href('investments')} className="card tone-yellow">
+                <span className="value">{money(owedToInvestors)}</span>
+                <span className="caption">Company due to investors</span>
+              </Link>
+            ) : null}
             <div className={moneyIn > 0 ? 'card tone-green' : 'card'}>
               <span className="value">{money(moneyIn)}</span>
-              <span className="caption">Money in, {monthName}</span>
+              <span className="caption">
+                Money in, {monthName}
+                {investedThisMonth > 0 ? ` (incl. ${money(investedThisMonth)} investment)` : ''}
+              </span>
             </div>
             <div className={moneyOut > 0 ? 'card tone-red' : 'card'}>
               <span className="value">{money(moneyOut)}</span>
@@ -405,6 +455,85 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
             emptyText="No data found."
           />
         </>
+      ) : null}
+
+      {tab === 'investments' ? (
+        investorsReady ? (
+          <>
+            <div className="cards">
+              <div className="card tone-green">
+                <span className="value">{money(investorRows.reduce((total, row) => total + row.invested, 0))}</span>
+                <span className="caption">Invested in total</span>
+              </div>
+              <div className="card">
+                <span className="value">{money(investorRows.reduce((total, row) => total + row.repaid, 0))}</span>
+                <span className="caption">Paid back</span>
+              </div>
+              <div className={owedToInvestors > 0 ? 'card tone-yellow' : 'card'}>
+                <span className="value">{money(owedToInvestors)}</span>
+                <span className="caption">Company due to investors</span>
+              </div>
+            </div>
+
+            <ResourceManager
+              title="Investors"
+              description="What each investor put in, what has been paid back, and what the company still owes them. To pay one back, add an expense with the category Investment repayment and choose them."
+              endpoint="/api/investors"
+              rows={asRows(investorRows)}
+              columns={[
+                { key: 'name', label: 'Investor' },
+                { key: 'invested', label: 'Invested', kind: 'money' },
+                { key: 'repaid', label: 'Paid back', kind: 'money' },
+                { key: 'due', label: 'Company due', kind: 'money' },
+                { key: 'phone', label: 'Phone' },
+              ]}
+              fields={[
+                { name: 'name', label: 'Name', required: true },
+                { name: 'phone', label: 'Phone' },
+                { name: 'notes', label: 'Notes', type: 'textarea' },
+              ]}
+              canWrite={editsCashflow}
+              needsApproval={needsApproval}
+              addLabel="Add investor"
+              emptyText="No investors yet."
+            />
+
+            <ResourceManager
+              title="Investments received"
+              description="Money an investor put in. It goes into the account you choose, so the funds go up, and the company owes the investor the same amount."
+              endpoint="/api/investments"
+              rows={asRows(
+                investments.map((row) => ({
+                  ...row,
+                  investor_name: investorName.get(row.investor_id) ?? '—',
+                  account_name: accountName.get(row.account_id) ?? '—',
+                })),
+              )}
+              columns={[
+                { key: 'received_on', label: 'Date' },
+                { key: 'investor_name', label: 'Investor' },
+                { key: 'amount', label: 'Amount', kind: 'money' },
+                { key: 'account_name', label: 'Into account' },
+                { key: 'note', label: 'Note' },
+              ]}
+              fields={[
+                { name: 'investor_id', label: 'Investor', type: 'select', required: true, options: options(investors, (investor) => investor.name), hint: 'Add the investor above first.' },
+                { name: 'amount', label: 'Amount', type: 'number', required: true },
+                { name: 'account_id', label: 'Into account', type: 'select', required: true, options: options(accounts, (account) => account.name) },
+                { name: 'received_on', label: 'Date', type: 'date', required: true, defaultValue: defaultDate },
+                { name: 'note', label: 'Note' },
+              ]}
+              canWrite={editsCashflow}
+              needsApproval={needsApproval}
+              addLabel="Record an investment"
+              emptyText="No investments recorded yet."
+            />
+          </>
+        ) : (
+          <section className="panel">
+            <p className="muted">Investments arrive with the next database update. Reload this page in a minute.</p>
+          </section>
+        )
       ) : null}
 
       {tab === 'accounts' ? (

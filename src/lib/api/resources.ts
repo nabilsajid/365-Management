@@ -117,6 +117,28 @@ export const accounts: ResourceConfig = {
   orderBy: { column: 'name', ascending: true },
 };
 
+export const investors: ResourceConfig = {
+  table: 'investors',
+  label: 'investor',
+  propose: ['cashflow'],
+  read: ['cashflow'],
+  createSchema: v.investorCreate,
+  updateSchema: v.investorUpdate,
+  orderBy: { column: 'name', ascending: true },
+};
+
+export const investments: ResourceConfig = {
+  table: 'investments',
+  label: 'investment',
+  propose: ['cashflow'],
+  read: ['cashflow'],
+  createSchema: v.investmentCreate,
+  updateSchema: v.investmentUpdate,
+  filters: ['investor_id', 'account_id'],
+  orderBy: { column: 'received_on', ascending: false },
+  onCreate: (ctx) => ({ created_by: ctx.userId }),
+};
+
 export const invoices: ResourceConfig = {
   table: 'invoices',
   label: 'invoice',

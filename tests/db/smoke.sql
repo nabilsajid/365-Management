@@ -1223,6 +1223,28 @@ select notify_deadlines();
 select pg_temp.check((select count(*) = 0 from notifications where title like 'Due tomorrow:%'), 'a reminder switched off in Settings is not sent');
 update organizations set settings = '{}' where id = '00000000-0000-0000-0000-000000000001';
 
+-- Investments: money in raises the funds and what the company owes; a repayment lowers both.
+reset role;
+insert into investors (id, org_id, name) values ('00000000-0000-0000-0000-0000000001f1', '00000000-0000-0000-0000-000000000001', 'Rahim');
+create temp table funds_before as select balance from account_balances where account_id = (select id from accounts where org_id = '00000000-0000-0000-0000-000000000001' order by created_at limit 1);
+insert into investments (org_id, investor_id, account_id, amount)
+select '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000001f1', id, 100000 from accounts where org_id = '00000000-0000-0000-0000-000000000001' order by created_at limit 1;
+insert into expenses (org_id, category, description, amount, account_id, investor_id)
+select '00000000-0000-0000-0000-000000000001', 'investment', 'Paid back Rahim', 30000, id, '00000000-0000-0000-0000-0000000001f1' from accounts where org_id = '00000000-0000-0000-0000-000000000001' order by created_at limit 1;
+select pg_temp.check(
+  (select due = 70000 and invested = 100000 and repaid = 30000 from investor_balances where investor_id = '00000000-0000-0000-0000-0000000001f1')
+  and (select b.balance - f.balance = 70000 from account_balances b, funds_before f where b.account_id = (select id from accounts where org_id = '00000000-0000-0000-0000-000000000001' order by created_at limit 1)),
+  'an investment adds to the funds and to what is owed; a repayment takes from both');
+do $$ begin
+  insert into expenses (org_id, category, description, amount) values ('00000000-0000-0000-0000-000000000001', 'investment', 'No one', 10);
+  raise exception 'FAILED: a repayment without an investor was saved';
+exception when check_violation then raise notice 'ok - a repayment names its investor';
+end $$;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from investments) and (select count(*) = 0 from investor_balances), 'people without cash flow do not see investments');
+reset role;
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';
