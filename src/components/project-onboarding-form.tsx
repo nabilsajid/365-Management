@@ -52,6 +52,7 @@ export function ProjectOnboardingForm({
   const [kind, setKind] = useState<'one_time' | 'monthly'>('one_time');
   const monthly = monthlyReady && kind === 'monthly';
   const [targets, setTargets] = useState<Record<string, string>>({});
+  const [services, setServices] = useState('');
   const [name, setName] = useState('');
   const [clientName, setClientName] = useState('');
   const [brief, setBrief] = useState('');
@@ -141,6 +142,11 @@ export function ProjectOnboardingForm({
                     .filter(([, value]) => String(value).trim() && Number(value) >= 1)
                     .map(([key, value]) => [key, Math.round(Number(value))]),
                 ),
+                services: services
+                  .split('\n')
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .slice(0, 20),
               }
             : {}),
           file_links: projectLinks.links,
@@ -272,10 +278,10 @@ export function ProjectOnboardingForm({
 
         {monthly ? (
           <>
-            <h3>Monthly targets (optional)</h3>
+            <h3>Fixed deliverables (optional)</h3>
             <p className="muted">
-              How many of each this client gets a month. Leave empty when there is no fixed number: deliveries are still
-              counted. You add each month&apos;s work on the project as it comes.
+              What this client gets every month, if anything is fixed. Leave a type empty when there is no fixed number;
+              deliveries are still counted. Each month&apos;s tasks are made on the project, in one click from these.
             </p>
             <div className="targets-grid">
               {TASK_KINDS.map((kind) => (
@@ -294,6 +300,10 @@ export function ProjectOnboardingForm({
                 </label>
               ))}
             </div>
+            <label className="field wide">
+              <span>Services with no fixed number (optional, one per line)</span>
+              <textarea rows={2} value={services} placeholder="Social media management" onChange={(event) => setServices(event.target.value)} />
+            </label>
           </>
         ) : null}
         {!monthly && deliverables.length > 0 ? <h3>Deliverables</h3> : null}

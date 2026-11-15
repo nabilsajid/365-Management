@@ -84,11 +84,13 @@ export interface DeliveryCount {
  */
 export function deliveryCounts(
   tasks: { kind?: string | null; status: string }[],
-  targets: { kind: string; quantity: number }[],
+  targets: { kind: string; quantity: number | null }[],
 ): DeliveryCount[] {
   return TASK_KINDS.map((kind) => {
     const own = tasks.filter((task) => (task.kind ?? 'other') === kind);
-    const target = targets.find((row) => row.kind === kind)?.quantity ?? null;
+    // Several fixed lines can share a type; their numbers add up. Named services without a number have no target.
+    const numbered = targets.filter((row) => row.kind === kind && typeof row.quantity === 'number');
+    const target = numbered.length > 0 ? numbered.reduce((sum, row) => sum + (row.quantity as number), 0) : null;
     return {
       kind,
       target,
@@ -173,4 +175,52 @@ export function parseFileLinks(text: string): { links: FileLinkInput[]; invalid:
 
 export function formatFileLinks(links: FileLinkInput[] | null | undefined): string {
   return (links ?? []).map((link) => `${link.label} | ${link.url}`).join('\n');
+}
+
+export interface FixedDeliverable {
+  kind: string;
+  quantity: number | null;
+  label: string | null;
+}
+
+export interface PlannedTask {
+  kind: TaskKind;
+  title: string;
+}
+
+/** "5 videos", "Social media management", "3 social media posts (reels)". */
+export function describeFixed(row: FixedDeliverable): string {
+  const kind = (TASK_KINDS as readonly string[]).includes(row.kind) ? (row.kind as TaskKind) : 'other';
+  if (row.quantity === null) return row.label ?? TASK_KIND_SINGLE[kind];
+  return row.label ? `${countOf(kind, row.quantity)} (${row.label})` : countOf(kind, row.quantity);
+}
+
+/**
+ * The tasks a month still needs to match its fixed deliverables: "Video 1" to
+ * "Video 5" for five videos (numbering after any already there, and only as
+ * many as are missing), and one task for each named service not yet in the month.
+ */
+export function planTasksFromFixed(fixed: FixedDeliverable[], existing: { kind?: string | null; title: string }[]): PlannedTask[] {
+  const planned: PlannedTask[] = [];
+  for (const kind of TASK_KINDS) {
+    const wanted = fixed.filter((row) => row.kind === kind && row.quantity !== null).reduce((sum, row) => sum + (row.quantity ?? 0), 0);
+    const have = existing.filter((task) => (task.kind ?? 'other') === kind).length;
+    for (let number = have + 1; number <= wanted; number += 1) planned.push({ kind, title: `${TASK_KIND_SINGLE[kind]} ${number}` });
+  }
+  const titles = new Set(existing.map((task) => task.title.trim().toLowerCase()));
+  for (const row of fixed) {
+    if (row.quantity !== null || !row.label) continue;
+    if (titles.has(row.label.trim().toLowerCase())) continue;
+    const kind = (TASK_KINDS as readonly string[]).includes(row.kind) ? (row.kind as TaskKind) : 'other';
+    planned.push({ kind, title: row.label.trim() });
+    titles.add(row.label.trim().toLowerCase());
+  }
+  return planned;
+}
+
+/** Titles for several copies at once: "Video" ×3 after two existing videos → "Video 3", "Video 4", "Video 5". */
+export function numberedTitles(title: string, count: number, existingOfKind: number): string[] {
+  const base = title.trim().replace(/\s+\d+$/, '');
+  if (count <= 1) return [title.trim()];
+  return Array.from({ length: count }, (_, index) => `${base} ${existingOfKind + index + 1}`);
 }

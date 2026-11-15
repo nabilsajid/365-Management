@@ -210,3 +210,21 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - Months start empty. Work is added to a month as it comes, and existing package lines were turned into targets.
   - `project_package_items` remains in the database but is no longer used or shown.
 - Two new deliverable types: `photo` and `post` (social media post).
+
+## Fixed deliverables and change alerts (update 38)
+
+- `project_targets` is now a list of a monthly client's **fixed deliverables**. Each line has:
+  - a `kind`
+  - an optional `quantity` ("5 videos")
+  - an optional `label`, used for named services with no number ("Social media management") or to tell lines apart
+  - a `position`
+
+  Several lines can share a type; their numbers add up in the counter.
+- A month's tasks are created on demand with `POST /api/tasks/bulk`:
+  - `from_fixed: true` creates only what the month is still missing ("Video 1"…"Video 5", one task per named service).
+  - With `kind`, `title` and `count`, it creates numbered copies.
+  - Thumbnails are paired with the video of the same number.
+- **Change alerts**:
+  - `notify_task_changed()` tells a task's assignee when its title, notes, points, due date, type or links change.
+  - `notify_project_changed()` tells the project's team when its name, brief, dates, shoot, links or client change.
+  - The person making the change is never told.

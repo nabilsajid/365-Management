@@ -8,12 +8,12 @@ import { nextMonthStart } from '@/lib/domain/deliverables';
 import { monthStart } from '@/lib/domain/points';
 import { DeliveryTracker } from '@/components/delivery-tracker';
 import { ShareLink } from '@/components/share-link';
-import { TargetsEditor } from '@/components/targets-editor';
+import { MonthTasksToolbar } from '@/components/month-tasks-toolbar';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { label } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, peopleOptions, rowsOf } from '@/lib/page';
-import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, countOf, deliveryCounts, thumbnailState, type TaskKind } from '@/lib/domain/deliverables';
+import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, deliveryCounts, describeFixed, planTasksFromFixed, thumbnailState, type TaskKind } from '@/lib/domain/deliverables';
 import { titleTags } from '@/lib/domain/roles';
 import type { Client, Profile, Project, ProjectComment, ProjectMember, Role, Task } from '@/types/database';
 
@@ -50,7 +50,7 @@ export default async function ProjectPage({
     supabase.from('client_feedback').select('id, task_id, name, decision, created_at').eq('org_id', orgId).order('created_at', { ascending: false }).limit(200),
     // A monthly client's months and package (after the monthly clients database update).
     supabase.from('project_months').select('*').eq('project_id', id).eq('org_id', orgId).order('month', { ascending: false }),
-    supabase.from('project_targets').select('kind, quantity').eq('project_id', id).eq('org_id', orgId),
+    supabase.from('project_targets').select('*').eq('project_id', id).eq('org_id', orgId).order('position').order('created_at'),
   ]);
   // Client review arrives with a database update; until then it is left out.
   const reviewReady = !reviewResult.error;
@@ -76,8 +76,8 @@ export default async function ProjectPage({
   const monthlyReady = !monthsResult.error && 'kind' in project;
   const monthly = monthlyReady && (project as Project & { kind?: string }).kind === 'monthly';
   const months = rowsOf<{ id: string; month: string; status: 'open' | 'closed'; note: string | null }>(monthsResult.data);
-  // A monthly client's optional targets per type, and the month's delivery counts against them.
-  const targets = rowsOf<{ kind: TaskKind; quantity: number }>(targetsResult.data);
+  // A monthly client's fixed deliverables ("5 videos", "Social media management"), and the month's counts against them.
+  const targets = rowsOf<{ id: string; kind: TaskKind; quantity: number | null; label: string | null; position: number }>(targetsResult.data);
   const thisMonth = monthStart(new Date(), timeZone);
 
   const selectedMonth = monthly
@@ -87,7 +87,7 @@ export default async function ProjectPage({
   // A month shows everything in it together: package deliverables and extras (tagged "Extra").
   const tasks = allTasks.filter(inMonth);
   const counts = monthly && selectedMonth ? deliveryCounts(tasks, targets) : [];
-  const targetSummary = targets.length > 0 ? TASK_KINDS.filter((kind) => targets.some((row) => row.kind === kind)).map((kind) => countOf(kind, targets.find((row) => row.kind === kind)!.quantity)).join(' · ') : '';
+  const missingFromFixed = monthly && selectedMonth ? planTasksFromFixed(targets, tasks).length : 0;
   const monthTabs: MonthTab[] = months.map((row) => {
     const own = allTasks.filter((task) => task.month_id === row.id);
     return {
@@ -144,6 +144,13 @@ export default async function ProjectPage({
     { name: 'description', label: 'Quick notes', type: 'textarea', placeholder: 'Longer than the rest, about 10 minutes.' },
     { name: 'file_links', label: 'File links', type: 'links' },
   ];
+  /** A fixed deliverable of a monthly client. */
+  const fixedFields: Field[] = [
+    { name: 'kind', label: 'Type', type: 'select', required: true, defaultValue: 'video', options: TASK_KINDS.map((kind) => ({ value: kind, label: TASK_KIND_SINGLE[kind] })) },
+    { name: 'quantity', label: 'How many a month', type: 'number', placeholder: '5', hint: 'Leave empty for an ongoing service with no fixed number.' },
+    { name: 'label', label: 'Name (optional)', placeholder: 'Social media management', hint: 'For a service, or to tell lines apart (e.g. Reels).' },
+  ];
+
   /** The form for one type of deliverable; thumbnails also choose their video. */
   const fieldsFor = (kind: TaskKind | null, editing: boolean): Field[] => {
     if (!typesReady) return baseFields;
@@ -184,7 +191,14 @@ export default async function ProjectPage({
     member_ids: team.map((profile) => profile.id),
     // A monthly client is copied with its package; a one-time project with its deliverables.
     ...(monthly ? { kind: 'monthly' } : {}),
-    ...(monthly ? { targets: Object.fromEntries(targets.map((row) => [row.kind, row.quantity])) } : {}),
+    ...(monthly
+      ? {
+          targets: Object.fromEntries(
+            TASK_KINDS.map((kind) => [kind, targets.filter((row) => row.kind === kind && row.quantity !== null && !row.label).reduce((sum, row) => sum + (row.quantity ?? 0), 0)]).filter(([, count]) => (count as number) > 0),
+          ),
+          services: targets.filter((row) => row.label).map((row) => row.label as string),
+        }
+      : {}),
     deliverables: monthly
       ? []
       : tasks.map((task) => ({
@@ -419,6 +433,33 @@ export default async function ProjectPage({
       ) : null}
 
       {monthly ? (
+        <ResourceManager
+          title="Fixed deliverables"
+          description="What this client gets every month, if anything is fixed: for example 5 videos, 5 thumbnails, Social media management. Give a number to count it, or just a name for an ongoing service. Leave it empty if nothing is fixed."
+          endpoint="/api/project-targets"
+          rows={asRows(
+            targets.map((row) => ({
+              ...row,
+              what: describeFixed(row),
+              kind_label: TASK_KIND_LABEL[row.kind] ?? row.kind,
+              amount: row.quantity === null ? 'Ongoing' : `${row.quantity} a month`,
+            })),
+          )}
+          columns={[
+            { key: 'what', label: 'Every month' },
+            { key: 'kind_label', label: 'Type' },
+            { key: 'amount', label: 'How many' },
+          ]}
+          fields={fixedFields}
+          editFields={fixedFields}
+          fixedValues={{ project_id: project.id, position: targets.length }}
+          canWrite={mayEdit}
+          addLabel="Add a fixed deliverable"
+          emptyText="Nothing fixed. Tasks are added month by month, and deliveries are still counted."
+        />
+      ) : null}
+
+      {monthly ? (
         <MonthBar
           projectId={project.id}
           tabs={monthTabs}
@@ -430,7 +471,17 @@ export default async function ProjectPage({
         />
       ) : null}
 
-      {monthly && selectedMonth ? <DeliveryTracker month={monthName(selectedMonth.month)} counts={counts} /> : null}
+      {monthly && selectedMonth && mayEdit && selectedMonth.status === 'open' ? (
+        <MonthTasksToolbar
+          projectId={project.id}
+          monthId={selectedMonth.id}
+          monthLabel={monthName(selectedMonth.month)}
+          missing={missingFromFixed}
+          hasFixed={targets.length > 0}
+          people={peopleOptions(people)}
+          showPoints={isAdmin}
+        />
+      ) : null}
 
       {typesReady && missingThumbnails > 0 ? (
         <p role="status" className="mb-5 rounded-card border border-warning bg-warning-soft px-4 py-3 text-[13px] text-warning-strong">
@@ -445,7 +496,7 @@ export default async function ProjectPage({
           endpoint="/api/tasks"
           rows={asRows(taskRows.filter((task) => task.kind === kind))}
           columns={columnsFor(kind)}
-          fields={monthly && !selectedMonth ? undefined : fieldsFor(kind, false)}
+          fields={monthly ? undefined : fieldsFor(kind, false)}
           editFields={fieldsFor(kind, true)}
           fixedValues={{
             project_id: project.id,
@@ -461,40 +512,13 @@ export default async function ProjectPage({
       ))}
 
       {monthly ? (
-        <>
-          {selectedMonth && mayEdit && selectedMonth.status === 'open' ? (
-            <ResourceManager
-              title={groups.length === 0 ? `Deliverables for ${monthName(selectedMonth.month)}` : `Add to ${monthName(selectedMonth.month)}`}
-              description="Add work as it comes: a video, thumbnails, photos, social media posts, a shoot. It joins its list above and counts towards this month's numbers."
-              endpoint="/api/tasks"
-              rows={[]}
-              columns={columnsFor(null)}
-              fields={fieldsFor(null, false)}
-              fixedValues={{ project_id: project.id, month_id: selectedMonth.id, position: allTasks.length }}
-              canWrite
-              needsApproval={needsApproval}
-              addLabel="Add a deliverable"
-              emptyText={groups.length === 0 ? 'Nothing in this month yet.' : 'Choose a type when adding.'}
-            />
-          ) : null}
-          {mayEdit ? (
-            <details className="panel fold">
-              <summary>
-                <span>
-                  <strong>Monthly targets</strong>
-                  <span className="muted"> · optional</span>
-                </span>
-                <span className="package-summary">{targetSummary || 'None set: deliveries are only counted'}</span>
-              </summary>
-              <p className="muted">
-                How many of each type this client gets a month, for example 5 videos, 5 thumbnails and 3 social media
-                posts. Leave a type empty when there is no fixed number; it is still counted. Targets apply to every
-                month.
-              </p>
-              <TargetsEditor projectId={project.id} initial={Object.fromEntries(targets.map((row) => [row.kind, row.quantity]))} />
-            </details>
-          ) : null}
-        </>
+        selectedMonth ? (
+          <DeliveryTracker
+            month={monthName(selectedMonth.month)}
+            counts={counts}
+            allTime={TASK_KINDS.map((kind) => ({ kind, delivered: allTasks.filter((task) => task.kind === kind && task.status === 'approved').length })).filter((row) => row.delivered > 0)}
+          />
+        ) : null
       ) : typesReady ? (
         mayEdit || groups.length === 0 ? (
           <ResourceManager

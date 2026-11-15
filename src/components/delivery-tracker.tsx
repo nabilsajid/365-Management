@@ -1,54 +1,56 @@
 import { CheckCircle2 } from 'lucide-react';
-import { TASK_KIND_LABEL, type DeliveryCount } from '@/lib/domain/deliverables';
+import { TASK_KIND_LABEL, type DeliveryCount, type TaskKind } from '@/lib/domain/deliverables';
+
+const two = (value: number) => String(value).padStart(2, '0');
 
 /**
- * A monthly client's delivery counter for one month: per type, how many were
- * delivered (approved) against the target, or just the count when there is none.
+ * Delivered work for a monthly client, counted from approved tasks: per type,
+ * this month's count (against the fixed number, if any) and the total so far.
  */
-export function DeliveryTracker({ month, counts }: { month: string; counts: DeliveryCount[] }) {
+export function DeliveryTracker({
+  month,
+  counts,
+  allTime,
+}: {
+  month: string;
+  counts: DeliveryCount[];
+  allTime: { kind: TaskKind; delivered: number }[];
+}) {
+  const kinds = [...new Set([...counts.map((row) => row.kind), ...allTime.map((row) => row.kind)])];
   return (
     <section className="panel delivery-tracker" aria-labelledby="delivered-title">
       <header className="panel-header">
         <div>
-          <h2 id="delivered-title">Delivered in {month}</h2>
-          <p className="muted">Counted from this month&apos;s deliverables once they are approved.</p>
+          <h2 id="delivered-title">Delivered</h2>
+          <p className="muted">Counted by itself from approved tasks. {month} and the total since the start.</p>
         </div>
       </header>
-      {counts.length === 0 ? (
-        <p className="muted empty">Nothing yet. Add this month&apos;s work below; it is counted here as it is approved.</p>
+      {kinds.length === 0 ? (
+        <p className="muted empty">Nothing delivered yet. Each task counts here once it is approved.</p>
       ) : (
-        <div className="delivery-grid">
-          {counts.map((row) => {
-            const met = row.target !== null && row.delivered >= row.target;
-            const percent = row.target ? Math.min(100, Math.round((row.delivered / row.target) * 100)) : 0;
+        <ul className="delivery-list">
+          {kinds.map((kind) => {
+            const row = counts.find((item) => item.kind === kind);
+            const delivered = row?.delivered ?? 0;
+            const target = row?.target ?? null;
+            const met = target !== null && delivered >= target;
+            const total = allTime.find((item) => item.kind === kind)?.delivered ?? 0;
             return (
-              <div key={row.kind} className={met ? 'delivery-tile met' : 'delivery-tile'}>
-                <p className="delivery-label">{TASK_KIND_LABEL[row.kind]}</p>
-                <p className="delivery-count">
-                  <strong>{row.delivered}</strong>
-                  {row.target !== null ? <span> / {row.target}</span> : null}
-                </p>
-                {row.target !== null ? (
-                  <div className="delivery-bar" role="progressbar" aria-valuemin={0} aria-valuemax={row.target} aria-valuenow={row.delivered} aria-label={`${TASK_KIND_LABEL[row.kind]} delivered`}>
-                    <div style={{ width: `${percent}%` }} />
-                  </div>
-                ) : null}
-                <p className="delivery-note">
-                  {met ? (
-                    <>
-                      <CheckCircle2 size={13} aria-hidden /> Target met
-                    </>
-                  ) : row.target !== null ? (
-                    `${row.target - row.delivered} to go`
-                  ) : (
-                    'No fixed number'
-                  )}
-                  {row.inReview > 0 ? ` · ${row.inReview} in review` : ''}
-                </p>
-              </div>
+              <li key={kind} className={met ? 'met' : undefined}>
+                <span className="delivery-name">{TASK_KIND_LABEL[kind]} delivered</span>
+                <span className="delivery-figure">
+                  <strong>{two(delivered)}</strong>
+                  {target !== null ? <span> / {two(target)}</span> : null}
+                  {met ? <CheckCircle2 size={15} aria-label="Fixed number reached" /> : null}
+                </span>
+                <span className="delivery-extra">
+                  {row && row.inReview > 0 ? `${row.inReview} in review · ` : ''}
+                  {total} in total
+                </span>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </section>
   );

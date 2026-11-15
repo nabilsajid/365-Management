@@ -1178,6 +1178,27 @@ exception when insufficient_privilege then raise notice 'ok - only people who ed
 end $$;
 reset role;
 
+-- Fixed deliverables and change alerts.
+reset role;
+insert into project_targets (org_id, project_id, kind, label) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'post', 'Social media management');
+insert into project_targets (org_id, project_id, kind, quantity) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', 'video', 2);
+select pg_temp.check((select count(*) = 3 from project_targets where project_id = '00000000-0000-0000-0000-00000000f1a1'),
+  'a fixed deliverable can be a number or a named service, and types can repeat');
+delete from notifications;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+update tasks set points_value = 77, description = 'Use the new logo' where title = 'Due soon';
+update projects set brief = 'New direction' where id = '00000000-0000-0000-0000-00000000d001';
+reset role;
+select pg_temp.check(
+  (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Task updated: Due soon' and body like 'Changed: notes, points%')
+  and (select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e1' and title = 'Project updated: Deadline Co'),
+  'the assignee hears when a task changes, and the team when the project changes');
+select pg_temp.check((select count(*) = 0 from notifications where profile_id = '00000000-0000-0000-0000-0000000000a1' and title like '%updated:%'),
+  'the person making a change is not told about it');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

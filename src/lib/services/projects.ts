@@ -16,6 +16,7 @@ export interface ProjectInput {
   deliverables?: DeliverableInput[];
   kind?: 'one_time' | 'monthly';
   targets?: Partial<Record<string, number>>;
+  services?: string[];
 }
 
 type DbError = { code?: string; message: string };
@@ -52,7 +53,7 @@ export async function createProjectWithDeliverables(
   /** For a monthly project: the first day of the month to open straight away. */
   currentMonth?: string,
 ): Promise<Result<Record<string, unknown>>> {
-  const { deliverables = [], member_ids: memberIds = [], client_name: clientName, file_links: fileLinks = [], targets: _targets, ...project } = input;
+  const { deliverables = [], member_ids: memberIds = [], client_name: clientName, file_links: fileLinks = [], targets: _targets, services: _services, ...project } = input;
 
   const client = await resolveClient(supabase, orgId, clientName);
   if (client.error) return { error: client.error };
@@ -81,10 +82,15 @@ export async function createProjectWithDeliverables(
   // A monthly client: its optional targets, and this month started (empty; work is added as it comes).
   if (input.kind === 'monthly') {
     const targets = Object.entries(input.targets ?? {}).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0);
-    if (targets.length > 0) {
+    // Numbered ones ("5 videos") and named services ("Social media management").
+    const lines = [
+      ...targets.map(([kind, quantity]) => ({ kind, quantity, label: null as string | null })),
+      ...(input.services ?? []).map((label) => ({ kind: 'other', quantity: null as number | null, label })),
+    ];
+    if (lines.length > 0) {
       const saved = await supabase
         .from('project_targets')
-        .insert(targets.map(([kind, quantity]) => ({ org_id: orgId, project_id: projectId, kind, quantity })));
+        .insert(lines.map((line, position) => ({ ...line, org_id: orgId, project_id: projectId, position })));
       if (saved.error) return undo(saved.error);
     }
     const items = buildPackageItems(orgId, projectId, deliverables);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildPackageItems, countOf, deliveryCounts, nextMonthStart } from '../../src/lib/domain/deliverables';
+import { buildPackageItems, countOf, deliveryCounts, describeFixed, nextMonthStart, numberedTitles, planTasksFromFixed } from '../../src/lib/domain/deliverables';
 
 test('the next month rolls over the year', () => {
   assert.equal(nextMonthStart('2026-11-01'), '2026-12-01');
@@ -53,4 +53,32 @@ test('counts read naturally', () => {
   assert.equal(countOf('video', 5), '5 videos');
   assert.equal(countOf('post', 1), '1 social media post');
   assert.equal(countOf('post', 3), '3 social media posts');
+});
+
+
+test('fixed deliverables read naturally', () => {
+  assert.equal(describeFixed({ kind: 'video', quantity: 5, label: null }), '5 videos');
+  assert.equal(describeFixed({ kind: 'post', quantity: null, label: 'Social media management' }), 'Social media management');
+  assert.equal(describeFixed({ kind: 'post', quantity: 3, label: 'reels' }), '3 social media posts (reels)');
+});
+
+test('a month gets only the tasks it is still missing, numbered on', () => {
+  const plan = planTasksFromFixed(
+    [
+      { kind: 'video', quantity: 3, label: null },
+      { kind: 'thumbnail', quantity: 2, label: null },
+      { kind: 'post', quantity: null, label: 'Social media management' },
+    ],
+    [{ kind: 'video', title: 'Video 1' }],
+  );
+  assert.deepEqual(
+    plan.map((task) => `${task.kind}:${task.title}`),
+    ['video:Video 2', 'video:Video 3', 'thumbnail:Thumbnail 1', 'thumbnail:Thumbnail 2', 'post:Social media management'],
+  );
+  assert.deepEqual(planTasksFromFixed([{ kind: 'post', quantity: null, label: 'Social media management' }], [{ kind: 'post', title: 'social media management' }]), []);
+});
+
+test('copies are numbered after what exists', () => {
+  assert.deepEqual(numberedTitles('Video', 3, 2), ['Video 3', 'Video 4', 'Video 5']);
+  assert.deepEqual(numberedTitles('Reel', 1, 4), ['Reel']);
 });

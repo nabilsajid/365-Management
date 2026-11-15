@@ -150,15 +150,21 @@ Everyone can always see and act on their own things: assigned tasks, their own a
 
 - A project has `kind` set to `one_time` or `monthly`.
 - A monthly client has:
-  - optional targets per type: `project_targets`, set by `PUT /api/projects/:id/targets`
+  - optional fixed deliverables: `project_targets` (a type with a number, or a named service), managed with `/api/project-targets`
   - months: `project_months`, opened by `open_project_month`
   - deliverables tied to a month: `tasks.month_id`
-- The project page (`src/app/(app)/projects/[id]/page.tsx`) shows one month at a time: `?month=<month id>`, defaulting to the current month. `MonthBar` shows the months as tabs (with "Start <month>"), the chosen month's progress and its status (In progress / Done). Below it, `DeliveryTracker` shows delivered against target per type for that month. Then come the month's deliverables by type, "Add to <month>", and the optional Monthly targets editor (`TargetsEditor`), folded.
+- The project page (`src/app/(app)/projects/[id]/page.tsx`) shows one month at a time: `?month=<month id>`, defaulting to the current month. `MonthBar` shows the months as tabs (with "Start <month>"), the chosen month's progress and its status (In progress / Done). The page reads top to bottom:
+  1. client info
+  2. **Fixed deliverables**
+  3. `MonthBar`, then `MonthTasksToolbar`: "Create N tasks from fixed deliverables", and "Add tasks" with a How many field, both using `POST /api/tasks/bulk`
+  4. the month's tasks by type
+  5. `DeliveryTracker`: "Videos delivered 05 / 05", with the total so far
 - Routes:
   - `POST /api/package-items` and `PATCH`/`DELETE /api/package-items/:id`
   - `POST /api/projects/:id/months` with `{ month: 'current' | 'next' | 'YYYY-MM' }`
   - `PATCH /api/project-months/:id` (close, reopen, note), and `DELETE` for admins only
-- Creating a monthly project (`createProjectWithDeliverables` with `kind: 'monthly'`) saves its optional `targets` and starts the current month empty. The package routes (`/api/package-items`) still exist but are no longer used.
+- Creating a monthly project (`createProjectWithDeliverables` with `kind: 'monthly'`) saves its fixed deliverables (`targets` numbers and `services` names) and starts the current month empty. The package routes (`/api/package-items`) still exist but are no longer used.
+- Change alerts: assignees are told when a task's details change and the team when the project's details change (database triggers, update 38).
 
 ## 10. Scheduled job
 

@@ -69,8 +69,9 @@ const projectFields = {
 export const projectCreate = z.object({
   ...projectFields,
   deliverables: z.array(deliverable).max(100).default([]),
-  // A monthly client's optional targets, e.g. { video: 5, thumbnail: 5, post: 3 }.
+  // A monthly client's fixed deliverables, e.g. 5 videos, 5 thumbnails, "Social media management".
   targets: z.record(z.enum(TASK_KINDS), z.coerce.number().int().min(1).max(999)).optional(),
+  services: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
 });
 export const projectUpdate = z.object(projectFields).partial();
 
@@ -499,7 +500,29 @@ export const checkoutAction = z.object({
   note: z.string().trim().max(500).nullish(),
 });
 
-// A monthly client's targets: how many of each type a month. Empty means no fixed number.
-export const deliveryTargets = z.object({
-  targets: z.record(z.enum(TASK_KINDS), z.coerce.number().int('Use whole numbers.').min(1).max(999).nullable()),
+
+// A monthly client's fixed deliverable: a type with a number ("5 videos"), or a named service ("Social media management").
+const fixedFields = {
+  kind: z.enum(TASK_KINDS),
+  quantity: z.coerce.number().int('Use a whole number.').min(1, 'At least 1.').max(999).nullish(),
+  label: z.string().trim().max(80, 'Keep it under 80 characters.').nullish(),
+  position: z.number().int().nonnegative().optional(),
+};
+export const fixedDeliverableCreate = z
+  .object({ ...fixedFields, project_id: id })
+  .refine((value) => value.quantity != null || Boolean(value.label), { message: 'Give a number, a name, or both.', path: ['quantity'] });
+export const fixedDeliverableUpdate = z.object(fixedFields).partial();
+
+// Several tasks at once: copies of one ("Video" ×5), or a month filled from its fixed deliverables.
+export const taskBulkCreate = z.object({
+  project_id: id,
+  month_id: id.nullish(),
+  from_fixed: z.boolean().optional(),
+  kind: z.enum(TASK_KINDS).optional(),
+  title: z.string().trim().min(1).max(200).optional(),
+  count: z.coerce.number().int().min(1, 'At least 1.').max(30, 'At most 30 at a time.').default(1),
+  assignee_id: id.nullish(),
+  due_date: date.nullish(),
+  description: z.string().trim().max(2000).nullish(),
+  points_value: z.coerce.number().int().nonnegative().nullish(),
 });
