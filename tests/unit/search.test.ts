@@ -22,3 +22,22 @@ test('pages are found by name or contents, only where the person may go', () => 
   assert.ok(matchPages(['delete', 'log'], admin).some((page) => page.href === '/settings?tab=delete-log'));
   assert.equal(matchPages(['delete', 'log'], employee).length, 0);
 });
+
+import { existsSync, readFileSync } from 'node:fs';
+import { PAGES } from '../../src/lib/services/search';
+
+test('every page search can open exists, with a real tab and anchor', () => {
+  for (const page of PAGES) {
+    const url = new URL(page.href, 'http://app.local');
+    const dir = `src/app/(app)${url.pathname}`;
+    const file = [`${dir}/page.tsx`, `src/app${url.pathname}/page.tsx`].find((path) => existsSync(path));
+    assert.ok(file, `${page.title}: no page at ${url.pathname}`);
+    const tab = url.searchParams.get('tab');
+    if (tab) assert.ok(readFileSync(file!, 'utf8').includes(`key: '${tab}'`), `${page.title}: ${url.pathname} has no tab "${tab}"`);
+    if (url.hash) {
+      const id = url.hash.slice(1);
+      const anywhere = ['src/components/team-guide.tsx', file!].some((path) => readFileSync(path, 'utf8').includes(`id="${id}"`));
+      assert.ok(anywhere, `${page.title}: no #${id} on the page`);
+    }
+  }
+});

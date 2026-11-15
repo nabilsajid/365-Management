@@ -1,4 +1,5 @@
 import {
+  HandCoins,
   Banknote,
   CalendarOff,
   Compass,
@@ -23,6 +24,7 @@ const ICONS = {
   task: ListChecks,
   person: User,
   client: Users,
+  investor: HandCoins,
   invoice: FileText,
   expense: Receipt,
   equipment: Package,

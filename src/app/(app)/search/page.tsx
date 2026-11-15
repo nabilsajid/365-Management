@@ -39,8 +39,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               </div>
             </header>
             <ul className="search-results">
-              {group.items.map((item) => (
-                <li key={`${group.kind}-${item.href}-${item.title}`}>
+              {group.items.map((item, position) => (
+                <li key={`${group.kind}-${position}`}>
                   <Link href={item.href}>
                     <strong>
                       <Highlight text={item.title} query={query} />

@@ -121,7 +121,7 @@ export function SearchBox() {
                   const mine = index;
                   return (
                     <button
-                      key={`${group.kind}-${item.href}-${item.title}`}
+                      key={`${group.kind}-${mine}`}
                       type="button"
                       id={`${listId}-${mine}`}
                       role="option"

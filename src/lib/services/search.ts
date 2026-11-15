@@ -14,6 +14,7 @@ export type SearchKind =
   | 'message'
   | 'comment'
   | 'leave'
+  | 'investor'
   | 'other';
 
 export interface SearchItem {
@@ -47,7 +48,7 @@ export function anyColumn(columns: string[], word: string): string {
 }
 
 /** Places in the app, found by name or by what they hold. `need` is a section, or 'admin'. */
-const PAGES: { title: string; href: string; words: string; need?: string }[] = [
+export const PAGES: { title: string; href: string; words: string; need?: string }[] = [
   { title: 'Dashboard', href: '/dashboard', words: 'home overview today' },
   { title: 'Updates · Announcements', href: '/updates', words: 'notice board news announcement team guide help' },
   { title: 'Updates · Broadcasts', href: '/updates?tab=broadcasts', words: 'broadcast urgent message admin' },
@@ -59,7 +60,8 @@ const PAGES: { title: string; href: string; words: string; need?: string }[] = [
   { title: 'Cash Flow & Invoices', href: '/cashflow', words: 'cash flow money finance balance income', need: 'cashflow' },
   { title: 'Invoices', href: '/cashflow?tab=income', words: 'invoice payment due client bill', need: 'cashflow' },
   { title: 'Expenses', href: '/cashflow?tab=expenses', words: 'expense cost spend', need: 'cashflow' },
-  { title: 'Accounts', href: '/cashflow?tab=accounts', words: 'account bank cash bkash balance', need: 'cashflow' },
+  { title: 'Investments', href: '/cashflow?tab=investments', words: 'investment investor invest due owe repay loan capital', need: 'cashflow' },
+  { title: 'Accounts & clients', href: '/cashflow?tab=accounts', words: 'account bank cash bkash balance client customer', need: 'cashflow' },
   { title: 'Equipment', href: '/logistics', words: 'equipment logistics inventory camera lens gear' },
   { title: 'Equipment checkouts', href: '/logistics?tab=checkouts', words: 'checkout take borrow return equipment logistics who has track request' },
   { title: 'Needed items', href: '/logistics?tab=needs', words: 'needed items buy request equipment logistics' },
@@ -69,7 +71,8 @@ const PAGES: { title: string; href: string; words: string; need?: string }[] = [
   { title: 'Attendance', href: '/employees?tab=attendance', words: 'attendance entry exit check in office day' },
   { title: 'Bonuses', href: '/employees?tab=bonuses', words: 'bonus reward money' },
   { title: 'Point rules & violations', href: '/employees?tab=settings', words: 'rules violation deduction late target', need: 'team_points' },
-  { title: 'Profiles & Contacts', href: '/profile', words: 'profile contact phone team people number address' },
+  { title: 'Team contacts', href: '/profile?tab=team', words: 'profile contact phone team people number address' },
+  { title: 'Employees · Team', href: '/employees?tab=team', words: 'employee staff team member add person', need: 'admin' },
   { title: 'My profile & notifications', href: '/profile', words: 'my profile notification alert device password' },
   { title: 'Leave', href: '/leave', words: 'leave holiday vacation sick off' },
   { title: 'My Requests', href: '/requests', words: 'request pending approval status' },
@@ -77,6 +80,8 @@ const PAGES: { title: string; href: string; words: string; need?: string }[] = [
   { title: 'Approvals', href: '/approvals', words: 'approve approval pending request verify', need: 'admin' },
   { title: 'Roles & Access', href: '/roles', words: 'role access permission tag view as', need: 'admin' },
   { title: 'Settings · Rules', href: '/settings?tab=rules', words: 'settings rules approval limit', need: 'admin' },
+  { title: 'Settings · Company', href: '/settings?tab=company', words: 'company details address phone email website invoice menu sections hide', need: 'admin' },
+  { title: 'Settings · Reminders', href: '/settings?tab=reminders', words: 'reminders alerts notifications deadline shoot invoice overdue', need: 'admin' },
   { title: 'Settings · Appearance', href: '/settings?tab=appearance', words: 'appearance colour color theme look', need: 'admin' },
   { title: 'Settings · Delete log', href: '/settings?tab=delete-log', words: 'delete log deleted removed history', need: 'admin' },
   { title: 'Settings · System check', href: '/settings?tab=system', words: 'system check database update', need: 'admin' },
@@ -141,6 +146,7 @@ export async function runSearch(
     find('project_comments', 'id, body, project_id', ['body']),
     find('task_comments', 'id, body, task_id', ['body']),
     find('leave_requests', 'id, reason, start_date, end_date, status', ['reason']),
+    find('investors', 'id, name, phone', ['name', 'phone']),
   ]);
   const rows = (index: number) => (results[index].error ? [] : ((results[index].data ?? []) as unknown as Row[]));
   const canSeeMoney = viewer.isAdmin || viewer.segments.has('cashflow');
@@ -158,7 +164,7 @@ export async function runSearch(
       kind: 'client',
       title: 'Clients',
       items: rows(3).map((row) => ({
-        href: canSeeMoney ? '/cashflow?tab=clients' : '/projects',
+        href: canSeeMoney ? '/cashflow?tab=accounts' : '/projects',
         title: text(row.name),
         detail: [row.contact_name, row.phone, row.email].filter(Boolean).map(text).join(' · '),
       })),
@@ -180,9 +186,9 @@ export async function runSearch(
     {
       kind: 'equipment',
       title: 'Equipment',
-      items: rows(6).map((row) => ({ href: '/logistics', title: text(row.name), detail: [row.category, row.serial_number, row.condition].filter(Boolean).map(text).join(' · ') })),
+      items: rows(6).map((row) => ({ href: '/logistics?tab=equipment', title: text(row.name), detail: [row.category, row.serial_number, row.condition].filter(Boolean).map(text).join(' · ') })),
     },
-    { kind: 'need', title: 'Needed items', items: rows(7).map((row) => ({ href: '/logistics', title: text(row.item_name), detail: text(row.status) })) },
+    { kind: 'need', title: 'Needed items', items: rows(7).map((row) => ({ href: '/logistics?tab=needs', title: text(row.item_name), detail: text(row.status) })) },
     { kind: 'notice', title: 'Announcements', items: rows(8).map((row) => ({ href: '/updates', title: text(row.title), detail: snippet(row.body, words) })) },
     {
       kind: 'message',
@@ -201,6 +207,11 @@ export async function runSearch(
       kind: 'leave',
       title: 'Leave',
       items: rows(12).map((row) => ({ href: '/leave', title: snippet(row.reason, words), detail: `${text(row.start_date)} to ${text(row.end_date)} · ${text(row.status)}` })),
+    },
+    {
+      kind: 'investor',
+      title: 'Investors',
+      items: rows(13).map((row) => ({ href: '/cashflow?tab=investments', title: text(row.name), detail: text(row.phone) || 'Investor' })),
     },
   ];
   return groups.filter((group) => group.items.length > 0);
