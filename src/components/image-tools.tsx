@@ -28,14 +28,45 @@ async function send(endpoint: string, method: 'PUT' | 'DELETE', data?: string): 
   return problem?.error?.message ?? `Could not save (${response.status}).`;
 }
 
-/** A logo image fitted inside 480×160 as a PNG, transparent edges kept. */
+/**
+ * The part of an image that is not empty margin: transparent pixels, or plain
+ * white around a logo saved on a white background, are cut away so the logo
+ * sits exactly where it is placed.
+ */
+function contentBox(context: CanvasRenderingContext2D, width: number, height: number): { x: number; y: number; w: number; h: number } {
+  const { data } = context.getImageData(0, 0, width, height);
+  const empty = (index: number) => data[index + 3]! < 16 || (data[index]! > 245 && data[index + 1]! > 245 && data[index + 2]! > 245);
+  let left = width;
+  let right = -1;
+  let top = height;
+  let bottom = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (empty((y * width + x) * 4)) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+  if (right < left || bottom < top) return { x: 0, y: 0, w: width, h: height };
+  return { x: left, y: top, w: right - left + 1, h: bottom - top + 1 };
+}
+
+/** A logo image with its empty margins trimmed, fitted inside 480×160 as a PNG (transparency kept). */
 export async function fitLogo(file: File): Promise<string> {
   const image = await loadImage(file);
-  const scale = Math.min(1, 480 / image.naturalWidth, 160 / image.naturalHeight);
+  const full = document.createElement('canvas');
+  full.width = image.naturalWidth;
+  full.height = image.naturalHeight;
+  const fullContext = full.getContext('2d', { willReadFrequently: true })!;
+  fullContext.drawImage(image, 0, 0);
+  const box = contentBox(fullContext, full.width, full.height);
+  const scale = Math.min(1, 480 / box.w, 160 / box.h);
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-  canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
+  canvas.width = Math.max(1, Math.round(box.w * scale));
+  canvas.height = Math.max(1, Math.round(box.h * scale));
+  canvas.getContext('2d')!.drawImage(full, box.x, box.y, box.w, box.h, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/png');
 }
 

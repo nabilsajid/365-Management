@@ -44,9 +44,12 @@ export interface InvoiceOptions {
   footer: string;
   /** The logo's height on the invoice, in pixels (24 to 140). */
   logoSize: number;
+  /** How far the logo moves right (or left, below 0) from its usual place, in pixels. */
+  logoOffset: number;
 }
 
 export const LOGO_SIZE = { min: 24, max: 140, default: 52 } as const;
+export const LOGO_OFFSET = { min: -60, max: 400, default: 0 } as const;
 
 /** Parts that start switched off until an admin turns them on. */
 const OFF_BY_DEFAULT: InvoicePart[] = ['due_date', 'status', 'company_name'];
@@ -59,7 +62,9 @@ export function readInvoiceOptions(value: unknown): InvoiceOptions {
   for (const item of INVOICE_TEXTS) text[item.key] = typeof raw[item.key] === 'string' ? (raw[item.key] as string).slice(0, 1000) : '';
   const size = Number(raw.logo_size);
   const logoSize = Number.isFinite(size) && size > 0 ? Math.min(LOGO_SIZE.max, Math.max(LOGO_SIZE.min, Math.round(size))) : LOGO_SIZE.default;
-  return { show, text, footer: text.footer, logoSize };
+  const offset = Number(raw.logo_offset);
+  const logoOffset = Number.isFinite(offset) ? Math.min(LOGO_OFFSET.max, Math.max(LOGO_OFFSET.min, Math.round(offset))) : LOGO_OFFSET.default;
+  return { show, text, footer: text.footer, logoSize, logoOffset };
 }
 
 /** The stored form: every part as true or false, plus the texts. */
@@ -68,5 +73,6 @@ export function storeInvoiceOptions(options: InvoiceOptions): Record<string, boo
   for (const part of INVOICE_PARTS) stored[part.key] = options.show[part.key] !== false;
   for (const item of INVOICE_TEXTS) stored[item.key] = (options.text?.[item.key] ?? '').slice(0, 1000);
   stored.logo_size = String(options.logoSize ?? LOGO_SIZE.default);
+  stored.logo_offset = String(options.logoOffset ?? LOGO_OFFSET.default);
   return stored;
 }

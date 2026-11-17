@@ -31,3 +31,9 @@ test('the logo size is kept within limits', () => {
   assert.equal(readInvoiceOptions({ logo_size: '900' }).logoSize, 140);
   assert.equal(readInvoiceOptions(storeInvoiceOptions(readInvoiceOptions({ logo_size: '70' }))).logoSize, 70);
 });
+
+test('the logo position is kept within limits', () => {
+  assert.equal(readInvoiceOptions({}).logoOffset, 0);
+  assert.equal(readInvoiceOptions({ logo_offset: '120' }).logoOffset, 120);
+  assert.equal(readInvoiceOptions({ logo_offset: '-500' }).logoOffset, -60);
+});
