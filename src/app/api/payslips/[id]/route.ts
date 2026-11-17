@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { requireContext } from '@/lib/api/context';
 import { fail, fromDbError, ok, readJson } from '@/lib/api/http';
 import { netPay } from '@/lib/domain/payroll';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 type RouteParams = { params: Promise<{ id: string }> };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,11 +55,13 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       if (expense.error) return fromDbError(expense.error);
       expenseId = expense.data.id as string;
     }
+    const paidOn = new Date().toISOString().slice(0, 10);
     const { error } = await ctx.supabase
       .from('payslips')
-      .update({ ...changes, status: 'paid', paid_on: new Date().toISOString().slice(0, 10), expense_id: expenseId })
+      .update({ ...changes, status: 'paid', paid_on: paidOn, expense_id: expenseId })
       .eq('id', id);
     if (error) return fromDbError(error);
+    await draftSalaryEmail(ctx.profile.org_id, slip.profile_id, id, label, { ...next, paid_on: paidOn }, new URL(request.url).origin);
     return ok({ paid: true });
   }
   const { error } = await ctx.supabase.from('payslips').update(changes).eq('id', id);
@@ -76,4 +79,57 @@ export async function DELETE(_request: Request, { params }: RouteParams): Promis
   if (error) return fromDbError(error);
   if (!data) return fail(404, 'Not found.');
   return ok({ deleted: true });
+}
+
+/**
+ * The salary email for a paid payslip, saved as a draft: it is only sent after
+ * an admin (or someone allowed to approve emails) checks it on Email approvals.
+ */
+async function draftSalaryEmail(
+  orgId: string,
+  profileId: string,
+  payslipId: string,
+  monthLabel: string,
+  slip: { base_salary: number; bonus: number; additions: number; deductions: number; paid_on: string },
+  appUrl: string,
+): Promise<void> {
+  const admin = createAdminClient();
+  if (!admin) return;
+  const [user, person, org] = await Promise.all([
+    admin.auth.admin.getUserById(profileId),
+    admin.from('profiles').select('full_name').eq('id', profileId).maybeSingle(),
+    admin.from('organizations').select('name, currency').eq('id', orgId).maybeSingle(),
+  ]);
+  const email = user.data.user?.email;
+  if (!email) return;
+  const name = (person.data as { full_name?: string } | null)?.full_name ?? '';
+  const company = org.data as { name?: string; currency?: string } | null;
+  const amount = (value: number) => `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${company?.currency ?? 'BDT'}`;
+  const lines = [
+    `Hi ${name.split(' ')[0] || 'there'},`,
+    '',
+    `Your salary for ${monthLabel} has been sent.`,
+    '',
+    `Monthly salary: ${amount(slip.base_salary)}`,
+    ...(Number(slip.bonus) > 0 ? [`Bonus: ${amount(slip.bonus)}`] : []),
+    ...(Number(slip.additions) > 0 ? [`Other additions: ${amount(slip.additions)}`] : []),
+    ...(Number(slip.deductions) > 0 ? [`Deductions: ${amount(slip.deductions)}`] : []),
+    `Take-home pay: ${amount(netPay(slip))}`,
+    `Paid on: ${slip.paid_on}`,
+    '',
+    `Your payslip: ${appUrl}/payslips/${payslipId}`,
+    '',
+    `Thank you,`,
+    company?.name ?? '',
+  ];
+  const saved = await admin.from('email_outbox').insert({
+    org_id: orgId,
+    to_profile_id: profileId,
+    to_email: email,
+    kind: 'salary',
+    subject: `Your salary for ${monthLabel} has been sent`,
+    body: lines.join('\n'),
+    related_href: `/payslips/${payslipId}`,
+  });
+  if (!saved.error) await admin.rpc('notify_email_approvers', { p_org: orgId, p_count: 1 });
 }

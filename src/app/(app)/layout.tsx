@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const today = localDate(new Date().toISOString());
   // Counts for the sidebar badges. Row level security makes them personal:
   // admins get everything waiting for them, everyone else only their own.
-  const [pendingChanges, openBroadcasts, pendingOther, unread, look, dueSoon, checkoutRequests, logoRow, photoRow] = await Promise.all([
+  const [pendingChanges, openBroadcasts, pendingOther, unread, look, dueSoon, checkoutRequests, logoRow, photoRow, waitingEmails] = await Promise.all([
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
     // Open broadcasts to the admins (for admins), or open personal messages (for everyone else).
     supabase.from('broadcasts').select('*').eq('org_id', orgId).eq('status', 'open'),
@@ -47,6 +47,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // The company's logo and the person's photo (both optional).
     supabase.from('org_logos').select('data').eq('org_id', orgId).maybeSingle(),
     supabase.from('profile_photos').select('data').eq('profile_id', userId).maybeSingle(),
+    // Emails waiting for approval, for admins and email approvers.
+    isAdmin || segments.has('emails')
+      ? supabase.from('email_outbox').select('id', { count: 'exact', head: true }).eq('org_id', orgId).in('status', ['pending', 'failed'])
+      : Promise.resolve({ count: 0 }),
   ]);
   const lookCss = !look.error && look.data?.appearance && Object.keys(look.data.appearance).length > 0 ? appearanceCss(look.data.appearance) : null;
   // Only the kinds this person wants; they choose under Profiles & Contacts, My profile.
@@ -68,6 +72,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Not counting tasks of hidden (finished) projects.
   badges['/my-tasks'] = ((dueSoon.data ?? []) as { project?: { status?: string } | null }[]).filter((row) => row.project?.status !== 'archived').length;
   if (isAdmin) badges['/logistics'] = checkoutRequests.data?.length ?? 0;
+  badges['/emails'] = (waitingEmails as { count?: number | null }).count ?? 0;
 
   // The very first sign-in: everyone fills in their profile before using the app.
   // The column check keeps the app usable until the profiles database update has been run.

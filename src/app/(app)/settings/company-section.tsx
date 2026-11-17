@@ -138,8 +138,11 @@ export async function RemindersSection() {
           <li><strong>Invoice overdue</strong>: admins.</li>
         </ul>
         <p className="muted" style={{ fontSize: '0.8rem' }}>
-          Everything else (new tasks, comments, approvals, leave) stays in the app and on phones. Each person gets at most one
-          email a day, around 7 AM, listing all their items. Switching a reminder off above stops its email too.
+          Also a <strong>salary email</strong> to each person when their payslip is paid. Everything else (new tasks,
+          comments, approvals, leave) stays in the app and on phones. Each person gets at most one alert email a day,
+          prepared around 7 AM and listing all their items. <strong>Nothing is sent until it is approved</strong> on the
+          Email approvals page, by an admin or someone whose role has &quot;Approve emails&quot;. Switching a reminder off
+          above stops its email too.
         </p>
       </details>
       <MailSettingsForm saved={mail} />

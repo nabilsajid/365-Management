@@ -11,6 +11,7 @@ export const SEGMENTS = [
   { key: 'cashflow', label: 'Cash flow', description: 'Accounts, invoices, payments and all expenses' },
   { key: 'team_points', label: 'Team points', description: "Everyone's attendance, points and deductions" },
   { key: 'bonuses', label: 'Team bonuses', description: "Everyone's bonuses" },
+  { key: 'emails', label: 'Approve emails', description: 'Check, change and send (or skip) emails before they go out, including salary emails' },
 ] as const;
 
 export type Segment = (typeof SEGMENTS)[number]['key'];

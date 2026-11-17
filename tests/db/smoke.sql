@@ -1330,6 +1330,20 @@ exception when insufficient_privilege then raise notice 'ok - the mailbox passwo
 end $$;
 reset role;
 
+-- Emails wait for approval; only approvers see them.
+reset role;
+insert into email_outbox (org_id, to_email, subject, body) values ('00000000-0000-0000-0000-000000000001', 'rafi@gmail.com', 'Deadline missed', 'Video 3 was due yesterday.');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from email_outbox), 'people without email approval do not see drafts');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+update email_outbox set subject = 'Deadline missed: Video 3' where to_email = 'rafi@gmail.com';
+select pg_temp.check((select subject = 'Deadline missed: Video 3' from email_outbox where to_email = 'rafi@gmail.com'), 'an admin can change a draft before sending');
+reset role;
+insert into roles (org_id, name, permissions) values ('00000000-0000-0000-0000-000000000001', 'Email approver', '{emails}');
+select notify_email_approvers('00000000-0000-0000-0000-000000000001', 1);
+select pg_temp.check((select count(*) >= 1 from notifications where title = 'An email is waiting for approval'), 'approvers are told about waiting emails');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

@@ -7,7 +7,7 @@ import { employeeCreate, employeeUpdate, roleCreate, roleUpdate } from '../../sr
 const UUID = '11111111-1111-1111-1111-111111111111';
 
 test('the segments match the ones the database accepts', () => {
-  assert.deepEqual([...SEGMENT_KEYS], ['projects', 'equipment', 'costs', 'cashflow', 'team_points', 'bonuses']);
+  assert.deepEqual([...SEGMENT_KEYS], ['projects', 'equipment', 'costs', 'cashflow', 'team_points', 'bonuses', 'emails']);
   assert.equal(segmentLabel('cashflow'), 'Cash flow');
   assert.equal(segmentLabel('unknown'), 'unknown');
 });
@@ -40,7 +40,8 @@ test('the sidebar only lists what a person can open', () => {
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/approvals'));
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/roles'));
   assert.ok(!hrefs(true, []).includes('/requests'));
-  assert.deepEqual(hrefs(true, []), ['/dashboard', '/updates', '/projects', '/my-tasks', '/calendar', '/cashflow', '/logistics', '/employees', '/profile', '/leave', '/approvals', '/roles', '/settings']);
+  assert.deepEqual(hrefs(true, []), ['/dashboard', '/updates', '/projects', '/my-tasks', '/calendar', '/cashflow', '/logistics', '/employees', '/profile', '/leave', '/approvals', '/emails', '/roles', '/settings']);
+  assert.ok(hrefs(false, ['emails']).includes('/emails'));
 });
 
 test('a role needs a name and only known segments', () => {

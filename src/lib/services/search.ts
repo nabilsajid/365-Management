@@ -80,6 +80,7 @@ export const PAGES: { title: string; href: string; words: string; need?: string 
   { title: 'Approvals', href: '/approvals', words: 'approve approval pending request verify', need: 'admin' },
   { title: 'Roles & Access', href: '/roles', words: 'role access permission tag view as', need: 'admin' },
   { title: 'Settings · Rules', href: '/settings?tab=rules', words: 'settings rules approval limit', need: 'admin' },
+  { title: 'Email approvals', href: '/emails', words: 'email mail approve send salary alerts outbox', need: 'admin' },
   { title: 'Settings · Invoice', href: '/settings?tab=invoice', words: 'invoice design logo signature payment bank details thank you pdf', need: 'admin' },
   { title: 'Settings · Company', href: '/settings?tab=company', words: 'company details address phone email website invoice menu sections hide', need: 'admin' },
   { title: 'Settings · Reminders', href: '/settings?tab=reminders', words: 'reminders alerts notifications deadline shoot invoice overdue', need: 'admin' },
