@@ -5,10 +5,11 @@ import { useState, useTransition, type FormEvent } from 'react';
 import { toast } from './resource-manager';
 
 /** Write a custom email: pick people (or everyone), add any addresses, then send now or keep it for approval. */
-export function ComposeEmail({ people }: { people: { id: string; name: string }[] }) {
+export function ComposeEmail({ people, clients = [] }: { people: { id: string; name: string }[]; clients?: { id: string; name: string; email: string | null }[] }) {
   const router = useRouter();
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [everyone, setEveryone] = useState(false);
+  const [chosenClients, setChosenClients] = useState<Set<string>>(new Set());
   const [addresses, setAddresses] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -25,6 +26,7 @@ export function ComposeEmail({ people }: { people: { id: string; name: string }[
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         profile_ids: [...chosen],
+        client_ids: [...chosenClients],
         everyone,
         addresses: addresses
           .split(/[\s,;]+/)
@@ -48,6 +50,7 @@ export function ComposeEmail({ people }: { people: { id: string; name: string }[
       failed > 0 ? undefined : 'success',
     );
     setChosen(new Set());
+    setChosenClients(new Set());
     setEveryone(false);
     setAddresses('');
     setSubject('');
@@ -83,8 +86,33 @@ export function ComposeEmail({ people }: { people: { id: string; name: string }[
           </div>
         ) : null}
       </div>
+      {clients.length > 0 ? (
+        <div className="field">
+          <span>Clients</span>
+          <div className="compose-people">
+            {clients.map((client) => (
+              <label key={client.id} className="choice" title={client.email ?? 'No email saved for this client'}>
+                <input
+                  type="checkbox"
+                  disabled={!client.email}
+                  checked={chosenClients.has(client.id)}
+                  onChange={(event) => {
+                    const next = new Set(chosenClients);
+                    if (event.target.checked) next.add(client.id);
+                    else next.delete(client.id);
+                    setChosenClients(next);
+                  }}
+                />
+                {client.name}
+                {client.email ? null : <span className="muted"> (no email)</span>}
+              </label>
+            ))}
+          </div>
+          <small className="muted">Add a client&apos;s email under Projects → Clients → Edit.</small>
+        </div>
+      ) : null}
       <label className="field">
-        <span>Other email addresses (optional, e.g. a client)</span>
+        <span>Other email addresses (optional)</span>
         <input value={addresses} placeholder="client@example.com, another@example.com" onChange={(event) => setAddresses(event.target.value)} />
       </label>
       <label className="field">

@@ -8,6 +8,7 @@ const newEmail = z.object({
   // People in the company, by id; "everyone" for the whole active team; and/or typed addresses (clients etc.).
   profile_ids: z.array(z.string().uuid()).max(200).default([]),
   everyone: z.boolean().optional(),
+  client_ids: z.array(z.string().uuid()).max(200).default([]),
   addresses: z.array(z.string().trim().email('Check the email addresses.')).max(50).default([]),
   subject: z.string().trim().min(1, 'Write a subject.').max(200),
   body: z.string().trim().min(1, 'Write the message.').max(20000),
@@ -40,8 +41,15 @@ export async function POST(request: Request): Promise<Response> {
     const user = await admin.auth.admin.getUserById(id);
     if (user.data.user?.email) recipients.push({ profileId: id, email: user.data.user.email });
   }
+  // Clients, by the email saved on them.
+  if (input.client_ids.length > 0) {
+    const clients = await admin.from('clients').select('email').eq('org_id', orgId).in('id', input.client_ids);
+    for (const client of (clients.data ?? []) as { email: string | null }[]) {
+      if (client.email && !recipients.some((row) => row.email.toLowerCase() === client.email!.toLowerCase())) recipients.push({ profileId: null, email: client.email });
+    }
+  }
   for (const address of input.addresses) if (!recipients.some((row) => row.email.toLowerCase() === address.toLowerCase())) recipients.push({ profileId: null, email: address });
-  if (recipients.length === 0) return fail(400, 'Choose at least one person or write an email address.');
+  if (recipients.length === 0) return fail(400, 'Choose at least one person or client, or write an email address.');
 
   const account = input.send_now ? await companyMailAccount(admin, orgId) : null;
   const appUrl = new URL(request.url).origin;

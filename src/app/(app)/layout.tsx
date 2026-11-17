@@ -72,7 +72,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Not counting tasks of hidden (finished) projects.
   badges['/my-tasks'] = ((dueSoon.data ?? []) as { project?: { status?: string } | null }[]).filter((row) => row.project?.status !== 'archived').length;
   if (isAdmin) badges['/logistics'] = checkoutRequests.data?.length ?? 0;
-  badges['/emails'] = (waitingEmails as { count?: number | null }).count ?? 0;
+  // Emails waiting for approval count toward Approvals.
+  const emailsWaiting = (waitingEmails as { count?: number | null }).count ?? 0;
+  badges['/approvals'] = (badges['/approvals'] ?? 0) + emailsWaiting;
 
   // The very first sign-in: everyone fills in their profile before using the app.
   // The column check keeps the app usable until the profiles database update has been run.

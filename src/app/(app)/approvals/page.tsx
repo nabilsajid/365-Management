@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { MonthPicker } from '@/components/month-picker';
 import { PasswordRequests } from '@/components/password-requests';
+import { EmailSection } from './email-section';
 import { ActionButton, ResourceManager } from '@/components/resource-manager';
 import { ChangeSummary } from '@/components/change-summary';
 import { changeDetails, sectionOf } from '@/lib/domain/changes';
@@ -12,11 +13,37 @@ import type { Attendance, Bonus, ChangeRequest, PasswordRequest, Profile, Task, 
 
 const KIND_LABEL: Record<string, string> = { drive: 'Google Drive', dropbox: 'Dropbox', text: 'Text note' };
 
-export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+type Tab = 'requests' | 'work' | 'attendance' | 'bonuses' | 'emails';
+
+export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ month?: string; tab?: string }> }) {
   // Optional month filter for the attendance list. Without it, every pending day is shown.
-  const month = parseMonth((await searchParams).month);
-  const { supabase, orgId, isAdmin, localDate, localDateTime } = await getPageContext();
-  if (!isAdmin) redirect('/dashboard');
+  const query = await searchParams;
+  const month = parseMonth(query.month);
+  const { supabase, orgId, isAdmin, can, localDate, localDateTime } = await getPageContext();
+  const approvesEmails = isAdmin || can('emails');
+  if (!isAdmin && !approvesEmails) redirect('/dashboard');
+
+  const emailCount = await supabase.from('email_outbox').select('id', { count: 'exact', head: true }).eq('org_id', orgId).in('status', ['pending', 'failed']);
+  const emailsWaiting = emailCount.error ? 0 : (emailCount.count ?? 0);
+
+  // People who only approve emails see just that section.
+  if (!isAdmin) {
+    return (
+      <>
+        <div className="page-header">
+          <div>
+            <h1>Approvals</h1>
+          </div>
+        </div>
+        <nav className="tabs" aria-label="Approval sections">
+          <Link href="/approvals?tab=emails" aria-current="page">
+            Emails{emailsWaiting > 0 ? <span className="count">{emailsWaiting}</span> : null}
+          </Link>
+        </nav>
+        <EmailSection />
+      </>
+    );
+  }
 
   const [submissionsR, attendanceR, bonusesR, peopleR, tasksR, changesR, passwordsR, leaveR, ...namedR] = await Promise.all([
     supabase.from('task_submissions').select('*').eq('org_id', orgId).eq('review_status', 'pending').order('created_at'),
@@ -80,15 +107,47 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     amount_label: money(row.amount),
   }));
 
+  // Sections, each with how many things wait in it.
+  const counts: Record<Tab, number> = {
+    requests: changes.length + passwordRows.length + leaveWaiting + finished.length,
+    work: submissions.length,
+    attendance: rowsOf<Attendance>(attendanceR.data).length,
+    bonuses: rowsOf<Bonus>(bonusesR.data).length,
+    emails: emailsWaiting,
+  };
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'requests', label: 'Requests & changes' },
+    { key: 'work', label: 'Work submissions' },
+    { key: 'attendance', label: 'Attendance' },
+    { key: 'bonuses', label: 'Bonuses' },
+    { key: 'emails', label: 'Emails' },
+  ];
+  const requested = TABS.find((item) => item.key === query.tab)?.key;
+  // Without a choice, open the first section with something waiting.
+  const tab: Tab = requested ?? TABS.find((item) => counts[item.key] > 0)?.key ?? 'requests';
+  const tabHref = (key: Tab) => `/approvals?tab=${key}${month ? `&month=${month.slice(0, 7)}` : ''}`;
+
   return (
     <>
       <div className="page-header">
         <div>
           <h1>Approvals</h1>
-          <p className="muted">Everything waiting for an admin decision. Use Edit on a row to decide.</p>
+          <p className="muted">Everything waiting for a decision, by section.</p>
         </div>
       </div>
+      <nav className="tabs" aria-label="Approval sections">
+        {TABS.map((item) => (
+          <Link key={item.key} href={tabHref(item.key)} aria-current={tab === item.key ? 'page' : undefined}>
+            {item.label}
+            {counts[item.key] > 0 ? <span className="count">{counts[item.key]}</span> : null}
+          </Link>
+        ))}
+      </nav>
 
+      {tab === 'emails' ? <EmailSection /> : null}
+
+      {tab === 'requests' ? (
+      <>
       {passwordRows.length > 0 ? <PasswordRequests rows={passwordRows} /> : null}
 
       {leaveWaiting > 0 ? (
@@ -186,6 +245,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           </div>
         )}
       </section>
+      </>
+      ) : null}
+
+      {tab === 'work' ? (
 
       <ResourceManager
         title="Task submissions"
@@ -211,6 +274,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         ]}
         emptyText="No submissions waiting for review."
       />
+      ) : null}
+
+      {tab === 'attendance' ? (
+      <>
 
       <section className="panel">
         <header className="panel-header">
@@ -220,7 +287,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
               {month ? `Showing days waiting in ${monthLabel(month)}.` : 'Showing every day that is waiting. Pick a month to narrow it down.'}
             </p>
           </div>
-          <MonthPicker value={month ? month.slice(0, 7) : ''} current={localDate(new Date().toISOString()).slice(0, 7)} allowAll />
+          <MonthPicker value={month ? month.slice(0, 7) : ''} current={localDate(new Date().toISOString()).slice(0, 7)} allowAll keep={{ tab: 'attendance' }} />
         </header>
       </section>
 
@@ -247,6 +314,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         allowDelete={false}
         emptyText="No data found."
       />
+      </>
+      ) : null}
+
+      {tab === 'bonuses' ? (
 
       <ResourceManager
         title="Bonuses"
@@ -265,6 +336,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         allowDelete={false}
         emptyText="No bonuses waiting for approval."
       />
+      ) : null}
     </>
   );
 }

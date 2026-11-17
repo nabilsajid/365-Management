@@ -13,7 +13,6 @@ import {
   Package,
   Users,
   Wallet,
-  Mail,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -72,8 +71,7 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Management',
     items: [
-      { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, adminOnly: true },
-      { href: '/emails', label: 'Email approvals', icon: Mail, segment: 'emails' },
+      { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, segment: 'emails' },
       { href: '/requests', label: 'My Requests', icon: Inbox, nonAdminOnly: true },
       { href: '/roles', label: 'Roles & Access', icon: ShieldCheck, adminOnly: true },
       { href: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
