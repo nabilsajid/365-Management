@@ -4595,10 +4595,15 @@
   }
   /* The whole A4 page fits beside the controls. */
   .invoice-design-preview .inv {
+    zoom: 0.62;
+  }
+}
+@media (min-width: 1400px) {
+  .invoice-design-preview .inv {
     zoom: 0.72;
   }
 }
-@media (min-width: 1500px) {
+@media (min-width: 1700px) {
   .invoice-design-preview .inv {
     zoom: 0.85;
   }
@@ -4612,8 +4617,13 @@
     max-height: none;
     overflow: visible;
   }
+  .invoice-design-preview {
+    padding: 0;
+    background: none;
+  }
   .invoice-design-preview .inv {
     zoom: 1;
+    box-shadow: none;
   }
 }
 /* The invoice is always dark text on white paper, whatever the app theme. */
@@ -4630,4 +4640,43 @@
 }
 .invoice-design-preview .inv {
   margin: 0;
+}
+
+/* On screen the invoice looks like the printed page: A4 proportions, with
+   phone and mail at the foot, like the PDF. */
+.inv {
+  aspect-ratio: 210 / 297;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.inv-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.inv-contacts {
+  margin-top: auto;
+}
+.invoice-design-preview {
+  padding: 18px;
+  background: #3a3a3a;
+  border-radius: 10px;
+}
+.invoice-design-preview .inv {
+  width: 210mm;
+  max-width: none;
+  margin: 0 auto;
+}
+@media (max-width: 1179px) {
+  .invoice-design-preview .inv {
+    width: 100%;
+    max-width: 210mm;
+  }
+}
+@media print {
+  .inv {
+    box-shadow: none !important;
+    aspect-ratio: auto;
+  }
 }
