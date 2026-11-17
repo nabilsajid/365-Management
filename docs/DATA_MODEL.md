@@ -308,3 +308,5 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - The built-in 365 Frames logo is used only for the first company (`isFirstCompany`); other companies show their name until they upload a logo.
 - `/projects/:id/invoice-preview?month=` shows a monthly client's fee invoice for a month: the saved draft if there is one, otherwise a preview.
 - `client_portals.show_invoices` (off by default) and `show_drafts` decide whether the portal shows invoices and drafts. They are set from Projects → Clients (`PATCH /api/clients/:id/portal`).
+
+- `org_mail_settings` (update 49) holds the mailbox a company's alerts come from, such as a Gmail with an app password. Admins set it in Settings → Reminders, and saving sends a test email first. The password is AES-GCM encrypted with a key derived from `MAIL_SECRET` (or the service key), and the table can't be read by anyone through the API. Mail is sent over SMTP (`src/lib/server/smtp.ts`, port 465 or 587, no library); Resend is the fallback.

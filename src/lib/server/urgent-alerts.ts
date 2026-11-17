@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { reminderSettings } from '@/lib/domain/sections';
+import { decryptSecret, sendSmtp, type MailAccount } from './smtp';
 
 // Urgent alerts also go out by email and, when set up, WhatsApp, because phone
 // notifications are easy to miss. No extra library: both are plain HTTPS calls.
@@ -32,10 +33,44 @@ export function whatsappNumber(contact: string | null | undefined): string | nul
 
 const escape = (value: string) => value.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]!);
 
-export async function sendEmail(to: string, lines: { title: string; body: string | null }[], appUrl: string): Promise<boolean> {
+/** The mailbox a company set in Settings → Reminders, with its password decrypted for sending. */
+export async function companyMailAccount(admin: SupabaseClient, orgId: string): Promise<MailAccount | null> {
+  const { data } = await admin.from('org_mail_settings').select('host, port, username, from_name, password_encrypted').eq('org_id', orgId).maybeSingle();
+  if (!data) return null;
+  const row = data as { host: string; port: number; username: string; from_name: string | null; password_encrypted: string };
+  try {
+    return { host: row.host, port: row.port, username: row.username, fromName: row.from_name, password: decryptSecret(row.password_encrypted) };
+  } catch {
+    return null;
+  }
+}
+
+export async function sendEmail(
+  to: string,
+  lines: { title: string; body: string | null }[],
+  appUrl: string,
+  account?: MailAccount | null,
+): Promise<boolean> {
   const html = `<p>These need attention:</p><ul>${lines
     .map((line) => `<li><strong>${escape(line.title)}</strong>${line.body ? `<br>${escape(line.body)}` : ''}</li>`)
     .join('')}</ul><p><a href="${escape(appUrl)}">Open UniDock</a></p>`;
+  const subject = lines.length === 1 ? lines[0]!.title : `${lines.length} things need attention`;
+  // The company's own mailbox comes first; Resend (set on the server) is the fallback.
+  if (account) {
+    const text = `These need attention:\n\n${lines.map((line) => `- ${line.title}${line.body ? `\n  ${line.body}` : ''}`).join('\n')}\n\nOpen UniDock: ${appUrl}`;
+    try {
+      await sendSmtp(account, to, subject, text, html);
+      lastEmailError = null;
+      return true;
+    } catch (reason) {
+      lastEmailError = (reason as Error).message;
+      return false;
+    }
+  }
+  if (!emailConfigured()) {
+    lastEmailError = 'No email account is set up.';
+    return false;
+  }
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -43,7 +78,7 @@ export async function sendEmail(to: string, lines: { title: string; body: string
       body: JSON.stringify({
         from: process.env.ALERT_FROM_EMAIL,
         to: [to],
-        subject: lines.length === 1 ? lines[0]!.title : `${lines.length} things need attention`,
+        subject,
         html,
       }),
     });
@@ -86,7 +121,6 @@ async function sendWhatsapp(number: string, text: string): Promise<boolean> {
  * this off in Settings → Reminders. Never throws; returns how many people were reached.
  */
 export async function dispatchUrgentAlerts(admin: SupabaseClient, appUrl: string): Promise<number> {
-  if (!emailConfigured() && !whatsappConfigured()) return 0;
   try {
     const since = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await admin
@@ -106,6 +140,10 @@ export async function dispatchUrgentAlerts(admin: SupabaseClient, appUrl: string
     const people = await admin.from('profiles').select('id, contact, is_active').in('id', [...new Set(urgent.map((row) => row.profile_id))]);
     const contact = new Map(((people.data ?? []) as { id: string; contact: string | null; is_active: boolean }[]).map((row) => [row.id, row]));
 
+    // Each company's own mailbox, if it set one.
+    const accounts = new Map<string, MailAccount | null>();
+    for (const orgId of wanted) accounts.set(orgId, await companyMailAccount(admin, orgId));
+
     let reached = 0;
     const byPerson = new Map<string, typeof urgent>();
     for (const row of urgent) byPerson.set(row.profile_id, [...(byPerson.get(row.profile_id) ?? []), row]);
@@ -113,10 +151,11 @@ export async function dispatchUrgentAlerts(admin: SupabaseClient, appUrl: string
       const person = contact.get(profileId);
       if (wanted.has(rows[0]!.org_id) && person?.is_active) {
         let sent = false;
-        if (emailConfigured()) {
+        const account = accounts.get(rows[0]!.org_id) ?? null;
+        if (account || emailConfigured()) {
           const user = await admin.auth.admin.getUserById(profileId);
           const email = user.data.user?.email;
-          if (email) sent = (await sendEmail(email, rows, appUrl)) || sent;
+          if (email) sent = (await sendEmail(email, rows, appUrl, account)) || sent;
         }
         const number = whatsappNumber(person.contact);
         if (whatsappConfigured() && number) {

@@ -1318,6 +1318,18 @@ select org_id, client_id, project_id, project_month_id, invoice_number || '-X1',
 from invoices where project_id = '00000000-0000-0000-0000-00000000f1a1' and not is_extras;
 select pg_temp.check((select count(*) = 2 from invoices where project_id = '00000000-0000-0000-0000-00000000f1a1'), 'a month can also have an extras invoice');
 
+-- The alerts mailbox can never be read through the app, not even by an admin.
+reset role;
+insert into org_mail_settings (org_id, host, port, username, password_encrypted) values ('00000000-0000-0000-0000-000000000001', 'smtp.gmail.com', 465, 'alerts@gmail.com', 'x.y.z');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+do $$ begin
+  perform 1 from org_mail_settings;
+  raise exception 'FAILED: an admin could read the mail settings';
+exception when insufficient_privilege then raise notice 'ok - the mailbox password is never readable';
+end $$;
+reset role;
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

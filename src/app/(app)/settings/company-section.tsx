@@ -1,6 +1,8 @@
 import { ApiForm } from '@/components/resource-manager';
 import { LogoUploader } from '@/components/image-tools';
+import { MailSettingsForm } from '@/components/mail-settings-form';
 import { TestAlertButton } from '@/components/test-alert-button';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { whatsappConfigured } from '@/lib/server/urgent-alerts';
 import { FeatureSettings, ReminderSettingsForm } from '@/components/settings-toggles';
 import { hiddenSections, reminderSettings } from '@/lib/domain/sections';
@@ -96,6 +98,10 @@ export async function CompanySection() {
 /** Which automatic reminders the app sends every morning. */
 export async function RemindersSection() {
   const { supabase, orgId } = await getPageContext();
+  // The mailbox alerts are sent from (never its password).
+  const adminDb = createAdminClient();
+  const mailR = adminDb ? await adminDb.from('org_mail_settings').select('provider, username, from_name, host, port').eq('org_id', orgId).maybeSingle() : { data: null };
+  const mail = (mailR.data ?? null) as { provider: string; username: string; from_name: string | null; host: string; port: number } | null;
   const { data, error } = await supabase.from('organizations').select('*').eq('id', orgId).maybeSingle();
   const org = (data ?? {}) as Org;
   if (error || !('settings' in org)) return <NeedsUpdate />;
@@ -113,23 +119,21 @@ export async function RemindersSection() {
     <section className="panel">
       <header className="panel-header">
         <div>
-          <h2>Email and WhatsApp alerts</h2>
-          <p className="muted">Urgent alerts also go out by email (and WhatsApp) once a day, when the server is set up for it.</p>
+          <h2>Email alerts</h2>
+          <p className="muted">
+            {mail
+              ? `Everyone gets their urgent alerts by email from ${mail.username}, once a day.`
+              : 'Choose the email address urgent alerts are sent from. Everyone in the team then gets them from that address, once a day.'}
+          </p>
         </div>
       </header>
-      <ul className="message-list">
-        <li>
-          Email key (RESEND_API_KEY): {process.env.RESEND_API_KEY ? <span className="badge badge-approved">Set</span> : <span className="badge">Not set</span>}
-        </li>
-        <li>
-          Sender address (ALERT_FROM_EMAIL):{' '}
-          {process.env.ALERT_FROM_EMAIL ? <span className="badge badge-approved">{process.env.ALERT_FROM_EMAIL}</span> : <span className="badge">Not set</span>}
-        </li>
-        <li>
-          WhatsApp: {whatsappConfigured() ? <span className="badge badge-approved">Set up</span> : <span className="badge">Not set up</span>}
-        </li>
-      </ul>
-      <TestAlertButton />
+      <MailSettingsForm saved={mail} />
+      <div style={{ marginTop: '1rem' }}>
+        <TestAlertButton />
+      </div>
+      <p className="muted" style={{ fontSize: '0.8rem', marginTop: '0.75rem' }}>
+        WhatsApp: {whatsappConfigured() ? 'set up' : 'not set up (needs a Meta WhatsApp Business account)'}.
+      </p>
     </section>
     </>
   );
