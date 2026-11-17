@@ -48,7 +48,7 @@ export default async function CompaniesPage() {
       ) : null}
 
       <div className="company-grid">
-        {companies.map((company) => {
+        {companies.map((company, index) => {
           const home = company.id === homeOrgId;
           const here = company.id === orgId;
           return (
@@ -56,7 +56,7 @@ export default async function CompaniesPage() {
               <div className="company-card-head">
                 <span className="company-icon" aria-hidden>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {logos.get(company.id) ? <img src={logos.get(company.id)} alt="" /> : <Building2 size={18} />}
+                  {logos.get(company.id) ? <img src={logos.get(company.id)} alt="" /> : index === 0 ? <img src="/logo-mark.png" alt="" className="builtin" /> : <Building2 size={18} />}
                 </span>
                 <div className="min-w-0">
                   <h2 className="truncate">{company.name}</h2>

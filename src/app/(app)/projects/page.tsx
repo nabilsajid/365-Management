@@ -3,6 +3,7 @@ import { Avatar, loadPhotos } from '@/components/avatar';
 import Link from 'next/link';
 import { ProjectOnboardingForm } from '@/components/project-onboarding-form';
 import { ActionButton, ResourceManager } from '@/components/resource-manager';
+import { PortalSettings } from '@/components/portal-settings';
 import { ShareLink } from '@/components/share-link';
 import type { Field } from '@/components/types';
 import { monthName } from '@/components/month-bar';
@@ -71,11 +72,13 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const personName = new Map(people.map((profile) => [profile.id, profile.full_name]));
   const photos = await loadPhotos(supabase, orgId);
   // Client portal links (Clients view).
-  const portalsR = view === 'clients' && canEdit ? await supabase.from('client_portals').select('client_id, token, is_active').eq('org_id', orgId) : { data: [], error: null };
+  const portalsR = view === 'clients' && canEdit ? await supabase.from('client_portals').select('*').eq('org_id', orgId) : { data: [], error: null };
   const portalsReady = !portalsR.error;
-  const portalToken = new Map(
-    ((portalsR.data ?? []) as { client_id: string; token: string; is_active: boolean }[]).filter((row) => row.is_active).map((row) => [row.client_id, row.token]),
+  const activePortals = ((portalsR.data ?? []) as { client_id: string; token: string; is_active: boolean; show_invoices?: boolean; show_drafts?: boolean }[]).filter(
+    (row) => row.is_active,
   );
+  const portalToken = new Map(activePortals.map((row) => [row.client_id, row.token]));
+  const portalOf = new Map(activePortals.map((row) => [row.client_id, row]));
   const photoByName = new Map(people.filter((profile) => photos.has(profile.id)).map((profile) => [profile.full_name, photos.get(profile.id)!]));
   const staff = peopleOptions(people);
 
@@ -439,9 +442,9 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
             <div>
               <h2>Client portals</h2>
               <p className="muted">
-                Give a client their own private link: all their projects and progress, work waiting for their approval
-                (they approve or ask for changes), and their invoices to download. No account needed. Turn a link off any
-                time.
+                Give a client their own private link: all their projects and progress, and work waiting for their approval
+                (they approve or ask for changes). No account needed. Invoices stay hidden until you tick &quot;Client can see
+                invoices&quot;; drafts only with &quot;Include drafts&quot;. Turn a link off any time.
               </p>
             </div>
           </header>
@@ -455,6 +458,14 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   token={portalToken.get(client.id) ?? null}
                   createLabel="Create portal link"
                 />
+                {portalOf.get(client.id) && 'show_invoices' in portalOf.get(client.id)! ? (
+                  <PortalSettings
+                    clientId={client.id}
+                    token={portalOf.get(client.id)!.token}
+                    showInvoices={Boolean(portalOf.get(client.id)!.show_invoices)}
+                    showDrafts={Boolean(portalOf.get(client.id)!.show_drafts)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

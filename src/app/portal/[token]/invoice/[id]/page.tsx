@@ -14,9 +14,12 @@ export default async function PortalInvoicePage({ params }: { params: Promise<{ 
   if (!/^[0-9a-f]{64}$/.test(token) || !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const admin = createAdminClient();
   if (!admin) notFound();
-  const portal = await admin.from('client_portals').select('client_id').eq('token', token).eq('is_active', true).maybeSingle();
+  const portal = await admin.from('client_portals').select('*').eq('token', token).eq('is_active', true).maybeSingle();
   if (!portal.data) notFound();
-  const invoice = await admin.from('invoices').select('*').eq('id', id).eq('client_id', (portal.data as { client_id: string }).client_id).neq('status', 'draft').maybeSingle();
+  const settings = portal.data as { client_id: string; show_invoices?: boolean; show_drafts?: boolean };
+  if (!settings.show_invoices) notFound();
+  const invoice = await admin.from('invoices').select('*').eq('id', id).eq('client_id', settings.client_id).neq('status', 'void').maybeSingle();
+  if (invoice.data && (invoice.data as { status: string }).status === 'draft' && !settings.show_drafts) notFound();
   if (!invoice.data) notFound();
   const { data, options } = await loadInvoiceSheet(admin as never, invoice.data as Record<string, unknown>);
   return (

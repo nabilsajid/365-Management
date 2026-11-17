@@ -299,3 +299,12 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - `invoices.lines` (jsonb array of `{description, quantity, unit_price}`) is shown on the invoice as Qty / Rate / Amount. If the amount is later edited, the difference shows as an "Adjustment" line.
 - The monthly fee invoice is drafted with one line for the package. `invoices_one_fee_per_month` allows one fee invoice per month.
 - `invoices.is_extras` marks extras invoices. They come from `POST /api/invoices/extras`, prefilled by `extrasForMonth` (approved work beyond the fixed numbers, or everything delivered when nothing is fixed) at the prices in `projects.extra_rates`, which are remembered.
+
+## Invoice design, signature, portal invoice switches (update 48)
+
+- The invoice (`InvoiceSheet`, classes `.inv-*`) follows the company's own style: a wave header with the logo, a large INVOICE title, To / Date / Invoice no, a NO / DESCRIPTION table (adding QTY / RATE / AMOUNT when itemised), the total, payment method, signature, a thank-you line, and phone and mail pills.
+- `invoice_options` now also holds texts (`client_line`, `payment_details`, `signature_name`, `signature_title`, `thank_you`, `phone`, `email`, `footer`) and the parts `payment`, `signature`, `thank_you` and `contacts`. Due date, status and company name start switched off.
+- `org_signatures` holds the signature image (admins, `/api/org-signature`).
+- The built-in 365 Frames logo is used only for the first company (`isFirstCompany`); other companies show their name until they upload a logo.
+- `/projects/:id/invoice-preview?month=` shows a monthly client's fee invoice for a month: the saved draft if there is one, otherwise a preview.
+- `client_portals.show_invoices` (off by default) and `show_drafts` decide whether the portal shows invoices and drafts. They are set from Projects → Clients (`PATCH /api/clients/:id/portal`).

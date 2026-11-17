@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { INVOICE_PARTS, readInvoiceOptions, storeInvoiceOptions } from '../../src/lib/domain/invoice-options';
 
-test('everything is shown until an admin switches it off', () => {
+test('everything but due date and status is shown until an admin changes it', () => {
   const options = readInvoiceOptions({});
-  assert.ok(INVOICE_PARTS.every((part) => options.show[part.key]));
+  assert.ok(INVOICE_PARTS.filter((part) => !['due_date', 'status', 'company_name'].includes(part.key)).every((part) => options.show[part.key]));
+  assert.equal(options.show.due_date, false);
   assert.equal(options.footer, '');
   assert.deepEqual(readInvoiceOptions(null), options);
 });
@@ -16,4 +17,10 @@ test('switched-off parts and the footer are kept', () => {
   assert.equal(options.show.client_name, true);
   assert.equal(options.footer, 'Pay to bKash 01700000000');
   assert.deepEqual(readInvoiceOptions(storeInvoiceOptions(options)), options);
+});
+
+test('the invoice texts are kept', () => {
+  const options = readInvoiceOptions({ signature_name: 'Nabil Azmal Sajid', thank_you: 'THANK YOU FOR BUSINESS!' });
+  assert.equal(options.text.signature_name, 'Nabil Azmal Sajid');
+  assert.equal(readInvoiceOptions(storeInvoiceOptions(options)).text.thank_you, 'THANK YOU FOR BUSINESS!');
 });

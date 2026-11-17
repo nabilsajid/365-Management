@@ -39,7 +39,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <ShareLink endpoint={`/api/invoices/${id}/share`} basePath="/invoice" token={(row.share_token as string | null) ?? null} createLabel="Make a client link" />
         </section>
       ) : null}
-      {isAdmin ? <InvoiceEditor data={data} initial={options} /> : <InvoiceSheet data={data} options={options} />}
+      {isAdmin ? <InvoiceEditor data={data} initial={options} logo={data.logo ?? null} /> : <InvoiceSheet data={data} options={options} />}
     </>
   );
 }

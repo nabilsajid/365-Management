@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { isFirstCompany } from '@/components/invoice-sheet';
 import { ReviewForm } from '@/components/review-form';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -23,16 +24,27 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   if (!/^[0-9a-f]{64}$/.test(token)) notFound();
   const admin = createAdminClient();
   if (!admin) notFound();
-  const portal = await admin.from('client_portals').select('id, org_id, client_id').eq('token', token).eq('is_active', true).maybeSingle();
+  const portal = await admin.from('client_portals').select('*').eq('token', token).eq('is_active', true).maybeSingle();
   if (!portal.data) notFound();
-  const { org_id: orgId, client_id: clientId } = portal.data as { org_id: string; client_id: string };
+  const { org_id: orgId, client_id: clientId, show_invoices: showInvoices, show_drafts: showDrafts } = portal.data as {
+    org_id: string;
+    client_id: string;
+    show_invoices?: boolean;
+    show_drafts?: boolean;
+  };
 
   const [orgR, logoR, clientR, projectsR, invoicesR] = await Promise.all([
     admin.from('organizations').select('name, currency').eq('id', orgId).maybeSingle(),
     admin.from('org_logos').select('data').eq('org_id', orgId).maybeSingle(),
     admin.from('clients').select('name').eq('id', clientId).maybeSingle(),
     admin.from('projects').select('id, name, status, kind, due_date, brief').eq('client_id', clientId).neq('status', 'archived').order('created_at', { ascending: false }),
-    admin.from('invoices').select('id, invoice_number, issue_date, due_date, amount, status').eq('client_id', clientId).neq('status', 'draft').order('issue_date', { ascending: false }),
+    // Invoices only once the company turns them on, and drafts only when that is on too.
+    showInvoices
+      ? (showDrafts
+          ? admin.from('invoices').select('id, invoice_number, issue_date, due_date, amount, status').eq('client_id', clientId).neq('status', 'void')
+          : admin.from('invoices').select('id, invoice_number, issue_date, due_date, amount, status').eq('client_id', clientId).not('status', 'in', '(draft,void)')
+        ).order('issue_date', { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
   const org = orgR.data as { name: string; currency: string } | null;
   const currency = org?.currency ?? 'BDT';
@@ -65,7 +77,8 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   const balance = new Map(((balancesR.data ?? []) as { invoice_id: string; paid: number; outstanding: number }[]).map((row) => [row.invoice_id, row]));
   const invoices = (invoicesR.data ?? []) as { id: string; invoice_number: string; issue_date: string; due_date: string | null; amount: number; status: string }[];
   const waiting = tasks.filter((task) => task.status === 'submitted' && !answered.has(task.id));
-  const logo = (logoR.data as { data?: string } | null)?.data;
+  // The company's logo; 365 Frames (the first company) falls back to its built-in white logo.
+  const logo = (logoR.data as { data?: string } | null)?.data ?? ((await isFirstCompany(admin, orgId)) ? '/logo.png' : null);
 
   return (
     <main className="public-page portal">
@@ -140,6 +153,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         );
       })}
 
+      {showInvoices ? (
       <section className="panel">
         <h2 style={{ marginTop: 0 }}>Invoices</h2>
         {invoices.length === 0 ? (
@@ -162,7 +176,9 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                   const left = Number(balance.get(invoice.id)?.outstanding ?? invoice.amount);
                   return (
                     <tr key={invoice.id}>
-                      <td>{invoice.invoice_number}</td>
+                      <td>
+                        {invoice.invoice_number} {invoice.status === 'draft' ? <span className="badge">Draft</span> : null}
+                      </td>
                       <td>{invoice.issue_date}</td>
                       <td>{invoice.due_date ?? '—'}</td>
                       <td className="num">{money(invoice.amount, currency)}</td>
@@ -178,6 +194,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
           </div>
         )}
       </section>
+      ) : null}
     </main>
   );
 }

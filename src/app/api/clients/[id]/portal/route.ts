@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { requireWriter } from '@/lib/api/context';
-import { fail, fromDbError, ok } from '@/lib/api/http';
+import { z } from 'zod';
+import { fail, fromDbError, ok, readJson } from '@/lib/api/http';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type RouteParams = { params: Promise<{ id: string }> };
@@ -39,4 +40,22 @@ export async function DELETE(_request: Request, { params }: RouteParams): Promis
   const { error } = await ctx.supabase.from('client_portals').update({ is_active: false }).eq('client_id', id).eq('org_id', ctx.profile.org_id);
   if (error) return fromDbError(error);
   return ok({ done: true });
+}
+
+const portalSettings = z.object({ show_invoices: z.boolean().optional(), show_drafts: z.boolean().optional() });
+
+// Whether the client sees their invoices in the portal (off until turned on), and draft ones too.
+export async function PATCH(request: Request, { params }: RouteParams): Promise<Response> {
+  const auth = await requireWriter(['projects']);
+  if (auth.response) return auth.response;
+  const { ctx, mode } = auth;
+  if (mode !== 'apply') return fail(403, 'Only an admin or a project editor can change a client portal.');
+  const { id } = await params;
+  if (!UUID.test(id)) return fail(404, 'Not found.');
+  const body = await readJson(request, portalSettings);
+  if (body.response) return body.response;
+  const { data, error } = await ctx.supabase.from('client_portals').update(body.data).eq('client_id', id).eq('org_id', ctx.profile.org_id).select('client_id').maybeSingle();
+  if (error) return fromDbError(error);
+  if (!data) return fail(404, 'Make a portal link for this client first.');
+  return ok({ saved: true });
 }

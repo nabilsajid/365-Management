@@ -571,6 +571,11 @@ export default async function ProjectPage({
               </p>
             </div>
           </header>
+          <p>
+            <Link href={`/projects/${project.id}/invoice-preview?month=${selectedMonth.id}`} className="button">
+              {billing.invoices.some((invoice) => !invoice.is_extras) ? 'View monthly invoice draft' : 'Preview monthly invoice'}
+            </Link>
+          </p>
           {billing.invoices.length > 0 ? (
             <ul className="message-list">
               {billing.invoices.map((invoice) => (

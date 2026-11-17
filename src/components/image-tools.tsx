@@ -39,6 +39,78 @@ export async function fitLogo(file: File): Promise<string> {
   return canvas.toDataURL('image/png');
 }
 
+/** A signature image fitted inside 420×140, transparent edges kept (a photo of a signature on white works too). */
+export async function fitSignature(file: File): Promise<string> {
+  const image = await loadImage(file);
+  const scale = Math.min(1, 420 / image.naturalWidth, 140 / image.naturalHeight);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/png');
+}
+
+/** The signature on invoices: upload, change or remove. */
+export function SignatureUploader({ current }: { current: string | null }) {
+  const router = useRouter();
+  const [preview, setPreview] = useState(current);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  async function choose(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    try {
+      const data = await fitSignature(file);
+      setBusy(true);
+      const problem = await send('/api/org-signature', 'PUT', data);
+      setBusy(false);
+      if (problem) return setError(problem);
+      setPreview(data);
+      toast('Signature saved', 'success');
+      startTransition(() => router.refresh());
+    } catch (reason) {
+      setError((reason as Error).message);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    const problem = await send('/api/org-signature', 'DELETE');
+    setBusy(false);
+    if (problem) return setError(problem);
+    setPreview(null);
+    startTransition(() => router.refresh());
+  }
+
+  return (
+    <div className="logo-uploader">
+      <div className="logo-preview" style={{ background: '#fff' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {preview ? <img src={preview} alt="Signature" /> : <span className="muted">No signature yet</span>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="button">
+          {busy ? 'Saving…' : preview ? 'Change signature' : 'Upload signature'}
+          <input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={busy} onChange={(event) => choose(event.target.files?.[0])} />
+        </label>
+        {preview ? (
+          <button type="button" onClick={remove} disabled={busy}>
+            Remove
+          </button>
+        ) : null}
+      </div>
+      <small className="muted">A PNG with a transparent background looks best: sign on white paper, photograph it, and remove the background.</small>
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** The company logo: fitted inside 480×160, transparent edges kept. */
 export function LogoUploader({ current }: { current: string | null }) {
   const router = useRouter();
