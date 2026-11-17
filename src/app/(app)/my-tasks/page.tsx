@@ -1,8 +1,7 @@
 import { CalendarClock, Link2, Star } from 'lucide-react';
 import Link from 'next/link';
-import { ActionButton } from '@/components/resource-manager';
 import { dueLabel, dueState, type DueState } from '@/lib/domain/deadlines';
-import { ResourceManager } from '@/components/resource-manager';
+import { ActionButton, ResourceManager } from '@/components/resource-manager';
 import { label } from '@/lib/format';
 import { asRows, getPageContext, rowsOf } from '@/lib/page';
 import type { Profile, Project, ProjectMember, Task } from '@/types/database';
