@@ -4258,7 +4258,7 @@
 .inv-logo {
   height: 52px;
   width: auto;
-  max-width: 220px;
+  max-width: 60%;
   object-fit: contain;
   object-position: left;
 }

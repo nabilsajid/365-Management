@@ -88,7 +88,7 @@ export function InvoiceSheet({ data, options = readInvoiceOptions({}) }: { data:
       <div className="inv-head">
         {show.logo && (data.logo || data.builtInLogo) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.logo ?? '/logo-dark.png'} alt={data.orgName} className="inv-logo" />
+          <img src={data.logo ?? '/logo-dark.png'} alt={data.orgName} className="inv-logo" style={{ height: options.logoSize ?? 52 }} />
         ) : show.logo ? (
           <p className="inv-logo-text">{data.orgName}</p>
         ) : (

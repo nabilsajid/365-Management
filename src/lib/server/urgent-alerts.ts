@@ -32,7 +32,7 @@ export function whatsappNumber(contact: string | null | undefined): string | nul
 
 const escape = (value: string) => value.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]!);
 
-async function sendEmail(to: string, lines: { title: string; body: string | null }[], appUrl: string): Promise<boolean> {
+export async function sendEmail(to: string, lines: { title: string; body: string | null }[], appUrl: string): Promise<boolean> {
   const html = `<p>These need attention:</p><ul>${lines
     .map((line) => `<li><strong>${escape(line.title)}</strong>${line.body ? `<br>${escape(line.body)}` : ''}</li>`)
     .join('')}</ul><p><a href="${escape(appUrl)}">Open UniDock</a></p>`;
@@ -47,11 +47,16 @@ async function sendEmail(to: string, lines: { title: string; body: string | null
         html,
       }),
     });
+    if (!response.ok) lastEmailError = ((await response.json().catch(() => null)) as { message?: string } | null)?.message ?? `Resend answered ${response.status}`;
     return response.ok;
   } catch {
+    lastEmailError = 'Could not reach Resend.';
     return false;
   }
 }
+
+/** Why the last email failed, as Resend explained it (never includes the key). */
+export let lastEmailError: string | null = null;
 
 async function sendWhatsapp(number: string, text: string): Promise<boolean> {
   try {

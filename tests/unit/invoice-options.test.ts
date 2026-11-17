@@ -24,3 +24,10 @@ test('the invoice texts are kept', () => {
   assert.equal(options.text.signature_name, 'Nabil Azmal Sajid');
   assert.equal(readInvoiceOptions(storeInvoiceOptions(options)).text.thank_you, 'THANK YOU FOR BUSINESS!');
 });
+
+test('the logo size is kept within limits', () => {
+  assert.equal(readInvoiceOptions({}).logoSize, 52);
+  assert.equal(readInvoiceOptions({ logo_size: '90' }).logoSize, 90);
+  assert.equal(readInvoiceOptions({ logo_size: '900' }).logoSize, 140);
+  assert.equal(readInvoiceOptions(storeInvoiceOptions(readInvoiceOptions({ logo_size: '70' }))).logoSize, 70);
+});

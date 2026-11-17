@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { INVOICE_PARTS, INVOICE_TEXTS, storeInvoiceOptions, type InvoiceOptions, type InvoicePart, type InvoiceText } from '@/lib/domain/invoice-options';
+import { INVOICE_PARTS, INVOICE_TEXTS, LOGO_SIZE, storeInvoiceOptions, type InvoiceOptions, type InvoicePart, type InvoiceText } from '@/lib/domain/invoice-options';
 import { LogoUploader, SignatureUploader } from './image-tools';
 import { InvoiceSheet, type InvoiceSheetData } from './invoice-sheet';
 import { toast } from './resource-manager';
@@ -64,6 +64,16 @@ export function InvoiceEditor({ data, initial, logo = null, open = false }: { da
           <div>
             <h3>Logo</h3>
             <LogoUploader current={logo} />
+            <label className="field" style={{ marginTop: '0.6rem' }}>
+              <span>Logo size on the invoice: {options.logoSize}px</span>
+              <input
+                type="range"
+                min={LOGO_SIZE.min}
+                max={LOGO_SIZE.max}
+                value={options.logoSize}
+                onChange={(event) => setOptions((current) => ({ ...current, logoSize: Number(event.target.value) }))}
+              />
+            </label>
           </div>
           <div>
             <h3>Signature</h3>

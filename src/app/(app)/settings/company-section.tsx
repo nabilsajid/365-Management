@@ -1,5 +1,7 @@
 import { ApiForm } from '@/components/resource-manager';
 import { LogoUploader } from '@/components/image-tools';
+import { TestAlertButton } from '@/components/test-alert-button';
+import { whatsappConfigured } from '@/lib/server/urgent-alerts';
 import { FeatureSettings, ReminderSettingsForm } from '@/components/settings-toggles';
 import { hiddenSections, reminderSettings } from '@/lib/domain/sections';
 import { getPageContext } from '@/lib/page';
@@ -98,6 +100,7 @@ export async function RemindersSection() {
   const org = (data ?? {}) as Org;
   if (error || !('settings' in org)) return <NeedsUpdate />;
   return (
+    <>
     <section className="panel">
       <header className="panel-header">
         <div>
@@ -107,5 +110,27 @@ export async function RemindersSection() {
       </header>
       <ReminderSettingsForm initial={reminderSettings(org.settings)} />
     </section>
+    <section className="panel">
+      <header className="panel-header">
+        <div>
+          <h2>Email and WhatsApp alerts</h2>
+          <p className="muted">Urgent alerts also go out by email (and WhatsApp) once a day, when the server is set up for it.</p>
+        </div>
+      </header>
+      <ul className="message-list">
+        <li>
+          Email key (RESEND_API_KEY): {process.env.RESEND_API_KEY ? <span className="badge badge-approved">Set</span> : <span className="badge">Not set</span>}
+        </li>
+        <li>
+          Sender address (ALERT_FROM_EMAIL):{' '}
+          {process.env.ALERT_FROM_EMAIL ? <span className="badge badge-approved">{process.env.ALERT_FROM_EMAIL}</span> : <span className="badge">Not set</span>}
+        </li>
+        <li>
+          WhatsApp: {whatsappConfigured() ? <span className="badge badge-approved">Set up</span> : <span className="badge">Not set up</span>}
+        </li>
+      </ul>
+      <TestAlertButton />
+    </section>
+    </>
   );
 }
