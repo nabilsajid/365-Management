@@ -16,12 +16,14 @@ export default async function CompaniesPage() {
   const admin = createAdminClient();
   const homeOrgId = companyView?.homeOrgId ?? orgId;
 
-  const [orgs, people] = admin
+  const [orgs, people, logoRows] = admin
     ? await Promise.all([
         admin.from('organizations').select('id, name, timezone, currency, created_at').order('created_at'),
         admin.from('profiles').select('org_id, is_active'),
+        admin.from('org_logos').select('org_id, data'),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }];
+  const logos = new Map(((logoRows.data ?? []) as { org_id: string; data: string }[]).map((row) => [row.org_id, row.data]));
   const counts = new Map<string, number>();
   for (const row of (people.data ?? []) as { org_id: string; is_active: boolean }[]) {
     if (row.is_active) counts.set(row.org_id, (counts.get(row.org_id) ?? 0) + 1);
@@ -34,8 +36,7 @@ export default async function CompaniesPage() {
         <div>
           <h1>Companies</h1>
           <p className="muted">
-            Every company using UniDock. Each one only ever sees its own people and data. Open one to work in it as its
-            admin.
+            All your companies. Each one only ever sees its own people and data. Switch to one to work in it.
           </p>
         </div>
       </div>
@@ -54,12 +55,13 @@ export default async function CompaniesPage() {
             <section key={company.id} className={here ? 'panel company-card current' : 'panel company-card'}>
               <div className="company-card-head">
                 <span className="company-icon" aria-hidden>
-                  <Building2 size={18} />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {logos.get(company.id) ? <img src={logos.get(company.id)} alt="" /> : <Building2 size={18} />}
                 </span>
                 <div className="min-w-0">
                   <h2 className="truncate">{company.name}</h2>
                   <p className="muted">
-                    {home ? 'Your company' : 'Customer'} · {company.timezone} · {company.currency}
+                    {company.timezone} · {company.currency}
                   </p>
                 </div>
               </div>
@@ -69,7 +71,7 @@ export default async function CompaniesPage() {
               {here ? (
                 <span className="badge badge-approved">You are here</span>
               ) : (
-                <OpenCompanyButton orgId={company.id} home={home} label={home ? 'Back to my company' : 'Open as admin'} />
+                <OpenCompanyButton orgId={company.id} home={home} label={`Switch to ${company.name}`} />
               )}
               {!home && !here ? <DeleteCompanyButton orgId={company.id} name={company.name} /> : null}
             </section>

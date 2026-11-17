@@ -9,7 +9,6 @@ import { UniDockLogo, UniDockMark } from '@/components/unidock-logo';
 import { AppInstall } from '@/components/app-install';
 import { NavProgress } from '@/components/nav-progress';
 import { RolePreviewBar } from '@/components/role-preview';
-import { CompanyViewBar } from '@/components/company-switch';
 import { cn } from '@/lib/utils';
 import { locate, navFor, type Viewer } from './nav';
 
@@ -322,7 +321,6 @@ export function AppShell({
   badges = {},
   previewRole = null,
   owner = false,
-  viewingCompany = null,
   hiddenSections = [],
   orgLogo = null,
   userPhoto = null,
@@ -566,7 +564,6 @@ export function AppShell({
           <ThemeToggle />
           <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} photo={userPhoto} />
         </header>
-        {viewingCompany ? <CompanyViewBar orgName={viewingCompany} /> : null}
         {previewRole ? <RolePreviewBar roleName={previewRole} /> : null}
         <main className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6">
           {notice ? (

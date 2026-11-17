@@ -71,7 +71,7 @@ export function CompanyViewBar({ orgName }: { orgName: string }) {
       </span>
       <button type="button" disabled={busy} onClick={back}>
         <Undo2 size={14} aria-hidden />
-        {busy ? 'Switching back…' : 'Back to my company'}
+        {busy ? 'Switching…' : 'Switch company'}
       </button>
     </div>
   );

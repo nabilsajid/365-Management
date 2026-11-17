@@ -19,6 +19,7 @@ export const TEAM_GUIDE: GuideSection[] = [
       'Once your profile is saved, a welcome pop-up offers this guide. It is always here afterwards, pinned at the top of Updates → Announcements.',
       'Install the app: press "Install the app" (on the sign-in page or at the top of the app). It then opens from your home screen or taskbar like any other app and stays signed in.',
       'Turn on device alerts under Profiles & Contacts → My profile, so new assignments and messages reach your phone even when the app is closed.',
+      'Add a profile photo under Profiles & Contacts → My profile: upload it, drag and zoom to fit your face in the circle, and save.',
     ],
   },
   {
@@ -54,6 +55,7 @@ export const TEAM_GUIDE: GuideSection[] = [
     title: 'Projects and your tasks',
     points: [
       'When you are assigned to a project or a deliverable you get a notification and a pop-up the next time you open the app. Everything assigned to you is under My Tasks.',
+      'Your tasks move through To do → In progress → In review → Done. Press "Start" on a task in My Tasks (or "Start working" on the task) when you begin; it goes to In review when you submit work, and to Done when it is approved.',
       'Open a task to see the brief, due date and links. When your work is ready, use "Submit work" with a Google Drive or Dropbox link (or a text note). Files are never uploaded into the app: always share them as a link.',
       'The reviewer either approves it or asks for changes with a note. You are told either way.',
       'Deadlines: a task due within two days gets an amber "Due tomorrow" or "Due in 2 days" mark, and a red one when it is due today or overdue. A red number on My Tasks in the menu counts these. The day before a deadline you get a reminder; if it is missed, you and the admins are told.',
@@ -64,6 +66,7 @@ export const TEAM_GUIDE: GuideSection[] = [
       'Projects are either one-time jobs or monthly clients. A monthly client is one project that stays open, with a tab for each month. Each month has its own tasks (each video, thumbnail, photo or post is one task, assigned to someone), and a Delivered list counts what was approved, against the fixed number when the client has one.',
       'If something on your task or project changes (notes, points, due date, links, brief), you get a notification saying what changed.',
       'The Calendar shows due dates, shoots and leave for the month.',
+      'Finished projects may be hidden to keep things tidy. Their tasks leave My Tasks and the calendar, but nothing is lost: Projects → "Show hidden projects" lists them with the month they finished, and opening one shows everything inside.',
       'To take leave, ask on the Leave page. Admins and HR are notified and approve or deny it, and you get a notification with the answer.',
     ],
   },
@@ -73,6 +76,7 @@ export const TEAM_GUIDE: GuideSection[] = [
     points: [
       'Every working day, mark your attendance under Employees & Rewards → Attendance with your entry and exit time. Once an admin verifies the day, you earn attendance points.',
       'Points start from zero on the 1st of every month. Earlier months are kept and you can look back at them with the month picker.',
+      'Some companies switch off points; then this part of the app is not shown.',
       'You earn points for verified days, approved work and good work recognised by the admin (for example extra hours or great client feedback). Points can be deducted for violations such as coming late.',
       'Reach the monthly target to qualify for a bonus. Bonuses are approved by the admin. Deductions never reduce your salary.',
       'Your points page shows a statement of exactly how you earned or lost each point this month.',
@@ -83,7 +87,8 @@ export const TEAM_GUIDE: GuideSection[] = [
     title: 'Leave',
     points: [
       'Ask for leave under Leave: choose the dates and write the reason.',
-      'An admin approves or declines it and you are notified. Approved leave shows on the Calendar and next to attendance.',
+      'An admin or HR approves or declines it and you are notified. Approved leave shows on the Calendar and next to attendance.',
+      'Pick a month at the top of the Leave page to see that month\'s leave.',
     ],
   },
   {
