@@ -271,3 +271,5 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - Features (`settings.hidden_sections`) are `/calendar`, `/leave`, `/logistics` and `points`. `PATCH /api/org-features` switches one on or off; switching off can also delete its data (leave requests; equipment, checkouts and needed items; points, bonuses and attendance) after the admin types the feature's name.
 - New companies are made in three steps (details and logo, features, first admin) through `POST /api/companies`; standard roles are created by the existing trigger.
 - `ResourceManager` takes `quickActions`: one-click PATCH buttons per row. Approvals and the task page use them for Approve and Request changes.
+
+- `delete_company(org)` (update 45): the owner deletes a customer company from Companies after typing its name. It clears records that block deletion first, then the company; the route then removes its people's logins. You can never delete your own company or the one that is open.

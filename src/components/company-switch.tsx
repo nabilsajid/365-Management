@@ -76,3 +76,60 @@ export function CompanyViewBar({ orgName }: { orgName: string }) {
     </div>
   );
 }
+
+/** On Companies (owner): delete a customer company after typing its name. */
+export function DeleteCompanyButton({ orgId, name }: { orgId: string; name: string }) {
+  const [asking, setAsking] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove() {
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/companies/${orgId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: typed }),
+    });
+    setBusy(false);
+    if (!response.ok) {
+      const problem = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      return setError(problem?.error?.message ?? `Could not delete (${response.status}).`);
+    }
+    window.location.reload();
+  }
+
+  if (!asking) {
+    return (
+      <button type="button" className="danger" onClick={() => setAsking(true)}>
+        Delete company
+      </button>
+    );
+  }
+  return (
+    <div className="feature-warning" role="alertdialog" aria-label={`Delete ${name}`}>
+      <p>
+        <strong>This deletes {name} for good:</strong> its people and their logins, projects, tasks, invoices, money records
+        and everything else. It cannot be undone.
+      </p>
+      <label className="field">
+        <span>Type {name} to confirm</span>
+        <input value={typed} onChange={(event) => setTyped(event.target.value)} placeholder={name} />
+      </label>
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="danger" disabled={busy || typed.trim().toLowerCase() !== name.trim().toLowerCase()} onClick={remove}>
+          {busy ? 'Deleting…' : 'Delete for good'}
+        </button>
+        <button type="button" onClick={() => (setAsking(false), setTyped(''))} disabled={busy}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}

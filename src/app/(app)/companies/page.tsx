@@ -1,6 +1,6 @@
 import { Building2, Users } from 'lucide-react';
 import { redirect } from 'next/navigation';
-import { OpenCompanyButton } from '@/components/company-switch';
+import { DeleteCompanyButton, OpenCompanyButton } from '@/components/company-switch';
 import { CompanyWizard } from '@/components/company-wizard';
 import { getPageContext } from '@/lib/page';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -71,6 +71,7 @@ export default async function CompaniesPage() {
               ) : (
                 <OpenCompanyButton orgId={company.id} home={home} label={home ? 'Back to my company' : 'Open as admin'} />
               )}
+              {!home && !here ? <DeleteCompanyButton orgId={company.id} name={company.name} /> : null}
             </section>
           );
         })}

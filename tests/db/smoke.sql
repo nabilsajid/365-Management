@@ -1305,5 +1305,14 @@ select pg_temp.check(
   (select count(*) = 0 from profiles where id = '00000000-0000-0000-0000-0000000000e1'),
   'an employee can be deleted together with their records');
 
+-- The owner can delete a whole company with everything in it.
+reset role;
+select public.delete_company('00000000-0000-0000-0000-000000000001');
+select pg_temp.check(
+  (select count(*) = 0 from organizations where id = '00000000-0000-0000-0000-000000000001')
+  and (select count(*) = 0 from projects where org_id = '00000000-0000-0000-0000-000000000001')
+  and (select count(*) = 0 from profiles where org_id = '00000000-0000-0000-0000-000000000001'),
+  'a company can be deleted with all its data');
+
 reset role;
 rollback;
