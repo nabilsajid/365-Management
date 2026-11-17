@@ -53,11 +53,11 @@ export function InvoiceEditor({ data, initial, logo = null, open = false }: { da
   }
 
   return (
-    <>
-      <details className="panel fold no-print" open={open}>
+    <div className="invoice-design">
+      <details className="panel fold no-print invoice-design-controls" open={open}>
         <summary>Invoice design: logo, signature, payment details and what it shows</summary>
         <p className="muted">
-          Applies to every invoice, the downloaded PDF and the link sent to the client. The preview below changes as you
+          Applies to every invoice, the downloaded PDF and the link sent to the client. The preview changes as you
           type; press Save to keep it. A note for one invoice only goes in that invoice&apos;s Note (Cash Flow → Edit).
         </p>
         <div className="invoice-images">
@@ -128,7 +128,10 @@ export function InvoiceEditor({ data, initial, logo = null, open = false }: { da
           ) : null}
         </div>
       </details>
-      <InvoiceSheet data={data} options={options} />
-    </>
+      <div className="invoice-design-preview">
+        <p className="muted no-print invoice-design-label">Preview</p>
+        <InvoiceSheet data={data} options={options} />
+      </div>
+    </div>
   );
 }

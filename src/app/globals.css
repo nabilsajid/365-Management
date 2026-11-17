@@ -4562,3 +4562,72 @@
   gap: 0.35rem 1rem;
   margin-top: 0.35rem;
 }
+
+/* Settings → Invoice: controls on the left, the invoice preview beside them. */
+.invoice-design {
+  display: grid;
+  gap: 1rem;
+}
+.invoice-design-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+@media (min-width: 1180px) {
+  .invoice-design {
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    align-items: start;
+  }
+  .invoice-design-controls {
+    margin: 0;
+  }
+  .invoice-design-controls .invoice-images,
+  .invoice-design-controls .invoice-texts {
+    grid-template-columns: 1fr;
+  }
+  .invoice-design-preview {
+    position: sticky;
+    top: 4.5rem;
+    max-height: calc(100vh - 5.5rem);
+    overflow: auto;
+    border-radius: 8px;
+  }
+  /* The whole A4 page fits beside the controls. */
+  .invoice-design-preview .inv {
+    zoom: 0.72;
+  }
+}
+@media (min-width: 1500px) {
+  .invoice-design-preview .inv {
+    zoom: 0.85;
+  }
+}
+@media print {
+  .invoice-design {
+    display: block;
+  }
+  .invoice-design-preview {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .invoice-design-preview .inv {
+    zoom: 1;
+  }
+}
+/* The invoice is always dark text on white paper, whatever the app theme. */
+.inv td,
+.inv th,
+.inv p,
+.inv strong,
+.inv span {
+  color: #2b2b2b;
+}
+.inv .inv-from-lines,
+.inv .inv-footer {
+  color: #6b6b6b;
+}
+.invoice-design-preview .inv {
+  margin: 0;
+}
