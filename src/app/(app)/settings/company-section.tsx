@@ -127,6 +127,21 @@ export async function RemindersSection() {
           </p>
         </div>
       </header>
+      <details className="fold-inline" style={{ marginBottom: '0.75rem' }}>
+        <summary>What goes by email, and to whom</summary>
+        <ul className="message-list">
+          <li><strong>Deadline missed</strong>: the person assigned, and admins.</li>
+          <li><strong>Project past its due date</strong>: the project&apos;s team, and admins.</li>
+          <li><strong>Shoot not confirmed</strong> (shoots coming up within the days set above): the team or the person assigned, and admins.</li>
+          <li><strong>Please return</strong> (equipment past its return date): the person holding it.</li>
+          <li><strong>Equipment overdue</strong>: admins.</li>
+          <li><strong>Invoice overdue</strong>: admins.</li>
+        </ul>
+        <p className="muted" style={{ fontSize: '0.8rem' }}>
+          Everything else (new tasks, comments, approvals, leave) stays in the app and on phones. Each person gets at most one
+          email a day, around 7 AM, listing all their items. Switching a reminder off above stops its email too.
+        </p>
+      </details>
       <MailSettingsForm saved={mail} />
       <div style={{ marginTop: '1rem' }}>
         <TestAlertButton />
