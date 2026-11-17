@@ -261,3 +261,13 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - A hidden project (status `archived`, one-time or monthly) keeps everything inside it, but its tasks are left out of My Tasks, the calendar, the dashboard and the red My Tasks badge, and `notify_deadlines` sends no reminders for them.
 - Projects → Board and List leave hidden projects out until "Show hidden" (`?hidden=1`).
 - `POST /api/tasks/:id/start`: the assignee moves their own task from To do (or Changes requested) to In progress.
+
+## Finish dates, logos, photos and features (update 44)
+
+- `projects.finished_at` is set when a project becomes Completed or Hidden and cleared if it is reopened. The hidden projects list shows it as a month.
+- `organizations.trade_license`.
+- `org_logos` holds one small image per company. It is used in the menu and on invoices, and only admins can change it.
+- `profile_photos` holds one cropped photo per person. Everyone in the company can read them; each person changes their own.
+- Features (`settings.hidden_sections`) are `/calendar`, `/leave`, `/logistics` and `points`. `PATCH /api/org-features` switches one on or off; switching off can also delete its data (leave requests; equipment, checkouts and needed items; points, bonuses and attendance) after the admin types the feature's name.
+- New companies are made in three steps (details and logo, features, first admin) through `POST /api/companies`; standard roles are created by the existing trigger.
+- `ResourceManager` takes `quickActions`: one-click PATCH buttons per row. Approvals and the task page use them for Approve and Request changes.

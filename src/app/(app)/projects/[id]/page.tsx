@@ -1,3 +1,4 @@
+import { Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AwardProjectPoints } from '@/components/award-project-points';
@@ -231,6 +232,12 @@ export default async function ProjectPage({
           </h1>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {mayEdit ? (
+            <Link href={`/projects/${project.id}?edit=1#edit`} className="button">
+              <Pencil size={14} aria-hidden style={{ marginRight: 6 }} />
+              Edit project
+            </Link>
+          ) : null}
           {mayEdit ? <CopyProject payload={copyPayload} /> : null}
           {isAdmin ? <DeleteProject id={project.id} name={project.name} /> : null}
         </div>

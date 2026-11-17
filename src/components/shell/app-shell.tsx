@@ -111,14 +111,14 @@ function SidebarNav({
   );
 }
 
-function Brand({ orgName, collapsed, owner = false }: { orgName: string; collapsed: boolean; owner?: boolean }) {
+function Brand({ orgName, orgLogo = null, collapsed, owner = false }: { orgName: string; orgLogo?: string | null; collapsed: boolean; owner?: boolean }) {
   // The app's own logo (UniDock) on top, and the company using it just below,
   // so everyone can see whose workspace this is. For the owner it opens the
   // list of companies, to switch or add one.
   const tag = (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo-mark.png" alt="" width={20} height={19} />
+      <img src={orgLogo ?? '/logo-mark.png'} alt="" width={20} height={20} style={{ objectFit: 'contain' }} />
       {collapsed ? null : (
         <span className="min-w-0 flex-1">
           <small>Company</small>
@@ -239,7 +239,7 @@ function ThemeToggle() {
   );
 }
 
-function UserMenu({ name, jobTitle, isAdmin }: { name: string; jobTitle: string | null; isAdmin: boolean }) {
+function UserMenu({ name, jobTitle, isAdmin, photo = null }: { name: string; jobTitle: string | null; isAdmin: boolean; photo?: string | null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -268,8 +268,9 @@ function UserMenu({ name, jobTitle, isAdmin }: { name: string; jobTitle: string 
         onClick={() => setOpen((value) => !value)}
         className="flex items-center gap-2.5 rounded-control py-1 pl-1 pr-2 transition-colors hover:bg-subtle"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary-strong">
-          {initials(name) || '?'}
+        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary-soft text-xs font-semibold text-primary-strong">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {photo ? <img src={photo} alt="" className="user-photo" /> : initials(name) || '?'}
         </span>
         <span className="hidden text-left leading-tight sm:block">
           <span className="block text-[13px] font-medium text-ink">{name}</span>
@@ -323,6 +324,8 @@ export function AppShell({
   owner = false,
   viewingCompany = null,
   hiddenSections = [],
+  orgLogo = null,
+  userPhoto = null,
   children,
 }: {
   orgName: string;
@@ -341,6 +344,9 @@ export function AppShell({
   viewingCompany?: string | null;
   /** Menu sections the company switched off. */
   hiddenSections?: string[];
+  /** The company's own logo and the person's photo, when set. */
+  orgLogo?: string | null;
+  userPhoto?: string | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -474,7 +480,7 @@ export function AppShell({
           collapsed ? 'w-16' : 'w-[250px]',
         )}
       >
-        <Brand orgName={orgName} collapsed={collapsed} owner={owner} />
+        <Brand orgName={orgName} orgLogo={orgLogo} collapsed={collapsed} owner={owner} />
         <SidebarNav viewer={viewer} badges={badges} collapsed={collapsed} pathname={pathname} />
         <div className="border-t border-white/10 p-3">
           <button
@@ -507,7 +513,7 @@ export function AppShell({
             className={cn('relative flex h-full w-[270px] max-w-[85vw] flex-col bg-sidebar', drag === null && 'drawer-in')}
             style={drag === null ? undefined : { transform: `translateX(${(drag - 1) * 100}%)` }}
           >
-            <Brand orgName={orgName} collapsed={false} owner={owner} />
+            <Brand orgName={orgName} orgLogo={orgLogo} collapsed={false} owner={owner} />
             <button
               type="button"
               aria-label="Close navigation"
@@ -558,7 +564,7 @@ export function AppShell({
           </Link>
           <AppInstall />
           <ThemeToggle />
-          <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} />
+          <UserMenu name={userName} jobTitle={jobTitle} isAdmin={isAdmin} photo={userPhoto} />
         </header>
         {viewingCompany ? <CompanyViewBar orgName={viewingCompany} /> : null}
         {previewRole ? <RolePreviewBar roleName={previewRole} /> : null}

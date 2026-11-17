@@ -205,6 +205,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         ]}
         canWrite
         allowDelete={false}
+        quickActions={[
+          { label: 'Approve', body: { review_status: 'approved' }, primary: true },
+          { label: 'Request changes', body: { review_status: 'changes_requested' } },
+        ]}
         emptyText="No submissions waiting for review."
       />
 

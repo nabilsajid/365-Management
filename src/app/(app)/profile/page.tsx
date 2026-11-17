@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PhotoEditor } from '@/components/image-tools';
 import { ApiForm, ResourceManager } from '@/components/resource-manager';
 import { DeviceAlerts } from '@/components/device-alerts';
 import { NotifySettings } from '@/components/notify-settings';
@@ -24,9 +25,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const { supabase, orgId, userId, profile, isAdmin } = await getPageContext();
 
   // Row level security returns private details for yourself only, or for everyone if you are an admin.
-  const [peopleR, privateR] = await Promise.all([
+  const [peopleR, privateR, photoR] = await Promise.all([
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('profile_private').select('*').eq('org_id', orgId),
+    supabase.from('profile_photos').select('data').eq('profile_id', userId).maybeSingle(),
   ]);
 
   if (!('profile_completed_at' in profile) || privateR.error) {
@@ -118,6 +120,18 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           </Link>
         ))}
       </nav>
+
+      {tab === 'me' && !photoR.error ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>Profile photo</h2>
+              <p className="muted">Upload a photo, then drag and zoom to fit your face in the circle. The team sees it next to your name.</p>
+            </div>
+          </header>
+          <PhotoEditor current={(photoR.data as { data?: string } | null)?.data ?? null} name={profile.full_name} />
+        </section>
+      ) : null}
 
       {tab === 'me' ? (
       <section className="panel">

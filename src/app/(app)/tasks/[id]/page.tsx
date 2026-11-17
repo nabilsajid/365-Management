@@ -8,9 +8,11 @@ import type { Profile, Project, Task, TaskSubmission } from '@/types/database';
 
 const KIND_LABEL: Record<string, string> = { drive: 'Google Drive', dropbox: 'Dropbox', text: 'Text note' };
 
-export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TaskPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edit?: string }> }) {
   const { id } = await params;
-  const { supabase, orgId, isAdmin, userId, can, localDate, localDateTime } = await getPageContext();
+  const startEditing = Boolean((await searchParams).edit);
+  const { supabase, orgId, isAdmin, userId, can, canEdit, localDate, localDateTime } = await getPageContext();
+  const mayEdit = canEdit('projects');
 
   const taskResult = await supabase.from('tasks').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const task = taskResult.data as Task | null;
@@ -55,6 +57,18 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           </p>
           <h1>{task.title}</h1>
         </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {task.assignee_id === userId && (task.status === 'todo' || task.status === 'changes_requested') ? (
+            <ActionButton endpoint={`/api/tasks/${task.id}/start`} primary>
+              Start working
+            </ActionButton>
+          ) : null}
+          {mayEdit ? (
+            <a href={`/tasks/${task.id}?edit=1#edit-task`} className="button">
+              Edit task
+            </a>
+          ) : null}
+        </div>
       </div>
 
       {task.status === 'approved' ? (
@@ -92,6 +106,50 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
         </dl>
       </section>
 
+      {mayEdit ? (
+        <details className="panel fold" id="edit-task" open={startEditing}>
+          <summary>Edit this task</summary>
+          <ApiForm
+            endpoint={`/api/tasks/${task.id}`}
+            method="PATCH"
+            submitLabel="Save changes"
+            resetOnSuccess={false}
+            initial={{
+              title: task.title,
+              assignee_id: task.assignee_id ?? '',
+              status: task.status,
+              points_value: task.points_value ?? '',
+              due_date: task.due_date ?? '',
+              description: task.description ?? '',
+              file_links: task.file_links,
+            }}
+            fields={[
+              { name: 'title', label: 'Title', required: true },
+              {
+                name: 'assignee_id',
+                label: 'Assignee',
+                type: 'select',
+                options: rowsOf<Profile>(peopleResult.data)
+                  .filter((profile) => profile.is_active)
+                  .map((profile) => ({ value: profile.id, label: profile.full_name })),
+                hint: 'They are notified.',
+              },
+              {
+                name: 'status',
+                label: 'Status',
+                type: 'select',
+                required: true,
+                options: enumOptions(isAdmin ? ['todo', 'in_progress', 'submitted', 'changes_requested', 'approved'] : ['todo', 'in_progress', 'submitted', 'changes_requested']),
+              },
+              ...(isAdmin ? [{ name: 'points_value', label: 'Points on approval', type: 'number' as const }] : []),
+              { name: 'due_date', label: 'Due date', type: 'date' },
+              { name: 'description', label: 'Notes / requirements', type: 'textarea' },
+              { name: 'file_links', label: 'File links', type: 'links' },
+            ]}
+          />
+        </details>
+      ) : null}
+
       {feedback.length > 0 ? (
         <section className="panel">
           <header className="panel-header">
@@ -124,7 +182,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
 
       <ResourceManager
         title="Submissions"
-        description={isAdmin ? 'Edit a submission to approve it or request changes.' : undefined}
+        description={isAdmin ? 'Approve a submission or request changes; Edit adds a review note.' : undefined}
         endpoint="/api/submissions"
         rows={asRows(submissionRows)}
         columns={[
@@ -142,6 +200,10 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           { name: 'review_note', label: 'Review note', type: 'textarea' },
         ]}
         canWrite={isAdmin}
+        quickActions={[
+          { label: 'Approve', body: { review_status: 'approved' }, primary: true },
+          { label: 'Request changes', body: { review_status: 'changes_requested' } },
+        ]}
         emptyText="Nothing submitted yet."
       />
 

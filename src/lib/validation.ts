@@ -455,6 +455,8 @@ export const orgRulesUpdate = z
     // What invoices show: each part on or off, and a footer.
     invoice_options: z.record(z.union([z.boolean(), z.string().max(1000, 'Keep the footer under 1000 characters.')])),
     // Company details printed on invoices.
+    name: z.string().trim().min(1, 'Give the company a name.').max(120),
+    trade_license: z.string().trim().max(80).nullish(),
     contact_address: z.string().trim().max(300).nullish(),
     contact_phone: z.string().trim().max(40).nullish(),
     contact_email: z.string().trim().max(120).nullish(),
@@ -505,6 +507,10 @@ export const companyCreate = z.object({
   admin_name: z.string().trim().min(2, 'Write the admin\'s name.').max(80),
   admin_email: z.string().trim().toLowerCase().email('Write a valid email.'),
   admin_password: loginPassword,
+  // From the setup steps: optional details, logo, and the features it starts without.
+  trade_license: z.string().trim().max(80).nullish(),
+  logo_data: z.string().startsWith('data:image/').max(400000, 'That logo is too large.').nullish(),
+  hidden_sections: z.array(z.enum(OPTIONAL_SECTIONS)).max(10).optional(),
 });
 
 export const companyView = z.object({ org_id: id.nullable() });

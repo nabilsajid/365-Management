@@ -433,6 +433,7 @@ export function ResourceManager({
   emptyText = 'Nothing here yet.',
   needsApproval = false,
   pageSize = 10,
+  quickActions = [],
 }: {
   title: string;
   description?: string;
@@ -451,6 +452,8 @@ export function ResourceManager({
   needsApproval?: boolean;
   /** Rows shown before "Show all". Long lists also get a search box. */
   pageSize?: number;
+  /** One-click buttons on each row, e.g. Approve: each sends its body as a PATCH to the row. */
+  quickActions?: { label: string; body: Values; primary?: boolean; danger?: boolean }[];
 }) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
@@ -484,7 +487,18 @@ export function ResourceManager({
   const formFields = editFields ?? fields;
   const canEdit = canWrite && formFields.length > 0;
   const canCreate = canWrite && allowCreate && fields.length > 0;
-  const showActions = canWrite && (canEdit || allowDelete);
+  const showActions = canWrite && (canEdit || allowDelete || quickActions.length > 0);
+
+  async function quick(row: Row, body: Values) {
+    setDeletingId(row.id);
+    const message = await callApi(`${endpoint}/${row.id}`, 'PATCH', body);
+    setDeletingId(null);
+    setError(message);
+    if (!message) {
+      toast('Done', 'success');
+      refresh();
+    }
+  }
 
   async function remove(row: Row) {
     setConfirmingId(null);
@@ -616,6 +630,19 @@ export function ResourceManager({
                     ))}
                     {showActions ? (
                       <td className="row-actions">
+                        {confirmingId !== row.id
+                          ? quickActions.map((action) => (
+                              <button
+                                key={action.label}
+                                type="button"
+                                className={action.primary ? 'primary' : action.danger ? 'danger' : undefined}
+                                onClick={() => quick(row, action.body)}
+                                disabled={deletingId === row.id}
+                              >
+                                {action.label}
+                              </button>
+                            ))
+                          : null}
                         {canEdit && confirmingId !== row.id ? (
                           <button type="button" onClick={() => setEditingId(row.id)}>
                             Edit

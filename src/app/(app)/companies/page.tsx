@@ -1,7 +1,7 @@
 import { Building2, Users } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { OpenCompanyButton } from '@/components/company-switch';
-import { ApiForm } from '@/components/resource-manager';
+import { CompanyWizard } from '@/components/company-wizard';
 import { getPageContext } from '@/lib/page';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -78,22 +78,7 @@ export default async function CompaniesPage() {
 
       <details className="panel fold">
         <summary>Add a company</summary>
-        <p className="muted">
-          The company starts empty with the standard roles and point rules. Its admin signs in with the email and
-          password below, then adds their own team. Send them the login details yourself.
-        </p>
-        <ApiForm
-          endpoint="/api/companies"
-          submitLabel="Add company"
-          fields={[
-            { name: 'name', label: 'Company name', required: true },
-            { name: 'timezone', label: 'Time zone', type: 'select', required: true, defaultValue: 'Asia/Dhaka', options: TIMEZONES.map((zone) => ({ value: zone, label: zone })) },
-            { name: 'currency', label: 'Currency', type: 'select', required: true, defaultValue: 'BDT', options: CURRENCIES.map((code) => ({ value: code, label: code })) },
-            { name: 'admin_name', label: "Admin's full name", required: true },
-            { name: 'admin_email', label: "Admin's email (their login)", type: 'email', required: true },
-            { name: 'admin_password', label: "Admin's first password", required: true, hint: 'At least 6 characters. They can change it after signing in.' },
-          ]}
-        />
+        <CompanyWizard timezones={TIMEZONES} currencies={CURRENCIES} />
       </details>
     </>
   );

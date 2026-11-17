@@ -3,6 +3,8 @@ import { money } from '@/lib/format';
 
 export interface InvoiceSheetData {
   orgName: string;
+  /** The company's uploaded logo; the built-in one is used when there is none. */
+  logo?: string | null;
   /** Address, phone, email and website from Settings → Company. */
   orgLines?: string[];
   invoiceNumber: string;
@@ -38,7 +40,7 @@ export function InvoiceSheet({ data, options = readInvoiceOptions({}) }: { data:
         <div className="invoice-brand">
           {show.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src="/logo-dark.png" alt={data.orgName} width={161} height={48} className="invoice-logo" />
+            <img src={data.logo ?? '/logo-dark.png'} alt={data.orgName} width={161} height={48} className="invoice-logo" style={{ objectFit: 'contain', objectPosition: 'left' }} />
           ) : null}
           {show.company_name ? <p className="invoice-muted">{data.orgName}</p> : null}
           {show.company_name && data.orgLines && data.orgLines.length > 0 ? (
@@ -108,11 +110,13 @@ type Loader = {
 
 /** Gathers what the sheet shows, with whichever client (signed in or service) is allowed to read it. */
 export async function loadInvoiceSheet(db: Loader, invoice: Record<string, unknown>): Promise<{ data: InvoiceSheetData; options: InvoiceOptions }> {
-  const [org, client, project, balance] = await Promise.all([
+  const [org, client, project, balance, logo] = await Promise.all([
     db.from('organizations').select('*').eq('id', invoice.org_id as string).maybeSingle(),
     db.from('clients').select('name, contact_name, email, phone').eq('id', invoice.client_id as string).maybeSingle(),
     invoice.project_id ? db.from('projects').select('name').eq('id', invoice.project_id as string).maybeSingle() : Promise.resolve({ data: null }),
     db.from('invoice_balances').select('paid').eq('invoice_id', invoice.id as string).maybeSingle(),
+    // The company's own logo from Settings → Company, if it has one.
+    db.from('org_logos').select('data').eq('org_id', invoice.org_id as string).maybeSingle(),
   ]);
   const c = client.data as { name: string; contact_name: string | null; email: string | null; phone: string | null } | null;
   const orgRow = org.data as
@@ -120,6 +124,7 @@ export async function loadInvoiceSheet(db: Loader, invoice: Record<string, unkno
     | null;
   const data: InvoiceSheetData = {
     orgName: orgRow?.name ?? '',
+    logo: (logo.data as { data?: string } | null)?.data ?? null,
     orgLines: [orgRow?.contact_address, orgRow?.contact_phone, orgRow?.contact_email, orgRow?.website].filter((line): line is string => Boolean(line)),
     invoiceNumber: invoice.invoice_number as string,
     issueDate: invoice.issue_date as string,

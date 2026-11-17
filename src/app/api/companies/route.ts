@@ -29,7 +29,8 @@ export async function GET(): Promise<Response> {
 }
 
 // Owner: a new company with its first admin, who can then add their own team.
-// The company starts empty, with the standard roles and point rules.
+// The company starts empty, with the standard roles and point rules, its logo,
+// and only the features chosen in the setup steps.
 export async function POST(request: Request): Promise<Response> {
   const auth = await requireOwner();
   if (auth.response) return auth.response;
@@ -39,9 +40,20 @@ export async function POST(request: Request): Promise<Response> {
   if (!admin) return fail(501, 'Adding companies needs SUPABASE_SERVICE_ROLE_KEY on the server.');
   const input = body.data;
 
-  const org = await admin.from('organizations').insert({ name: input.name, timezone: input.timezone, currency: input.currency }).select('id').single();
+  const org = await admin
+    .from('organizations')
+    .insert({
+      name: input.name,
+      timezone: input.timezone,
+      currency: input.currency,
+      trade_license: input.trade_license || null,
+      settings: { hidden_sections: input.hidden_sections ?? [] },
+    })
+    .select('id')
+    .single();
   if (org.error) return fromDbError(org.error);
   const orgId = org.data.id as string;
+  if (input.logo_data) await admin.from('org_logos').insert({ org_id: orgId, data: input.logo_data });
 
   const made = await admin.auth.admin.createUser({ email: input.admin_email, password: input.admin_password, email_confirm: true });
   if (made.error || !made.data.user) {

@@ -97,7 +97,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   });
   // Monthly clients: one card each, showing the month in progress.
   const monthlyCards = projectRows
-    .filter((project) => isMonthly(project) && (showHidden || project.status !== 'archived'))
+    .filter((project) => isMonthly(project) && project.status !== 'archived')
     .map((project) => {
       const month = months.find((row) => row.project_id === project.id && row.month === thisMonth) ?? months.find((row) => row.project_id === project.id);
       const own = month ? monthTasks.filter((task) => task.month_id === month.id) : [];
@@ -192,7 +192,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         ) : null}
       </nav>
 
-      {view === 'board' && monthlyCards.length > 0 ? (
+      {view === 'board' && monthlyCards.length > 0 && !showHidden ? (
         <section className="monthly-section" aria-labelledby="monthly-title">
           <header className="board-head">
             <h2 id="monthly-title" className="flex items-center gap-2">
@@ -246,38 +246,78 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         </section>
       ) : null}
 
-      {view === 'board' && monthlyCards.length > 0 ? (
+      {view === 'board' && monthlyCards.length > 0 && !showHidden ? (
         <h2 className="section-title">One-time projects</h2>
       ) : null}
 
       {(view === 'board' || view === 'list') && hiddenCount > 0 ? (
-        <p className="muted board-hidden-note">
-          {showHidden ? (
-            <>
-              Showing hidden projects. <Link href={view === 'list' ? '/projects?view=list' : '/projects'}>Hide them again</Link>
-            </>
-          ) : (
-            <>
-              {hiddenCount} finished {hiddenCount === 1 ? 'project is' : 'projects are'} hidden to keep things tidy. Their tasks are off My Tasks and the calendar too; open the project to see everything.{' '}
-              <Link href={view === 'list' ? '/projects?view=list&hidden=1' : '/projects?hidden=1'}>Show hidden</Link>
-            </>
-          )}
-        </p>
+        showHidden ? (
+          <section className="panel">
+            <header className="panel-header">
+              <div>
+                <h2>Hidden projects</h2>
+                <p className="muted">
+                  Finished projects kept off the board. Open one to see all its tasks and links, or bring it back.
+                </p>
+              </div>
+              <Link href={view === 'list' ? '/projects?view=list' : '/projects'} className="button">
+                Back to projects
+              </Link>
+            </header>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Client</th>
+                    <th>Type</th>
+                    <th>Finished</th>
+                    {canEdit ? <th aria-label="Actions" /> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectRows
+                    .filter((project) => project.status === 'archived')
+                    .sort((a, b) => String((b as { finished_at?: string | null }).finished_at ?? '').localeCompare(String((a as { finished_at?: string | null }).finished_at ?? '')))
+                    .map((project) => {
+                      const finished = (project as { finished_at?: string | null }).finished_at;
+                      return (
+                        <tr key={project.id}>
+                          <td>
+                            <Link href={project.href}>{project.name}</Link>
+                          </td>
+                          <td>{project.client_name ?? 'Internal'}</td>
+                          <td>{isMonthly(project) ? 'Monthly client' : 'One-time'}</td>
+                          <td>{finished ? monthName(finished.slice(0, 7) + '-01', true) : '—'}</td>
+                          {canEdit ? <td className="row-actions">{hideButton(project)}</td> : null}
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : (
+          <p className="muted board-hidden-note">
+            {hiddenCount} finished {hiddenCount === 1 ? 'project is' : 'projects are'} hidden to keep things tidy. Their tasks are off My Tasks and the calendar too.{' '}
+            <Link href={view === 'list' ? '/projects?view=list&hidden=1' : '/projects?hidden=1'}>Show hidden projects</Link>
+          </p>
+        )
       ) : null}
 
-      {view === 'board' ? (
+      {showHidden && hiddenCount > 0 && view !== 'clients' ? null : view === 'board' ? (
         oneTimeRows.length === 0 ? (
           <section className="panel">
             <p className="muted empty">{monthlyCards.length > 0 ? 'No one-time projects right now.' : 'No projects yet. Use "Add project" above to create the first one.'}</p>
           </section>
         ) : (
           <div className="board">
-            {COLUMNS.filter((status) => status !== 'archived' || (showHidden && oneTimeRows.some((project) => project.status === 'archived'))).map((status) => {
+            {COLUMNS.filter((status): status is Exclude<(typeof COLUMNS)[number], 'archived'> => status !== 'archived').map((status) => {
               const inColumn = oneTimeRows.filter((project) => project.status === status);
               return (
                 <section key={status} className="board-col" aria-label={label(status)}>
                   <header className="board-head">
-                    <span className={`badge badge-${status}`}>{status === 'archived' ? 'Hidden' : label(status)}</span>
+                    <span className={`badge badge-${status}`}>{label(status)}</span>
                     <span className="count">{inColumn.length}</span>
                     {status === 'completed' && canEdit && inColumn.length > 1 ? (
                       <ActionButton endpoint="/api/projects/hide-done">Hide all</ActionButton>
@@ -285,7 +325,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   </header>
                   {inColumn.length === 0 ? <p className="board-empty">Nothing here</p> : null}
                   {inColumn.map((project, index) => {
-                    const overdue = Boolean(project.due_date) && project.due_date! < today && status !== 'completed' && status !== 'archived';
+                    const overdue = Boolean(project.due_date) && project.due_date! < today && status !== 'completed';
                     return (
                       <div key={project.id} className="project-card-wrap">
                       <Link href={project.href} className={canEdit ? 'project-card editable' : 'project-card'} style={{ animationDelay: `${index * 50}ms` }}>
@@ -398,7 +438,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
           <ResourceManager
             title="All projects"
             endpoint="/api/projects"
-            rows={asRows(projectRows.filter((project) => showHidden || project.status !== 'archived'))}
+            rows={asRows(projectRows.filter((project) => project.status !== 'archived'))}
             columns={[
               { key: 'name', label: 'Project', kind: 'nav', hrefKey: 'href' },
               ...(monthlyReady ? [{ key: 'type_label', label: 'Type' }] : []),

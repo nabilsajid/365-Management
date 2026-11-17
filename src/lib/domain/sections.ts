@@ -1,18 +1,35 @@
-/** Menu sections a company can switch off in Settings → Company. Core pages always stay. */
-export const OPTIONAL_SECTIONS = ['/calendar', '/leave', '/logistics', '/employees'] as const;
+/**
+ * Features a company can switch off in Settings → Company. Core pages always stay.
+ * Page features hide their menu item; "points" hides the points, attendance,
+ * bonuses and rules tabs of Employees, keeping the team list.
+ */
+export const OPTIONAL_SECTIONS = ['/calendar', '/leave', '/logistics', 'points'] as const;
 export type OptionalSection = (typeof OPTIONAL_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<OptionalSection, string> = {
   '/calendar': 'Calendar',
   '/leave': 'Leave',
   '/logistics': 'Equipment & Costs',
-  '/employees': 'Employees & Rewards',
+  points: 'Points & rewards',
+};
+
+/** What each feature is, and the data removed if it is switched off with its data. */
+export const SECTION_INFO: Record<OptionalSection, { about: string; data: string | null }> = {
+  '/calendar': { about: 'A month view of due dates, shoots and leave.', data: null },
+  '/leave': { about: 'Asking for leave, approving it, and monthly leave records.', data: 'every leave request' },
+  '/logistics': { about: 'The equipment register, checkouts, needed items, fixed costs and travel.', data: 'the equipment register, checkouts and needed items' },
+  points: { about: 'Points, attendance, bonuses and point rules for the team.', data: 'all points, attendance records and bonuses' },
 };
 
 /** The hidden sections stored in a company's settings, ignoring anything unknown. */
 export function hiddenSections(settings: unknown): OptionalSection[] {
   const list = (settings as { hidden_sections?: unknown } | null)?.hidden_sections;
-  return Array.isArray(list) ? list.filter((item): item is OptionalSection => (OPTIONAL_SECTIONS as readonly string[]).includes(item)) : [];
+  // "/employees" was the old name for switching off points.
+  return Array.isArray(list)
+    ? [...new Set(list.map((item) => (item === '/employees' ? 'points' : item)))].filter((item): item is OptionalSection =>
+        (OPTIONAL_SECTIONS as readonly string[]).includes(item),
+      )
+    : [];
 }
 
 export interface ReminderSettings {

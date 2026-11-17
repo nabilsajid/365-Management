@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const today = localDate(new Date().toISOString());
   // Counts for the sidebar badges. Row level security makes them personal:
   // admins get everything waiting for them, everyone else only their own.
-  const [pendingChanges, openBroadcasts, pendingOther, unread, look, dueSoon, checkoutRequests] = await Promise.all([
+  const [pendingChanges, openBroadcasts, pendingOther, unread, look, dueSoon, checkoutRequests, logoRow, photoRow] = await Promise.all([
     supabase.from('change_requests').select('id').eq('org_id', orgId).eq('status', 'pending'),
     // Open broadcasts to the admins (for admins), or open personal messages (for everyone else).
     supabase.from('broadcasts').select('*').eq('org_id', orgId).eq('status', 'open'),
@@ -44,6 +44,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     supabase.from('tasks').select('id, project:projects(status)').eq('org_id', orgId).eq('assignee_id', userId).lte('due_date', soonLimit(today)).not('status', 'in', '(submitted,approved)'),
     // Equipment requests waiting for a decision (admins).
     isAdmin ? supabase.from('equipment_checkouts').select('id').eq('org_id', orgId).eq('status', 'requested') : Promise.resolve({ data: [] }),
+    // The company's logo and the person's photo (both optional).
+    supabase.from('org_logos').select('data').eq('org_id', orgId).maybeSingle(),
+    supabase.from('profile_photos').select('data').eq('profile_id', userId).maybeSingle(),
   ]);
   const lookCss = !look.error && look.data?.appearance && Object.keys(look.data.appearance).length > 0 ? appearanceCss(look.data.appearance) : null;
   // Only the kinds this person wants; they choose under Profiles & Contacts, My profile.
@@ -77,6 +80,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {/* Only checked colour values and fixed words reach this; see appearanceCss. */}
       {lookCss ? <style id="appearance" dangerouslySetInnerHTML={{ __html: lookCss }} /> : null}
     <AppShell
+      orgLogo={(logoRow.data as { data?: string } | null)?.data ?? null}
+      userPhoto={(photoRow.data as { data?: string } | null)?.data ?? null}
       hiddenSections={look.error ? [] : hiddenSections((look.data as { settings?: unknown } | null)?.settings)}
       orgName={orgName}
       userName={profile.full_name}

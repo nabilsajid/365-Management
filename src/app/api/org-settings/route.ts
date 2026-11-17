@@ -15,7 +15,7 @@ export async function PATCH(request: Request): Promise<Response> {
   const { invoice_options: invoiceOptions, reminders, hidden_sections: hiddenSections, ...rules } = body.data;
   const changes: Record<string, unknown> = { ...rules };
   // Empty company details are stored as nothing.
-  for (const key of ['contact_address', 'contact_phone', 'contact_email', 'website'] as const) {
+  for (const key of ['contact_address', 'contact_phone', 'contact_email', 'website', 'trade_license'] as const) {
     if (key in changes) changes[key] = (changes[key] as string | null | undefined) || null;
   }
   // Only known parts are stored.

@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react';
 import Link from 'next/link';
+import { hiddenSections } from '@/lib/domain/sections';
 import { GivePointsForm } from '@/components/give-points-form';
 import { MonthPicker } from '@/components/month-picker';
 import { pointsStatement } from '@/lib/domain/points-statement';
@@ -47,8 +48,11 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const today = dateInZone(now, timeZone);
   const monthEnded = month < currentMonth;
   // The Rules tab holds violation types and point rules, for admins and roles with team points.
-  const tabs = TABS.filter((item) => item.key !== 'settings' || isAdmin || seesTeamPoints);
-  const tab: Tab = tabs.some((item) => item.key === requestedTab) ? (requestedTab as Tab) : 'points';
+  // A company that switched off Points & rewards keeps only the team list here.
+  const orgSettings = await supabase.from('organizations').select('settings').eq('id', orgId).maybeSingle();
+  const pointsOff = !orgSettings.error && hiddenSections((orgSettings.data as { settings?: unknown } | null)?.settings).includes('points');
+  const tabs = TABS.filter((item) => (pointsOff ? item.key === 'team' : item.key !== 'settings' || isAdmin || seesTeamPoints));
+  const tab: Tab = tabs.some((item) => item.key === requestedTab) ? (requestedTab as Tab) : pointsOff ? 'team' : 'points';
   const href = (next: Tab) => `/employees?tab=${next}&month=${month.slice(0, 7)}`;
   const canGivePoints = editsTeamPoints;
 

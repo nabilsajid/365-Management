@@ -1281,6 +1281,23 @@ select notify_deadlines();
 select pg_temp.check((select count(*) = 0 from notifications where title like 'Due tomorrow:%'), 'a hidden project''s tasks send no reminders');
 update projects set status = 'active' where id = (select project_id from tasks where title = 'Late one');
 
+-- Finished date, photos.
+reset role;
+update projects set status = 'active' where id = '00000000-0000-0000-0000-00000000d001';
+update projects set status = 'completed' where id = '00000000-0000-0000-0000-00000000d001';
+select pg_temp.check((select finished_at is not null from projects where id = '00000000-0000-0000-0000-00000000d001'), 'a completed project records when it finished');
+update projects set status = 'active' where id = '00000000-0000-0000-0000-00000000d001';
+select pg_temp.check((select finished_at is null from projects where id = '00000000-0000-0000-0000-00000000d001'), 'reopening clears it');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+insert into profile_photos (profile_id, org_id, data) values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001', 'data:image/jpeg;base64,AAAA');
+do $$ begin
+  insert into profile_photos (profile_id, org_id, data) values ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-000000000001', 'data:image/jpeg;base64,AAAA');
+  raise exception 'FAILED: someone set another person''s photo';
+exception when insufficient_privilege then raise notice 'ok - people set only their own photo';
+end $$;
+reset role;
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';
