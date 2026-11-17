@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getPageContext } from '@/lib/page';
 import { AppearanceSection } from './appearance-section';
 import { CompanySection, RemindersSection } from './company-section';
+import { InvoiceSection } from './invoice-section';
 import { DeleteLogSection } from './delete-log-section';
 import { RulesSection } from './rules-section';
 import { SystemSection } from './system-section';
@@ -10,6 +11,7 @@ import { SystemSection } from './system-section';
 const TABS = [
   { key: 'appearance', label: 'Appearance' },
   { key: 'company', label: 'Company' },
+  { key: 'invoice', label: 'Invoice' },
   { key: 'rules', label: 'Rules' },
   { key: 'reminders', label: 'Reminders' },
   { key: 'delete-log', label: 'Delete log' },
@@ -43,6 +45,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <AppearanceSection />
       ) : tab === 'company' ? (
         <CompanySection />
+      ) : tab === 'invoice' ? (
+        <InvoiceSection />
       ) : tab === 'reminders' ? (
         <RemindersSection />
       ) : tab === 'rules' ? (

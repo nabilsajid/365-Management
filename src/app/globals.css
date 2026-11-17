@@ -4501,3 +4501,40 @@
 .company-icon img.builtin {
   background: #171717;
 }
+
+/* Every printout and PDF is A4. Invoices fill the page edge to edge, with the
+   phone and mail at the foot; other pages get a 12 mm margin. */
+@page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  main,
+  .public-page {
+    padding: 12mm !important;
+    max-width: none !important;
+  }
+  body:has(.inv) main,
+  body:has(.inv) .public-page {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .inv {
+    width: 210mm;
+    min-height: 297mm;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    break-inside: avoid-page;
+  }
+  .inv-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .inv-contacts {
+    margin-top: auto;
+  }
+}

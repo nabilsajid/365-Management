@@ -11,7 +11,7 @@ import { toast } from './resource-manager';
  * Admin: tick what the invoice shows and see it change straight away. Saved
  * choices apply to every invoice, its PDF and the link sent to the client.
  */
-export function InvoiceEditor({ data, initial, logo = null }: { data: InvoiceSheetData; initial: InvoiceOptions; logo?: string | null }) {
+export function InvoiceEditor({ data, initial, logo = null, open = false }: { data: InvoiceSheetData; initial: InvoiceOptions; logo?: string | null; open?: boolean }) {
   const router = useRouter();
   const [options, setOptions] = useState(initial);
   const [saved, setSaved] = useState(JSON.stringify(initial));
@@ -54,7 +54,7 @@ export function InvoiceEditor({ data, initial, logo = null }: { data: InvoiceShe
 
   return (
     <>
-      <details className="panel fold no-print">
+      <details className="panel fold no-print" open={open}>
         <summary>Invoice design: logo, signature, payment details and what it shows</summary>
         <p className="muted">
           Applies to every invoice, the downloaded PDF and the link sent to the client. The preview below changes as you

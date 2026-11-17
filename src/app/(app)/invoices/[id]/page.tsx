@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { InvoiceEditor } from '@/components/invoice-editor';
 import { InvoiceSheet, loadInvoiceSheet } from '@/components/invoice-sheet';
 import { PrintButton } from '@/components/print-button';
 import { ShareLink } from '@/components/share-link';
@@ -39,7 +38,13 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <ShareLink endpoint={`/api/invoices/${id}/share`} basePath="/invoice" token={(row.share_token as string | null) ?? null} createLabel="Make a client link" />
         </section>
       ) : null}
-      {isAdmin ? <InvoiceEditor data={data} initial={options} logo={data.logo ?? null} /> : <InvoiceSheet data={data} options={options} />}
+      {isAdmin ? (
+        <p className="muted no-print">
+          To change the design of every invoice (logo, signature, payment details and more), go to{' '}
+          <Link href="/settings?tab=invoice">Settings → Invoice</Link>.
+        </p>
+      ) : null}
+      <InvoiceSheet data={data} options={options} />
     </>
   );
 }
