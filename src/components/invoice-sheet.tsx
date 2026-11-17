@@ -19,6 +19,24 @@ export interface InvoiceSheetData {
   clientEmail: string | null;
   clientPhone: string | null;
   projectName: string | null;
+  /** Itemised lines (what, how many, price each); without them the invoice is one line. */
+  lines?: InvoiceLine[] | null;
+}
+
+export interface InvoiceLine {
+  description: string;
+  quantity: number;
+  unit_price: number;
+}
+
+/** The lines stored on an invoice, ignoring anything malformed. */
+export function readInvoiceLines(value: unknown): InvoiceLine[] | null {
+  if (!Array.isArray(value)) return null;
+  const lines = value
+    .map((line) => line as Partial<InvoiceLine>)
+    .filter((line) => typeof line.description === 'string' && Number.isFinite(Number(line.quantity)) && Number.isFinite(Number(line.unit_price)))
+    .map((line) => ({ description: line.description!, quantity: Number(line.quantity), unit_price: Number(line.unit_price) }));
+  return lines.length > 0 ? lines : null;
 }
 
 /** An invoice laid out to read on screen and print cleanly (Save as PDF). Shows only the parts switched on. */
@@ -76,22 +94,39 @@ export function InvoiceSheet({ data, options = readInvoiceOptions({}) }: { data:
         <thead>
           <tr>
             <th>Description</th>
+            {data.lines ? (
+              <>
+                <th className="amount">Qty</th>
+                <th className="amount">Rate</th>
+              </>
+            ) : null}
             <th className="amount">Amount</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>{show.project && data.projectName ? `Production: ${data.projectName}` : 'Production services'}</td>
-            <td className="amount">{money(data.amount)}</td>
-          </tr>
+          {data.lines ? (
+            data.lines.map((line, index) => (
+              <tr key={index}>
+                <td>{line.description}</td>
+                <td className="amount">{line.quantity}</td>
+                <td className="amount">{money(line.unit_price)}</td>
+                <td className="amount">{money(line.quantity * line.unit_price)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td>{show.project && data.projectName ? `Production: ${data.projectName}` : 'Production services'}</td>
+              <td className="amount">{money(data.amount)}</td>
+            </tr>
+          )}
           {show.paid && data.paid > 0 ? (
             <tr>
-              <td>Paid so far</td>
+              <td colSpan={data.lines ? 3 : 1}>Paid so far</td>
               <td className="amount">−{money(data.paid)}</td>
             </tr>
           ) : null}
           <tr className="total">
-            <td>Amount due</td>
+            <td colSpan={data.lines ? 3 : 1}>Amount due</td>
             <td className="amount">{money(show.paid ? outstanding : data.status === 'void' ? 0 : data.amount)}</td>
           </tr>
         </tbody>
@@ -133,6 +168,13 @@ export async function loadInvoiceSheet(db: Loader, invoice: Record<string, unkno
     amount: Number(invoice.amount),
     paid: Number((balance.data as { paid: number } | null)?.paid ?? 0),
     notes: (invoice.notes as string | null) ?? null,
+    lines: (() => {
+      // If the amount was changed after the lines were made, the difference shows as an adjustment.
+      const lines = readInvoiceLines(invoice.lines);
+      if (!lines) return null;
+      const difference = Math.round((Number(invoice.amount) - lines.reduce((sum, line) => sum + line.quantity * line.unit_price, 0)) * 100) / 100;
+      return difference === 0 ? lines : [...lines, { description: 'Adjustment', quantity: 1, unit_price: difference }];
+    })(),
     clientName: c?.name ?? '—',
     clientContact: c?.contact_name ?? null,
     clientEmail: c?.email ?? null,

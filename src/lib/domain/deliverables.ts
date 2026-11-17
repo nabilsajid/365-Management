@@ -224,3 +224,26 @@ export function numberedTitles(title: string, count: number, existingOfKind: num
   if (count <= 1) return [title.trim()];
   return Array.from({ length: count }, (_, index) => `${base} ${existingOfKind + index + 1}`);
 }
+
+export interface ExtraLine {
+  kind: TaskKind;
+  description: string;
+  quantity: number;
+}
+
+/**
+ * What a month delivered beyond its fixed deliverables, to bill separately:
+ * for a type with a fixed number, only what went over it; when the client has
+ * no fixed numbers at all, everything delivered. Only approved work counts.
+ */
+export function extrasForMonth(counts: DeliveryCount[], monthLabel: string): ExtraLine[] {
+  const anyFixed = counts.some((row) => row.target !== null);
+  return counts
+    .map((row) => ({ row, extra: row.target === null ? (anyFixed ? 0 : row.delivered) : Math.max(0, row.delivered - row.target) }))
+    .filter(({ extra }) => extra > 0)
+    .map(({ row, extra }) => ({
+      kind: row.kind,
+      quantity: extra,
+      description: `${row.target === null ? TASK_KIND_LABEL[row.kind] : `Extra ${TASK_KIND_LABEL[row.kind].toLowerCase()}`}, ${monthLabel}`,
+    }));
+}

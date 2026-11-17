@@ -1312,6 +1312,11 @@ update projects set kind = 'monthly', monthly_fee = 50000, status = 'active', cl
 insert into project_months (org_id, project_id, month) values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', date_trunc('month', now() at time zone (select timezone from organizations where id = '00000000-0000-0000-0000-000000000001'))::date) on conflict do nothing;
 select pg_temp.check((select draft_monthly_invoices()) >= 1 and (select draft_monthly_invoices()) = 0, 'a monthly client''s invoice is drafted once a month');
 select pg_temp.check((select count(*) = 1 from invoices where project_id = '00000000-0000-0000-0000-00000000f1a1' and status = 'draft' and amount = 50000), 'the drafted invoice has the monthly fee');
+select pg_temp.check((select jsonb_array_length(lines) = 1 from invoices where project_id = '00000000-0000-0000-0000-00000000f1a1' and not is_extras), 'the monthly invoice lists its package as a line');
+insert into invoices (org_id, client_id, project_id, project_month_id, invoice_number, amount, status, is_extras, lines)
+select org_id, client_id, project_id, project_month_id, invoice_number || '-X1', 10000, 'draft', true, '[{"description":"Video","quantity":2,"unit_price":5000}]'
+from invoices where project_id = '00000000-0000-0000-0000-00000000f1a1' and not is_extras;
+select pg_temp.check((select count(*) = 2 from invoices where project_id = '00000000-0000-0000-0000-00000000f1a1'), 'a month can also have an extras invoice');
 
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;

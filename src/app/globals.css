@@ -4215,3 +4215,13 @@
   padding: 0.6rem 0;
   border-top: 1px solid var(--color-line);
 }
+
+/* Extras invoice lines. */
+.extras-form {
+  display: grid;
+  gap: 0.9rem;
+}
+.extras-form td input {
+  width: 100%;
+  min-width: 0;
+}

@@ -9,13 +9,14 @@ import { MonthBar, monthName, type MonthTab } from '@/components/month-bar';
 import { nextMonthStart } from '@/lib/domain/deliverables';
 import { monthStart } from '@/lib/domain/points';
 import { DeliveryTracker } from '@/components/delivery-tracker';
+import { ExtrasInvoiceForm } from '@/components/extras-invoice';
 import { ShareLink } from '@/components/share-link';
 import { MonthTasksToolbar } from '@/components/month-tasks-toolbar';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
-import { label } from '@/lib/format';
+import { label, money } from '@/lib/format';
 import { asRows, enumOptions, getPageContext, peopleOptions, rowsOf } from '@/lib/page';
-import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, deliveryCounts, describeFixed, planTasksFromFixed, thumbnailState, type TaskKind } from '@/lib/domain/deliverables';
+import { TASK_KINDS, TASK_KIND_LABEL, TASK_KIND_SINGLE, deliveryCounts, describeFixed, extrasForMonth, planTasksFromFixed, thumbnailState, type TaskKind } from '@/lib/domain/deliverables';
 import { titleTags } from '@/lib/domain/roles';
 import type { Client, Profile, Project, ProjectComment, ProjectMember, Role, Task } from '@/types/database';
 
@@ -30,7 +31,7 @@ export default async function ProjectPage({
   const query = await searchParams;
   // Arriving from the board's Edit button opens the edit form straight away.
   const startEditing = Boolean(query.edit);
-  const { supabase, orgId, userId, isAdmin, canEdit, localDateTime, timeZone } = await getPageContext();
+  const { supabase, orgId, userId, isAdmin, can, canEdit, localDateTime, timeZone } = await getPageContext();
   const photos = await loadPhotos(supabase, orgId);
 
   const projectResult = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
@@ -90,6 +91,23 @@ export default async function ProjectPage({
   // A month shows everything in it together: package deliverables and extras (tagged "Extra").
   const tasks = allTasks.filter(inMonth);
   const counts = monthly && selectedMonth ? deliveryCounts(tasks, targets) : [];
+  // This month's invoices (fee and extras), and what could go on an extras invoice.
+  const billing = await (async () => {
+    const canInvoice = isAdmin || canEdit('cashflow');
+    if (!monthly || !selectedMonth || !(canInvoice || can('cashflow'))) return { ready: false, canInvoice, invoices: [], extras: [], rates: {} as Record<string, number> };
+    const result = await supabase
+      .from('invoices')
+      .select('id, invoice_number, amount, status, is_extras')
+      .eq('project_month_id', selectedMonth.id)
+      .order('created_at');
+    return {
+      ready: !result.error,
+      canInvoice,
+      invoices: rowsOf<{ id: string; invoice_number: string; amount: number; status: string; is_extras: boolean }>(result.data),
+      extras: extrasForMonth(counts, monthName(selectedMonth.month)),
+      rates: ((project as { extra_rates?: Record<string, number> | null }).extra_rates ?? {}) as Record<string, number>,
+    };
+  })();
   const missingFromFixed = monthly && selectedMonth ? planTasksFromFixed(targets, tasks).length : 0;
   const monthTabs: MonthTab[] = months.map((row) => {
     const own = allTasks.filter((task) => task.month_id === row.id);
@@ -540,6 +558,51 @@ export default async function ProjectPage({
             allTime={TASK_KINDS.map((kind) => ({ kind, delivered: allTasks.filter((task) => task.kind === kind && task.status === 'approved').length })).filter((row) => row.delivered > 0)}
           />
         ) : null
+      ) : null}
+
+      {monthly && selectedMonth && billing.ready ? (
+        <section className="panel" id="billing">
+          <header className="panel-header">
+            <div>
+              <h2>Invoices for {monthName(selectedMonth.month)}</h2>
+              <p className="muted">
+                The monthly fee is invoiced by itself on the 1st. Anything extra goes on a separate invoice: it starts with
+                what was delivered beyond the fixed deliverables, at the prices you used last time.
+              </p>
+            </div>
+          </header>
+          {billing.invoices.length > 0 ? (
+            <ul className="message-list">
+              {billing.invoices.map((invoice) => (
+                <li key={invoice.id}>
+                  <Link href={`/invoices/${invoice.id}`}>{invoice.invoice_number}</Link>{' '}
+                  <span className="muted">
+                    · {invoice.is_extras ? 'Extras' : 'Monthly fee'} · {money(invoice.amount)} · {label(invoice.status)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">No invoices for this month yet.</p>
+          )}
+          {billing.canInvoice ? (
+            project.client_id ? (
+              <details className="fold-inline" open={billing.extras.length > 0 && !billing.invoices.some((invoice) => invoice.is_extras)}>
+                <summary>
+                  Create extras invoice
+                  {billing.extras.length > 0 ? ` (${billing.extras.reduce((sum, line) => sum + line.quantity, 0)} extra delivered)` : ''}
+                </summary>
+                <ExtrasInvoiceForm projectId={project.id} monthId={selectedMonth.id} suggested={billing.extras} rates={billing.rates} />
+              </details>
+            ) : (
+              <p className="muted">Give this project a client (Edit project) to invoice it.</p>
+            )
+          ) : null}
+        </section>
+      ) : null}
+
+      {monthly ? (
+        null
       ) : typesReady ? (
         mayEdit || groups.length === 0 ? (
           <ResourceManager

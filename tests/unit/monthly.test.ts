@@ -82,3 +82,23 @@ test('copies are numbered after what exists', () => {
   assert.deepEqual(numberedTitles('Video', 3, 2), ['Video 3', 'Video 4', 'Video 5']);
   assert.deepEqual(numberedTitles('Reel', 1, 4), ['Reel']);
 });
+
+import { extrasForMonth as extras } from '../../src/lib/domain/deliverables';
+
+test('extras are what went over the fixed numbers', () => {
+  const lines = extras(
+    [
+      { kind: 'video', target: 5, delivered: 7, inReview: 0, total: 7 },
+      { kind: 'thumbnail', target: 5, delivered: 4, inReview: 1, total: 5 },
+      { kind: 'photo', target: null, delivered: 3, inReview: 0, total: 3 },
+    ],
+    'November 2026',
+  );
+  assert.deepEqual(lines.map((line) => `${line.kind}:${line.quantity}`), ['video:2']);
+  assert.equal(lines[0]!.description, 'Extra videos, November 2026');
+});
+
+test('with nothing fixed, everything delivered is billed', () => {
+  const lines = extras([{ kind: 'post', target: null, delivered: 4, inReview: 0, total: 4 }], 'November 2026');
+  assert.deepEqual(lines.map((line) => `${line.kind}:${line.quantity}`), ['post:4']);
+});

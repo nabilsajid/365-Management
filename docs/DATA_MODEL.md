@@ -293,3 +293,9 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
   - Settings → Reminders can switch it off.
 - **Excel**: `GET /api/report/export?month=YYYY-MM` (admins) returns an .xlsx with these sheets: Summary, Money in, Investments, Money out, Invoices, Payroll and Team. It is written by `src/lib/server/xlsx.ts`, with no library.
 - **Photos**: `loadPhotos` and `<Avatar>` (`src/components/avatar.tsx`) show photos in team lists, project teams, comments and cards. The table column kind `person` reads `<key>_photo`.
+
+## Itemised and extras invoices (update 47)
+
+- `invoices.lines` (jsonb array of `{description, quantity, unit_price}`) is shown on the invoice as Qty / Rate / Amount. If the amount is later edited, the difference shows as an "Adjustment" line.
+- The monthly fee invoice is drafted with one line for the package. `invoices_one_fee_per_month` allows one fee invoice per month.
+- `invoices.is_extras` marks extras invoices. They come from `POST /api/invoices/extras`, prefilled by `extrasForMonth` (approved work beyond the fixed numbers, or everything delivered when nothing is fixed) at the prices in `projects.extra_rates`, which are remembered.
