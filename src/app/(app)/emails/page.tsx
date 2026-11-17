@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
+import { ComposeEmail } from '@/components/compose-email';
 import { EmailApproval } from '@/components/email-approval';
 import { getPageContext, rowsOf } from '@/lib/page';
 
-const KIND: Record<string, string> = { alert: 'Alert', salary: 'Salary / payment', other: 'Email' };
+const KIND: Record<string, string> = { alert: 'Alert', salary: 'Salary / payment', other: 'Custom email' };
 const STATUS: Record<string, string> = { sent: 'Sent', rejected: 'Not sent', failed: 'Failed', pending: 'Waiting' };
 
 type Email = {
@@ -25,8 +26,8 @@ export default async function EmailApprovalsPage() {
   if (!isAdmin && !can('emails')) redirect('/dashboard');
   const [waitingR, historyR, peopleR] = await Promise.all([
     supabase.from('email_outbox').select('*').eq('org_id', orgId).in('status', ['pending', 'failed']).order('created_at'),
-    supabase.from('email_outbox').select('*').eq('org_id', orgId).in('status', ['sent', 'rejected']).order('decided_at', { ascending: false }).limit(40),
-    supabase.from('profiles').select('id, full_name').eq('org_id', orgId),
+    supabase.from('email_outbox').select('*').eq('org_id', orgId).in('status', ['sent', 'rejected']).order('decided_at', { ascending: false }).limit(60),
+    supabase.from('profiles').select('id, full_name, is_active').eq('org_id', orgId),
   ]);
   if (waitingR.error) {
     return (
@@ -46,10 +47,21 @@ export default async function EmailApprovalsPage() {
           <h1>Email approvals</h1>
           <p className="muted">
             No email leaves without approval. Read each one, change the subject or message if needed, then send it or
-            not. Alerts are prepared every morning; salary emails when a payslip is paid.
+            not. Alerts are prepared every morning; salary emails when a payslip is paid. Write your own with New email.
           </p>
         </div>
       </div>
+
+      <details className="panel fold">
+        <summary>New email</summary>
+        <p className="muted">Write your own email to people in the team, everyone, or any address. Send it now, or save it for another approver to check.</p>
+        <ComposeEmail
+          people={rowsOf<{ id: string; full_name: string; is_active?: boolean }>(peopleR.data)
+            .filter((person) => person.is_active !== false)
+            .map((person) => ({ id: person.id, name: person.full_name }))
+            .sort((a, b) => a.name.localeCompare(b.name))}
+        />
+      </details>
 
       <section className="panel">
         <header className="panel-header">
