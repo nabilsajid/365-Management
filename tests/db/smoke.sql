@@ -1271,6 +1271,16 @@ select pg_temp.check(
   and (select status = 'pending' from leave_requests where id = '00000000-0000-0000-0000-00000000c0a2'),
   'HR decides others'' leave but not their own');
 
+-- A hidden project's tasks send no reminders.
+reset role;
+update tasks set due_date = (now() at time zone 'Asia/Dhaka')::date + 1, reminder_sent_at = null where title = 'Late one';
+update projects set status = 'archived' where id = (select project_id from tasks where title = 'Late one');
+delete from notifications;
+set local request.jwt.claim.sub = '';
+select notify_deadlines();
+select pg_temp.check((select count(*) = 0 from notifications where title like 'Due tomorrow:%'), 'a hidden project''s tasks send no reminders');
+update projects set status = 'active' where id = (select project_id from tasks where title = 'Late one');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

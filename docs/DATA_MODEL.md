@@ -255,3 +255,9 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - The Leave page takes `?month=YYYY-MM`. It lists every request touching that month and approved days per person; the monthly summary has a "Days on leave" column.
 - Employees → Points shows a six-month points table for everyone who sees team points. `point_entries.period_month` already keeps every month.
 - Projects board: finished projects can be hidden (status `archived`), one by one or with "Hide all" (`POST /api/projects/hide-done`). They come back with "Show hidden" (`?hidden=1`), and stay in the list view and search.
+
+## Hidden projects stay quiet (update 43)
+
+- A hidden project (status `archived`, one-time or monthly) keeps everything inside it, but its tasks are left out of My Tasks, the calendar, the dashboard and the red My Tasks badge, and `notify_deadlines` sends no reminders for them.
+- Projects → Board and List leave hidden projects out until "Show hidden" (`?hidden=1`).
+- `POST /api/tasks/:id/start`: the assignee moves their own task from To do (or Changes requested) to In progress.

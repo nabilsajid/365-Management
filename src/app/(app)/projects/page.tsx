@@ -97,7 +97,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   });
   // Monthly clients: one card each, showing the month in progress.
   const monthlyCards = projectRows
-    .filter((project) => isMonthly(project) && project.status !== 'archived')
+    .filter((project) => isMonthly(project) && (showHidden || project.status !== 'archived'))
     .map((project) => {
       const month = months.find((row) => row.project_id === project.id && row.month === thisMonth) ?? months.find((row) => row.project_id === project.id);
       const own = month ? monthTasks.filter((task) => task.month_id === month.id) : [];
@@ -116,6 +116,18 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       };
     });
   const oneTimeRows = projectRows.filter((project) => !isMonthly(project));
+  // Hidden projects (status "archived"), one-time and monthly, shown only with "Show hidden".
+  const hiddenCount = projectRows.filter((project) => project.status === 'archived').length;
+  const hideButton = (project: { id: string; status: string }) =>
+    !canEdit ? null : project.status === 'completed' ? (
+      <ActionButton endpoint={`/api/projects/${project.id}`} method="PATCH" body={{ status: 'archived' }}>
+        Hide
+      </ActionButton>
+    ) : project.status === 'archived' ? (
+      <ActionButton endpoint={`/api/projects/${project.id}`} method="PATCH" body={{ status: 'completed' }}>
+        Show on board
+      </ActionButton>
+    ) : null;
 
   // The shoot status arrives with a database update; until then the fields are left out.
   const shootReady = projects.some((project) => 'shoot_status' in project);
@@ -138,7 +150,13 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const projectFields: Field[] = [
     { name: 'name', label: 'Project name', required: true },
     { name: 'client_name', label: 'Client', placeholder: 'Optional', hint: 'Type a name, or leave empty for an internal project.' },
-    { name: 'status', label: 'Status', type: 'select', options: enumOptions(['onboarding', 'active', 'completed', 'archived']), required: true },
+    {
+      name: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [...enumOptions(['onboarding', 'active', 'completed']), { value: 'archived', label: 'Hidden (finished, off the board)' }],
+      required: true,
+    },
     { name: 'start_date', label: 'Start date', type: 'date' },
     { name: 'due_date', label: 'Due date', type: 'date' },
     ...shootFields,
@@ -185,8 +203,13 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
           </header>
           <div className="monthly-grid">
             {monthlyCards.map((project) => (
-              <Link key={project.id} href={project.href} className="project-card monthly-card">
-                <p className="project-name">{project.name}</p>
+              <div key={project.id} className="project-card monthly-card">
+                <Link href={project.href} className="card-cover" aria-label={`Open ${project.name}`} />
+                {hideButton(project) ? <span className="project-card-actions">{hideButton(project)}</span> : null}
+                <p className="project-name">
+                  {project.name}
+                  {project.status === 'archived' ? <span className="badge" style={{ marginLeft: 6 }}>Hidden</span> : null}
+                </p>
                 <p className="project-client">{project.client_name ?? 'Internal'}</p>
                 <div className="project-progress">
                   <div
@@ -217,7 +240,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   </span>
                   {project.month?.status === 'closed' ? <span className="badge badge-approved">Month closed</span> : null}
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </section>
@@ -227,16 +250,16 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         <h2 className="section-title">One-time projects</h2>
       ) : null}
 
-      {view === 'board' && oneTimeRows.some((project) => project.status === 'archived') ? (
+      {(view === 'board' || view === 'list') && hiddenCount > 0 ? (
         <p className="muted board-hidden-note">
           {showHidden ? (
             <>
-              Showing hidden projects. <Link href="/projects">Hide them again</Link>
+              Showing hidden projects. <Link href={view === 'list' ? '/projects?view=list' : '/projects'}>Hide them again</Link>
             </>
           ) : (
             <>
-              {oneTimeRows.filter((project) => project.status === 'archived').length} finished projects are hidden to keep the board tidy.{' '}
-              <Link href="/projects?hidden=1">Show hidden</Link>
+              {hiddenCount} finished {hiddenCount === 1 ? 'project is' : 'projects are'} hidden to keep things tidy. Their tasks are off My Tasks and the calendar too; open the project to see everything.{' '}
+              <Link href={view === 'list' ? '/projects?view=list&hidden=1' : '/projects?hidden=1'}>Show hidden</Link>
             </>
           )}
         </p>
@@ -327,16 +350,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                       </Link>
                       {canEdit ? (
                         <span className="project-card-actions">
-                          {status === 'completed' ? (
-                            <ActionButton endpoint={`/api/projects/${project.id}`} method="PATCH" body={{ status: 'archived' }}>
-                              Hide
-                            </ActionButton>
-                          ) : null}
-                          {status === 'archived' ? (
-                            <ActionButton endpoint={`/api/projects/${project.id}`} method="PATCH" body={{ status: 'completed' }}>
-                              Show on board
-                            </ActionButton>
-                          ) : null}
+                          {hideButton(project)}
                           <Link href={`${project.href}?edit=1#edit`} className="project-edit" aria-label={`Edit ${project.name}`}>
                             <Pencil size={11} aria-hidden />
                             Edit
@@ -384,7 +398,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
           <ResourceManager
             title="All projects"
             endpoint="/api/projects"
-            rows={asRows(projectRows)}
+            rows={asRows(projectRows.filter((project) => showHidden || project.status !== 'archived'))}
             columns={[
               { key: 'name', label: 'Project', kind: 'nav', hrefKey: 'href' },
               ...(monthlyReady ? [{ key: 'type_label', label: 'Type' }] : []),

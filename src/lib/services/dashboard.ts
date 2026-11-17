@@ -105,7 +105,11 @@ export async function getDashboard(
   ]);
 
   const projectRows = (projects.data ?? []) as { id: string; name: string; status: string; due_date: string | null }[];
-  const taskRows = (tasks.data ?? []) as { id: string; project_id: string; title: string; status: string; due_date: string | null; assignee_id: string | null }[];
+  // Tasks of hidden (finished) projects stay inside their project.
+  const hiddenProjects = new Set(projectRows.filter((project) => project.status === 'archived').map((project) => project.id));
+  const taskRows = ((tasks.data ?? []) as { id: string; project_id: string; title: string; status: string; due_date: string | null; assignee_id: string | null }[]).filter(
+    (task) => !hiddenProjects.has(task.project_id),
+  );
   const invoiceRows = (invoices.data ?? []) as { id: string; invoice_number: string; status: string }[];
 
   const voided = new Set(invoiceRows.filter((invoice) => invoice.status === 'void').map((invoice) => invoice.id));

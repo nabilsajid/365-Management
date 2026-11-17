@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // The company's chosen look. Before the appearance update this simply fails and the built-in look is used.
     supabase.from('organizations').select('*').eq('id', orgId).maybeSingle(),
     // The person's own unfinished work that is overdue or due within two days: a red marker on My Tasks.
-    supabase.from('tasks').select('id').eq('org_id', orgId).eq('assignee_id', userId).lte('due_date', soonLimit(today)).not('status', 'in', '(submitted,approved)'),
+    supabase.from('tasks').select('id, project:projects(status)').eq('org_id', orgId).eq('assignee_id', userId).lte('due_date', soonLimit(today)).not('status', 'in', '(submitted,approved)'),
     // Equipment requests waiting for a decision (admins).
     isAdmin ? supabase.from('equipment_checkouts').select('id').eq('org_id', orgId).eq('status', 'requested') : Promise.resolve({ data: [] }),
   ]);
@@ -62,7 +62,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const badges: Record<string, number> = isAdmin
     ? { '/approvals': changes + otherWaiting, '/updates': waitingUpdates.filter((row) => !row.recipient_id).length }
     : { '/requests': changes, '/updates': waitingUpdates.filter((row) => row.recipient_id === userId).length };
-  badges['/my-tasks'] = dueSoon.data?.length ?? 0;
+  // Not counting tasks of hidden (finished) projects.
+  badges['/my-tasks'] = ((dueSoon.data ?? []) as { project?: { status?: string } | null }[]).filter((row) => row.project?.status !== 'archived').length;
   if (isAdmin) badges['/logistics'] = checkoutRequests.data?.length ?? 0;
 
   // The very first sign-in: everyone fills in their profile before using the app.

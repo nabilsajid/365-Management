@@ -36,7 +36,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const projectName = new Map(projects.map((project) => [project.id, project.name]));
 
   const events: CalendarEvent[] = [];
-  for (const task of rowsOf<Task>(tasksR.data)) {
+  // Tasks of hidden (finished) projects stay inside their project.
+  const hiddenProjects = new Set(projects.filter((project) => project.status === 'archived').map((project) => project.id));
+  for (const task of rowsOf<Task>(tasksR.data).filter((item) => !hiddenProjects.has(item.project_id))) {
     if (!task.due_date || (mine && task.assignee_id !== userId)) continue;
     events.push({
       id: `t-${task.id}`,

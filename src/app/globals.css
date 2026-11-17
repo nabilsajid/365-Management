@@ -4003,3 +4003,23 @@
   margin: 0 0 0.75rem;
   font-size: 0.8125rem;
 }
+
+/* A card that is one big link, with buttons on top of it. */
+.monthly-card {
+  position: relative;
+}
+.card-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+.project-card-actions {
+  z-index: 2;
+}
+.task-card {
+  border-left: 1px solid var(--color-line);
+}
+.task-card .project-name {
+  padding-right: 3.5rem;
+}
