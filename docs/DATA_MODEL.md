@@ -246,3 +246,12 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - Paying an investor back is an expense with category `investment` and `investor_id` set. The database requires one exactly when the other is present.
 - `investor_balances` gives `invested`, `repaid` and `due` per investor. Cash Flow shows the total as "Company due to investors".
 - Cash flow readers can see all of it; changes go through approval like other cash flow entries.
+
+## Leave by HR, months on record, hidden projects (update 42)
+
+- Leave is decided by admins and **HR**: anyone whose role can edit Employees & Rewards (`team_points`).
+  - HR is notified of new requests (`notify_leave`).
+  - HR may update others' requests (`hr_decide` policy), never their own.
+- The Leave page takes `?month=YYYY-MM`. It lists every request touching that month and approved days per person; the monthly summary has a "Days on leave" column.
+- Employees → Points shows a six-month points table for everyone who sees team points. `point_entries.period_month` already keeps every month.
+- Projects board: finished projects can be hidden (status `archived`), one by one or with "Hide all" (`POST /api/projects/hide-done`). They come back with "Show hidden" (`?hidden=1`), and stay in the list view and search.

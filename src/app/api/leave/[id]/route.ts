@@ -5,11 +5,14 @@ import { leaveDecision } from '@/lib/validation';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type RouteParams = { params: Promise<{ id: string }> };
 
-// Admin approves or denies a leave request; the person is notified.
+// An admin or HR (who edits Employees & Rewards) approves or denies a leave request; the person is notified.
+// HR cannot decide their own request.
 export async function PATCH(request: Request, { params }: RouteParams): Promise<Response> {
-  const auth = await requireContext('admin');
+  const auth = await requireContext('member');
   if (auth.response) return auth.response;
   const { ctx } = auth;
+  const admin = ctx.profile.access_role === 'admin';
+  if (!admin && !(ctx.editSegments ?? ctx.segments).has('team_points')) return fail(403, 'Only an admin or HR decides leave.');
   const { id } = await params;
   if (!UUID.test(id)) return fail(404, 'Not found.');
   const body = await readJson(request, leaveDecision);
@@ -22,7 +25,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
     .select('*')
     .maybeSingle();
   if (error) return fromDbError(error);
-  if (!data) return fail(404, 'Not found.');
+  if (!data) return fail(404, admin ? 'Not found.' : 'Not found, or it is your own request: an admin decides that one.');
   return ok(data);
 }
 

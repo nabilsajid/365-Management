@@ -3973,3 +3973,33 @@
 .toggle-row small {
   font-size: 0.78rem;
 }
+
+/* Project card: Hide / Show on board next to Edit. */
+.project-card-actions {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+.project-card-actions .project-edit {
+  position: static;
+}
+.project-card-actions button {
+  min-height: 0;
+  height: auto;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+}
+.board-head button {
+  min-height: 0;
+  height: auto;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.6875rem;
+}
+.board-hidden-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+}

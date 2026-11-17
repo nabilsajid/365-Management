@@ -64,6 +64,7 @@ export const TEAM_GUIDE: GuideSection[] = [
       'Projects are either one-time jobs or monthly clients. A monthly client is one project that stays open, with a tab for each month. Each month has its own tasks (each video, thumbnail, photo or post is one task, assigned to someone), and a Delivered list counts what was approved, against the fixed number when the client has one.',
       'If something on your task or project changes (notes, points, due date, links, brief), you get a notification saying what changed.',
       'The Calendar shows due dates, shoots and leave for the month.',
+      'To take leave, ask on the Leave page. Admins and HR are notified and approve or deny it, and you get a notification with the answer.',
     ],
   },
   {

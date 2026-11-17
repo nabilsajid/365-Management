@@ -17,7 +17,7 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
   const month = parseMonth((await searchParams).month) ?? currentMonth;
   const until = nextMonth(month);
 
-  const [paymentsR, expensesR, invoicesR, peopleR, pointsR, attendanceR, projectsR, tasksR] = await Promise.all([
+  const [paymentsR, expensesR, invoicesR, peopleR, pointsR, attendanceR, projectsR, tasksR, leaveR] = await Promise.all([
     supabase.from('payments').select('*').eq('org_id', orgId).gte('paid_on', month).lt('paid_on', until),
     supabase.from('expenses').select('*').eq('org_id', orgId).gte('expense_date', month).lt('expense_date', until),
     supabase.from('invoices').select('id, amount, status').eq('org_id', orgId).gte('issue_date', month).lt('issue_date', until),
@@ -26,7 +26,16 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
     supabase.from('attendance').select('employee_id, status').eq('org_id', orgId).gte('work_date', month).lt('work_date', until),
     supabase.from('projects').select('id, status, created_at').eq('org_id', orgId).gte('created_at', month).lt('created_at', until),
     supabase.from('tasks').select('id, status').eq('org_id', orgId).eq('status', 'approved'),
+    supabase.from('leave_requests').select('employee_id, start_date, end_date').eq('org_id', orgId).eq('status', 'approved').lt('start_date', until).gte('end_date', month),
   ]);
+  // Approved leave days that fall inside this month.
+  const lastDay = new Date(Date.parse(until) - 86400000).toISOString().slice(0, 10);
+  const leaveDays = new Map<string, number>();
+  for (const row of rowsOf<{ employee_id: string; start_date: string; end_date: string }>(leaveR.data)) {
+    const from = row.start_date > month ? row.start_date : month;
+    const to = row.end_date < lastDay ? row.end_date : lastDay;
+    if (to >= from) leaveDays.set(row.employee_id, (leaveDays.get(row.employee_id) ?? 0) + Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1);
+  }
   const payments = rowsOf<Payment>(paymentsR.data);
   const expenses = rowsOf<Expense>(expensesR.data);
   const invoices = rowsOf<{ id: string; amount: number; status: string }>(invoicesR.data).filter((row) => row.status !== 'void');
@@ -45,6 +54,7 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
       role: person.job_title,
       points: Number(points.get(person.id)?.total_points ?? 0),
       days: attendance.filter((row) => row.employee_id === person.id && row.status === 'verified').length,
+      leave: leaveDays.get(person.id) ?? 0,
     }))
     .sort((a, b) => b.points - a.points);
 
@@ -123,6 +133,7 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
                 <th>Role</th>
                 <th style={{ textAlign: 'right' }}>Points</th>
                 <th style={{ textAlign: 'right' }}>Days present</th>
+                <th style={{ textAlign: 'right' }}>Days on leave</th>
               </tr>
             </thead>
             <tbody>
@@ -132,6 +143,7 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
                   <td>{row.role ?? '—'}</td>
                   <td style={{ textAlign: 'right' }}>{row.points}</td>
                   <td style={{ textAlign: 'right' }}>{row.days}</td>
+                  <td style={{ textAlign: 'right' }}>{row.leave}</td>
                 </tr>
               ))}
             </tbody>

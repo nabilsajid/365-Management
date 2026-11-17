@@ -67,6 +67,19 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
     // Approved leave overlapping this month, shown next to attendance.
     supabase.from('leave_requests').select('*').eq('org_id', orgId).eq('status', 'approved').lte('start_date', nextMonth(month)).gte('end_date', month),
   ]);
+  // Points for the six months up to the one shown, for everyone (people who see team points).
+  const historyMonths = Array.from({ length: 6 }, (_, back) => {
+    const [year, monthNumber] = month.slice(0, 7).split('-').map(Number);
+    const total = year * 12 + (monthNumber - 1) - back;
+    return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}-01`;
+  }).reverse();
+  const historyR = seesTeamPoints
+    ? await supabase.from('monthly_points').select('employee_id, period_month, total_points').eq('org_id', orgId).gte('period_month', historyMonths[0]).lte('period_month', month)
+    : { data: [] };
+  const history = new Map<string, number>();
+  for (const row of rowsOf<{ employee_id: string; period_month: string; total_points: number }>(historyR.data)) {
+    history.set(`${row.employee_id}|${row.period_month.slice(0, 10)}`, Number(row.total_points));
+  }
   const onLeave = rowsOf<{ id: string; employee_id: string; start_date: string; end_date: string; reason: string }>(leaveR.data);
   const people = rowsOf<Profile>(peopleR.data);
   const attendance = rowsOf<Attendance>(attendanceR.data);
@@ -310,6 +323,48 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             addLabel="Deduct points"
             emptyText="No data found."
           />
+
+          {seesTeamPoints ? (
+            <section className="panel">
+              <header className="panel-header">
+                <div>
+                  <h2>Points by month</h2>
+                  <p className="muted">Everyone&apos;s total for the six months up to {monthLabel(month)}. Every month is kept; pick an older month above to look further back.</p>
+                </div>
+              </header>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      {historyMonths.map((item) => (
+                        <th key={item} className="num">
+                          <Link href={`/employees?tab=points&month=${item.slice(0, 7)}`}>{new Date(`${item}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</Link>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {people
+                      .filter((profile) => profile.is_active)
+                      .map((profile) => (
+                        <tr key={profile.id}>
+                          <td>{profile.full_name}</td>
+                          {historyMonths.map((item) => {
+                            const value = history.get(`${profile.id}|${item}`);
+                            return (
+                              <td key={item} className="num">
+                                {value === undefined ? <span className="muted">—</span> : value.toLocaleString('en-US')}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
         </>
       ) : null}
 

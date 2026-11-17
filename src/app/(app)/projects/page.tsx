@@ -1,7 +1,7 @@
 import { Camera, CalendarClock, CalendarSync, Link2, ListChecks, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { ProjectOnboardingForm } from '@/components/project-onboarding-form';
-import { ResourceManager } from '@/components/resource-manager';
+import { ActionButton, ResourceManager } from '@/components/resource-manager';
 import type { Field } from '@/components/types';
 import { monthName } from '@/components/month-bar';
 import { TASK_KIND_LABEL, deliveryCounts } from '@/lib/domain/deliverables';
@@ -28,8 +28,10 @@ function shortDate(date: string): string {
 
 // Two ways to look at the same projects: a board of cards grouped by status
 // (the default), or the list, which is also where projects are edited.
-export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const requestedView = (await searchParams).view;
+export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ view?: string; hidden?: string }> }) {
+  const { view: requestedView, hidden: showHiddenParam } = await searchParams;
+  // Hidden (archived) projects stay off the board unless asked for.
+  const showHidden = showHiddenParam === '1';
   const view = requestedView === 'list' ? 'list' : requestedView === 'clients' ? 'clients' : 'board';
   const { supabase, orgId, isAdmin, can, canEdit: canEditSegment, localDate, timeZone } = await getPageContext();
   const thisMonth = monthStart(new Date(), timeZone);
@@ -225,6 +227,21 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         <h2 className="section-title">One-time projects</h2>
       ) : null}
 
+      {view === 'board' && oneTimeRows.some((project) => project.status === 'archived') ? (
+        <p className="muted board-hidden-note">
+          {showHidden ? (
+            <>
+              Showing hidden projects. <Link href="/projects">Hide them again</Link>
+            </>
+          ) : (
+            <>
+              {oneTimeRows.filter((project) => project.status === 'archived').length} finished projects are hidden to keep the board tidy.{' '}
+              <Link href="/projects?hidden=1">Show hidden</Link>
+            </>
+          )}
+        </p>
+      ) : null}
+
       {view === 'board' ? (
         oneTimeRows.length === 0 ? (
           <section className="panel">
@@ -232,13 +249,16 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
           </section>
         ) : (
           <div className="board">
-            {COLUMNS.filter((status) => status !== 'archived' || oneTimeRows.some((project) => project.status === 'archived')).map((status) => {
+            {COLUMNS.filter((status) => status !== 'archived' || (showHidden && oneTimeRows.some((project) => project.status === 'archived'))).map((status) => {
               const inColumn = oneTimeRows.filter((project) => project.status === status);
               return (
                 <section key={status} className="board-col" aria-label={label(status)}>
                   <header className="board-head">
-                    <span className={`badge badge-${status}`}>{label(status)}</span>
+                    <span className={`badge badge-${status}`}>{status === 'archived' ? 'Hidden' : label(status)}</span>
                     <span className="count">{inColumn.length}</span>
+                    {status === 'completed' && canEdit && inColumn.length > 1 ? (
+                      <ActionButton endpoint="/api/projects/hide-done">Hide all</ActionButton>
+                    ) : null}
                   </header>
                   {inColumn.length === 0 ? <p className="board-empty">Nothing here</p> : null}
                   {inColumn.map((project, index) => {
@@ -306,10 +326,22 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                         </div>
                       </Link>
                       {canEdit ? (
-                        <Link href={`${project.href}?edit=1#edit`} className="project-edit" aria-label={`Edit ${project.name}`}>
-                          <Pencil size={11} aria-hidden />
-                          Edit
-                        </Link>
+                        <span className="project-card-actions">
+                          {status === 'completed' ? (
+                            <ActionButton endpoint={`/api/projects/${project.id}`} method="PATCH" body={{ status: 'archived' }}>
+                              Hide
+                            </ActionButton>
+                          ) : null}
+                          {status === 'archived' ? (
+                            <ActionButton endpoint={`/api/projects/${project.id}`} method="PATCH" body={{ status: 'completed' }}>
+                              Show on board
+                            </ActionButton>
+                          ) : null}
+                          <Link href={`${project.href}?edit=1#edit`} className="project-edit" aria-label={`Edit ${project.name}`}>
+                            <Pencil size={11} aria-hidden />
+                            Edit
+                          </Link>
+                        </span>
                       ) : null}
                       </div>
                     );

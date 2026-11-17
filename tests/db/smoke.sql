@@ -1245,6 +1245,32 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
 select pg_temp.check((select count(*) = 0 from investments) and (select count(*) = 0 from investor_balances), 'people without cash flow do not see investments');
 reset role;
 
+-- HR (edits Employees & Rewards) hears about leave and decides it, but not their own.
+reset role;
+insert into roles (id, org_id, name, permissions, edit_permissions) values
+  ('00000000-0000-0000-0000-00000000aa0f', '00000000-0000-0000-0000-000000000001', 'HR', '{}', '{team_points}');
+delete from profile_roles where profile_id = '00000000-0000-0000-0000-0000000000e2';
+insert into profile_roles (profile_id, role_id, org_id) values
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-00000000aa0f', '00000000-0000-0000-0000-000000000001');
+delete from notifications;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+insert into leave_requests (id, org_id, employee_id, start_date, end_date, reason) values
+  ('00000000-0000-0000-0000-00000000c0a1', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', '2026-12-01', '2026-12-02', 'Wedding');
+reset role;
+select pg_temp.check((select count(*) = 1 from notifications where profile_id = '00000000-0000-0000-0000-0000000000e2' and title like 'Leave requested by%'), 'HR is told about a leave request');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e2';
+update leave_requests set status = 'approved' where id = '00000000-0000-0000-0000-00000000c0a1';
+insert into leave_requests (id, org_id, employee_id, start_date, end_date, reason) values
+  ('00000000-0000-0000-0000-00000000c0a2', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e2', '2026-12-05', '2026-12-05', 'Doctor');
+update leave_requests set status = 'approved' where id = '00000000-0000-0000-0000-00000000c0a2';
+reset role;
+select pg_temp.check(
+  (select status = 'approved' from leave_requests where id = '00000000-0000-0000-0000-00000000c0a1')
+  and (select status = 'pending' from leave_requests where id = '00000000-0000-0000-0000-00000000c0a2'),
+  'HR decides others'' leave but not their own');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';
