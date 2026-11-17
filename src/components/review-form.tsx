@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 
 /** On the client review page: approve a deliverable or ask for changes. */
-export function ReviewForm({ token, taskId }: { token: string; taskId: string }) {
+export function ReviewForm({ token, taskId, endpoint }: { token: string; taskId: string; endpoint?: string }) {
   const [name, setName] = useState('');
   const [decision, setDecision] = useState<'approved' | 'changes'>('approved');
   const [comment, setComment] = useState('');
@@ -26,7 +26,7 @@ export function ReviewForm({ token, taskId }: { token: string; taskId: string })
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/review/${token}`, {
+      const response = await fetch(endpoint ?? `/api/review/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task_id: taskId, name: name.trim(), decision, comment: comment.trim() || null }),

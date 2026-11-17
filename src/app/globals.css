@@ -4155,3 +4155,63 @@
   object-fit: contain;
   background: #fff;
 }
+
+/* Avatars with a photo. */
+.avatar.has-photo {
+  padding: 0;
+  overflow: hidden;
+}
+.avatar.has-photo img {
+  width: 100%;
+  height: 100%;
+  min-width: 1.65rem;
+  object-fit: cover;
+}
+.person-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.person-cell .avatar {
+  margin-left: 0;
+}
+
+/* Client portal. */
+.portal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+.portal-logo {
+  max-height: 56px;
+  max-width: 200px;
+  object-fit: contain;
+}
+.portal-tasks {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.portal-tasks > li + li {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-line);
+}
+.portal-admin-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.portal-admin-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--color-line);
+}

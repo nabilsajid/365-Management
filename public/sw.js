@@ -86,7 +86,8 @@ self.addEventListener('fetch', (event) => {
     path.startsWith('/auth') ||
     path.startsWith('/login') ||
     path.startsWith('/review/') ||
-    path.startsWith('/invoice/')
+    path.startsWith('/invoice/') ||
+    path.startsWith('/portal/')
   ) {
     if (request.mode === 'navigate') event.respondWith(fetch(request).catch(() => caches.match('/offline.html')));
     return;

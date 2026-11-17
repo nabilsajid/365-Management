@@ -1,7 +1,9 @@
 import { Camera, CalendarClock, CalendarSync, Link2, ListChecks, Pencil } from 'lucide-react';
+import { Avatar, loadPhotos } from '@/components/avatar';
 import Link from 'next/link';
 import { ProjectOnboardingForm } from '@/components/project-onboarding-form';
 import { ActionButton, ResourceManager } from '@/components/resource-manager';
+import { ShareLink } from '@/components/share-link';
 import type { Field } from '@/components/types';
 import { monthName } from '@/components/month-bar';
 import { TASK_KIND_LABEL, deliveryCounts } from '@/lib/domain/deliverables';
@@ -13,14 +15,6 @@ import type { Client, Profile, Project, ProjectMember, Task } from '@/types/data
 // The board groups projects into these columns, in this order.
 const COLUMNS = ['onboarding', 'active', 'completed', 'archived'] as const;
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-}
 
 function shortDate(date: string): string {
   return new Date(`${date.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -75,6 +69,14 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
 
   const clientName = new Map(clients.map((client) => [client.id, client.name]));
   const personName = new Map(people.map((profile) => [profile.id, profile.full_name]));
+  const photos = await loadPhotos(supabase, orgId);
+  // Client portal links (Clients view).
+  const portalsR = view === 'clients' && canEdit ? await supabase.from('client_portals').select('client_id, token, is_active').eq('org_id', orgId) : { data: [], error: null };
+  const portalsReady = !portalsR.error;
+  const portalToken = new Map(
+    ((portalsR.data ?? []) as { client_id: string; token: string; is_active: boolean }[]).filter((row) => row.is_active).map((row) => [row.client_id, row.token]),
+  );
+  const photoByName = new Map(people.filter((profile) => photos.has(profile.id)).map((profile) => [profile.full_name, photos.get(profile.id)!]));
   const staff = peopleOptions(people);
 
   const isMonthly = (project: Project) => (project as Project & { kind?: string }).kind === 'monthly';
@@ -232,9 +234,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                 <div className="project-foot">
                   <span className="avatars" aria-label={project.team.length === 0 ? 'Nobody assigned' : `Team: ${project.team.join(', ')}`}>
                     {project.team.slice(0, 4).map((name) => (
-                      <span key={name} className="avatar" title={name}>
-                        {initials(name)}
-                      </span>
+                      <Avatar key={name} name={name} photo={photoByName.get(name)} title={name} />
                     ))}
                     {project.team.length > 4 ? <span className="avatar">+{project.team.length - 4}</span> : null}
                   </span>
@@ -352,9 +352,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                         <div className="project-foot">
                           <span className="avatars" aria-label={project.team.length === 0 ? 'Nobody assigned' : `Team: ${project.team.join(', ')}`}>
                             {project.team.slice(0, 4).map((name) => (
-                              <span key={name} className="avatar" title={name}>
-                                {initials(name)}
-                              </span>
+                              <Avatar key={name} name={name} photo={photoByName.get(name)} title={name} />
                             ))}
                             {project.team.length > 4 ? <span className="avatar">+{project.team.length - 4}</span> : null}
                             {project.team.length === 0 ? <span className="project-meta">Nobody assigned</span> : null}
@@ -433,7 +431,37 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
           emptyText="No clients yet."
           pageSize={25}
         />
-      ) : (
+      ) : null}
+
+      {view === 'clients' && canEdit && portalsReady && !(showHidden && hiddenCount > 0) ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>Client portals</h2>
+              <p className="muted">
+                Give a client their own private link: all their projects and progress, work waiting for their approval
+                (they approve or ask for changes), and their invoices to download. No account needed. Turn a link off any
+                time.
+              </p>
+            </div>
+          </header>
+          <ul className="portal-admin-list">
+            {clients.map((client) => (
+              <li key={client.id}>
+                <strong>{client.name}</strong>
+                <ShareLink
+                  endpoint={`/api/clients/${client.id}/portal`}
+                  basePath="/portal"
+                  token={portalToken.get(client.id) ?? null}
+                  createLabel="Create portal link"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {view !== 'list' || (showHidden && hiddenCount > 0) ? null : (
         <>
           <ResourceManager
             title="All projects"

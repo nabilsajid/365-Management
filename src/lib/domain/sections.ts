@@ -37,6 +37,8 @@ export interface ReminderSettings {
   missed: boolean;
   invoices: boolean;
   equipment_late: boolean;
+  /** Also send urgent alerts by email / WhatsApp, when the server is set up for it. */
+  email: boolean;
   shoot_days: number;
 }
 
@@ -50,6 +52,7 @@ export function reminderSettings(settings: unknown): ReminderSettings {
     missed: flag('missed'),
     invoices: flag('invoices'),
     equipment_late: flag('equipment_late'),
+    email: flag('email'),
     shoot_days: Number.isInteger(days) && days >= 0 && days <= 14 ? days : 2,
   };
 }

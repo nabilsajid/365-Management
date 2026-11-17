@@ -21,7 +21,7 @@ export interface Column {
   key: string;
   label: string;
   /** `nav` links inside the app and `link` links out; both read the URL from `hrefKey`. */
-  kind?: 'text' | 'money' | 'number' | 'bool' | 'label' | 'nav' | 'link' | 'links' | 'tags';
+  kind?: 'person' | 'text' | 'money' | 'number' | 'bool' | 'label' | 'nav' | 'link' | 'links' | 'tags';
   hrefKey?: string;
 }
 

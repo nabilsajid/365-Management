@@ -45,6 +45,7 @@ export const DATABASE_UPDATES: UpdateCheck[] = [
   { file: '20261112000039_quantity_company_settings.sql', adds: 'Equipment quantity, company details and settings', table: 'equipment', column: 'quantity' },
   { file: '20261112000040_investments.sql', adds: 'Investors, investments and repayments', table: 'investors', column: 'name' },
   { file: '20261112000044_finished_logo_photos.sql', adds: 'Finish dates, company logo and profile photos', table: 'profile_photos', column: 'data' },
+  { file: '20261112000046_portal_payroll_invoices_email.sql', adds: 'Client portal, payroll, monthly invoices and email alerts', table: 'payslips', column: 'base_salary' },
 ];
 
 /** Files whose effect cannot be looked for from the app; they are listed as "cannot be checked". */

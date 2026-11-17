@@ -98,7 +98,7 @@ export function LogoUploader({ current }: { current: string | null }) {
 }
 
 const FRAME = 240;
-const OUTPUT = 320;
+const OUTPUT = 200;
 
 /**
  * A profile photo: choose an image, drag it to position the face and zoom,

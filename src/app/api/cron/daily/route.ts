@@ -1,8 +1,10 @@
 import { fail, ok } from '@/lib/api/http';
 import { dispatchPushes } from '@/lib/server/push';
+import { dispatchUrgentAlerts } from '@/lib/server/urgent-alerts';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Runs once a day (see vercel.json): opens the new month of monthly clients,
+// drafts their monthly invoices,
 // reminds admins of overdue invoices (at most once a week each), and sends the
 // deadline, shoot and equipment alerts.
 // When CRON_SECRET is set, Vercel sends it and anyone else is turned away.
@@ -17,8 +19,14 @@ export async function GET(request: Request): Promise<Response> {
     // Due tomorrow, missed deadlines, unconfirmed shoots and late equipment.
     admin.rpc('notify_deadlines'),
   ]);
+  // After the new months are open: draft this month's invoice for monthly clients with a fee.
+  const drafted = await admin.rpc('draft_monthly_invoices');
   await dispatchPushes();
+  // Urgent ones also by email / WhatsApp, when set up.
+  const emailed = await dispatchUrgentAlerts(admin, new URL(request.url).origin);
   return ok({
+    urgent_alerts_sent: emailed,
+    invoices_drafted: drafted.error ? null : drafted.data,
     projects_created: projects.error ? null : projects.data,
     invoice_reminders: reminders.error ? null : reminders.data,
     deadline_alerts: deadlines.error ? null : deadlines.data,

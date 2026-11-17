@@ -374,6 +374,21 @@ function Cell({ row, column }: { row: Row; column: Column }) {
       </>
     );
   }
+  if (column.kind === 'person') {
+    // A name with its photo: the row carries the photo under "<key>_photo".
+    const photo = row[`${column.key}_photo`] as string | null | undefined;
+    const name = String(value ?? '');
+    if (!name) return <>—</>;
+    return (
+      <span className="person-cell">
+        <span className={photo ? 'avatar has-photo' : 'avatar'} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {photo ? <img src={photo} alt="" /> : name.trim().charAt(0).toUpperCase()}
+        </span>
+        {name}
+      </span>
+    );
+  }
   if (column.kind === 'tags') {
     // Each tag is plain text, or { label, color } for a coloured label such as a role.
     const tags = (Array.isArray(value) ? value : []).map((tag) =>

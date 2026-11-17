@@ -1,4 +1,5 @@
 import { Pencil } from 'lucide-react';
+import { Avatar, loadPhotos } from '@/components/avatar';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AwardProjectPoints } from '@/components/award-project-points';
@@ -30,6 +31,7 @@ export default async function ProjectPage({
   // Arriving from the board's Edit button opens the edit form straight away.
   const startEditing = Boolean(query.edit);
   const { supabase, orgId, userId, isAdmin, canEdit, localDateTime, timeZone } = await getPageContext();
+  const photos = await loadPhotos(supabase, orgId);
 
   const projectResult = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   const project = projectResult.data as Project | null;
@@ -255,6 +257,7 @@ export default async function ProjectPage({
               <span className="grid gap-1.5">
                 {team.map((profile) => (
                   <span key={profile.id} className="tags">
+                    <Avatar name={profile.full_name} photo={photos.get(profile.id)} />
                     <strong>{profile.full_name}</strong>
                     {titleTags(profile.job_title, roleColor).map((tag) => (
                       <span key={tag.label} className={tag.color ? `badge tag-${tag.color}` : 'badge'}>
@@ -334,6 +337,7 @@ export default async function ProjectPage({
               member_ids: team.map((profile) => profile.id),
               file_links: links,
               ...(monthlyReady ? { kind: monthly ? 'monthly' : 'one_time' } : {}),
+              ...(monthly && 'monthly_fee' in project ? { monthly_fee: (project as { monthly_fee?: number | null }).monthly_fee ?? '' } : {}),
             }}
             fields={[
               { name: 'name', label: 'Project name', required: true },
@@ -355,7 +359,17 @@ export default async function ProjectPage({
                         { value: 'one_time', label: 'One-time project' },
                         { value: 'monthly', label: 'Monthly client (ongoing, a package every month)' },
                       ],
-                      hint: 'A monthly client keeps one project, with a monthly package and a month for each calendar month.',
+                      hint: 'A monthly client keeps one project, with its fixed deliverables and a month for each calendar month.',
+                    },
+                  ]
+                : []),
+              ...(monthly && isAdmin && 'monthly_fee' in project
+                ? [
+                    {
+                      name: 'monthly_fee',
+                      label: 'Monthly fee (optional)',
+                      type: 'number' as const,
+                      hint: 'When set, a draft invoice for this amount is made on the 1st of every month, listing the fixed deliverables. You check and send it.',
                     },
                   ]
                 : []),
@@ -579,9 +593,7 @@ export default async function ProjectPage({
                 const author = comment.author_id ? person.get(comment.author_id) : undefined;
                 return (
                   <li key={comment.id} className="comment">
-                    <span className="avatar" aria-hidden>
-                      {(author?.full_name ?? '?').charAt(0).toUpperCase()}
-                    </span>
+                    <Avatar name={author?.full_name ?? '?'} photo={comment.author_id ? photos.get(comment.author_id) : null} />
                     <div className="min-w-0 flex-1">
                       <p className="comment-meta">
                         <strong>{author?.full_name ?? 'Former employee'}</strong>

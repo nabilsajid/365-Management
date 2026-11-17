@@ -77,6 +77,7 @@ export const TEAM_GUIDE: GuideSection[] = [
       'Every working day, mark your attendance under Employees & Rewards → Attendance with your entry and exit time. Once an admin verifies the day, you earn attendance points.',
       'Points start from zero on the 1st of every month. Earlier months are kept and you can look back at them with the month picker.',
       'Some companies switch off points; then this part of the app is not shown.',
+      'Payslips: once your salary for a month is paid, its payslip appears under Profiles & Contacts → My profile → My payslips. Open it to print or save it as a PDF.',
       'You earn points for verified days, approved work and good work recognised by the admin (for example extra hours or great client feedback). Points can be deducted for violations such as coming late.',
       'Reach the monthly target to qualify for a bonus. Bonuses are approved by the admin. Deductions never reduce your salary.',
       'Your points page shows a statement of exactly how you earned or lost each point this month.',

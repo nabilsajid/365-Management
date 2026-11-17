@@ -1298,6 +1298,21 @@ exception when insufficient_privilege then raise notice 'ok - people set only th
 end $$;
 reset role;
 
+-- Payroll is private; monthly invoices are drafted once.
+reset role;
+insert into salaries (profile_id, org_id, monthly_amount) values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000001', 30000);
+insert into payslips (org_id, profile_id, month, base_salary, status) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', '2026-10-01', 30000, 'paid'),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e2', '2026-10-01', 25000, 'paid');
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.check((select count(*) = 0 from salaries) and (select count(*) = 1 from payslips), 'people see only their own paid payslips, and no salaries');
+reset role;
+update projects set kind = 'monthly', monthly_fee = 50000, status = 'active', client_id = '00000000-0000-0000-0000-00000000d001' where id = '00000000-0000-0000-0000-00000000f1a1';
+insert into project_months (org_id, project_id, month) values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000f1a1', date_trunc('month', now() at time zone (select timezone from organizations where id = '00000000-0000-0000-0000-000000000001'))::date) on conflict do nothing;
+select pg_temp.check((select draft_monthly_invoices()) >= 1 and (select draft_monthly_invoices()) = 0, 'a monthly client''s invoice is drafted once a month');
+select pg_temp.check((select count(*) = 1 from invoices where project_id = '00000000-0000-0000-0000-00000000f1a1' and status = 'draft' and amount = 50000), 'the drafted invoice has the monthly fee');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

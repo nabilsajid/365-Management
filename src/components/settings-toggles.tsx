@@ -17,6 +17,7 @@ const REMINDERS: { key: Exclude<keyof ReminderSettings, 'shoot_days'>; label: st
   { key: 'missed', label: 'Missed deadlines', hint: 'Admins hear when a task or project passes its due date unfinished.' },
   { key: 'invoices', label: 'Overdue invoices', hint: 'Admins hear about unpaid invoices past their due date, weekly.' },
   { key: 'equipment_late', label: 'Equipment not returned', hint: 'The holder and admins hear when equipment is past its return date.' },
+  { key: 'email', label: 'Urgent alerts by email and WhatsApp', hint: 'Missed deadlines, unconfirmed shoots, late equipment and overdue invoices also go out by email (and WhatsApp, once set up), once a day.' },
 ];
 
 /** Which automatic reminders the daily job sends. */

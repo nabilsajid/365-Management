@@ -43,9 +43,13 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
-  // Client review pages and shared invoices are opened by clients, who have no account.
+  // Client review pages, shared invoices and client portals are opened by clients, who have no account.
   const isPublic =
-    pathname.startsWith('/login') || pathname.startsWith('/auth') || pathname.startsWith('/review/') || pathname.startsWith('/invoice/');
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/review/') ||
+    pathname.startsWith('/invoice/') ||
+    pathname.startsWith('/portal/');
   if (!user && !isPublic && !pathname.startsWith('/api')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';

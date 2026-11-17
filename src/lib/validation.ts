@@ -65,6 +65,8 @@ const projectFields = {
   member_ids: z.array(id).max(100).optional(),
   // One-time, or a monthly client: one project with a month for each calendar month.
   kind: z.enum(['one_time', 'monthly']).optional(),
+  // A monthly client's fee: when set, each month's invoice is drafted automatically.
+  monthly_fee: z.coerce.number().positive('Use an amount above 0.').max(100000000000).nullish().or(z.literal('').transform(() => null)),
 };
 
 export const projectCreate = z.object({
@@ -244,7 +246,7 @@ export const paymentCreate = z.object({
 export const paymentUpdate = paymentCreate.partial();
 
 const expenseFields = z.object({
-  category: z.enum(['general', 'equipment', 'fixed', 'transport', 'investment']).default('general'),
+  category: z.enum(['general', 'equipment', 'fixed', 'transport', 'investment', 'salary']).default('general'),
   description: text,
   // Paying an investor back: who it goes to.
   investor_id: id.nullish(),
@@ -468,6 +470,7 @@ export const orgRulesUpdate = z
         missed: z.coerce.boolean(),
         invoices: z.coerce.boolean(),
         equipment_late: z.coerce.boolean(),
+        email: z.coerce.boolean(),
         shoot_days: z.coerce.number().int().min(0, '0 turns it off.').max(14, 'At most 14 days.'),
       })
       .partial(),

@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { loadPhotos } from '@/components/avatar';
+import { netPay } from '@/lib/domain/payroll';
+import { money } from '@/lib/format';
 import { PhotoEditor } from '@/components/image-tools';
 import { ApiForm, ResourceManager } from '@/components/resource-manager';
 import { DeviceAlerts } from '@/components/device-alerts';
@@ -25,11 +28,15 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const { supabase, orgId, userId, profile, isAdmin } = await getPageContext();
 
   // Row level security returns private details for yourself only, or for everyone if you are an admin.
-  const [peopleR, privateR, photoR] = await Promise.all([
+  const [peopleR, privateR, photoR, photos, payslipR] = await Promise.all([
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('profile_private').select('*').eq('org_id', orgId),
     supabase.from('profile_photos').select('data').eq('profile_id', userId).maybeSingle(),
+    loadPhotos(supabase, orgId),
+    // Your own paid payslips.
+    supabase.from('payslips').select('id, month, base_salary, bonus, additions, deductions, paid_on').eq('profile_id', userId).eq('status', 'paid').order('month', { ascending: false }).limit(24),
   ]);
+  const myPayslips = payslipR.error ? [] : rowsOf<{ id: string; month: string; base_salary: number; bonus: number; additions: number; deductions: number; paid_on: string | null }>(payslipR.data);
 
   if (!('profile_completed_at' in profile) || privateR.error) {
     return (
@@ -81,6 +88,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
     .map((person) => ({
       id: person.id,
       full_name: person.full_name,
+      full_name_photo: photos.get(person.id) ?? null,
       nickname: person.nickname ?? null,
       job_title: person.job_title ?? '—',
       contact: person.contact ?? null,
@@ -120,6 +128,29 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           </Link>
         ))}
       </nav>
+
+      {tab === 'me' && myPayslips.length > 0 ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>My payslips</h2>
+              <p className="muted">Open one to print it or save it as a PDF.</p>
+            </div>
+          </header>
+          <ul className="message-list">
+            {myPayslips.map((slip) => (
+              <li key={slip.id}>
+                <Link href={`/payslips/${slip.id}`}>
+                  {new Date(`${slip.month}T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
+                </Link>{' '}
+                <span className="muted">
+                  · {money(netPay(slip))} · paid {slip.paid_on}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {tab === 'me' && !photoR.error ? (
         <section className="panel">
@@ -174,7 +205,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           endpoint="/api/employees"
           rows={asRows(people)}
           columns={[
-            { key: 'full_name', label: 'Name' },
+            { key: 'full_name', label: 'Name', kind: 'person' },
             { key: 'role_names', label: 'Roles', kind: 'tags' },
             { key: 'email', label: 'Login email' },
             { key: 'contact', label: 'Contact' },
@@ -212,7 +243,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           endpoint="/api/employees"
           rows={asRows(people)}
           columns={[
-            { key: 'full_name', label: 'Name' },
+            { key: 'full_name', label: 'Name', kind: 'person' },
             { key: 'job_title', label: 'Designation' },
             { key: 'contact', label: 'Contact' },
           ]}

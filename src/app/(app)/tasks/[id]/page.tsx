@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { Avatar, loadPhotos } from '@/components/avatar';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ActionButton, ApiForm, ResourceManager } from '@/components/resource-manager';
@@ -12,6 +13,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const { id } = await params;
   const startEditing = Boolean((await searchParams).edit);
   const { supabase, orgId, isAdmin, userId, can, canEdit, localDate, localDateTime } = await getPageContext();
+  const photos = await loadPhotos(supabase, orgId);
   const mayEdit = canEdit('projects');
 
   const taskResult = await supabase.from('tasks').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
@@ -256,9 +258,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 const author = comment.author_id ? person.get(comment.author_id) : undefined;
                 return (
                   <li key={comment.id} className="comment">
-                    <span className="avatar" aria-hidden>
-                      {(author?.full_name ?? '?').charAt(0).toUpperCase()}
-                    </span>
+                    <Avatar name={author?.full_name ?? '?'} photo={comment.author_id ? photos.get(comment.author_id) : null} />
                     <div className="min-w-0 flex-1">
                       <p className="comment-meta">
                         <strong>{author?.full_name ?? 'Former employee'}</strong>

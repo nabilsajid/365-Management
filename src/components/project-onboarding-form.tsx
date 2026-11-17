@@ -53,6 +53,7 @@ export function ProjectOnboardingForm({
   const monthly = monthlyReady && kind === 'monthly';
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [services, setServices] = useState('');
+  const [monthlyFee, setMonthlyFee] = useState('');
   const [name, setName] = useState('');
   const [clientName, setClientName] = useState('');
   const [brief, setBrief] = useState('');
@@ -142,6 +143,7 @@ export function ProjectOnboardingForm({
                     .filter(([, value]) => String(value).trim() && Number(value) >= 1)
                     .map(([key, value]) => [key, Math.round(Number(value))]),
                 ),
+                ...(Number(monthlyFee) > 0 ? { monthly_fee: Number(monthlyFee) } : {}),
                 services: services
                   .split('\n')
                   .map((line) => line.trim())
@@ -300,6 +302,13 @@ export function ProjectOnboardingForm({
                 </label>
               ))}
             </div>
+            {showPoints ? (
+              <label className="field">
+                <span>Monthly fee (optional)</span>
+                <input type="number" min={1} value={monthlyFee} onChange={(event) => setMonthlyFee(event.target.value)} />
+                <small className="muted">When set, each month&apos;s invoice is drafted for you on the 1st.</small>
+              </label>
+            ) : null}
             <label className="field wide">
               <span>Services with no fixed number (optional, one per line)</span>
               <textarea rows={2} value={services} placeholder="Social media management" onChange={(event) => setServices(event.target.value)} />

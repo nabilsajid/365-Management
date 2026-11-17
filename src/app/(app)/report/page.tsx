@@ -69,6 +69,9 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
         </div>
         <div className="header-tools">
           <MonthPicker value={month.slice(0, 7)} current={currentMonth.slice(0, 7)} />
+          <a href={`/api/report/export?month=${month.slice(0, 7)}`} className="button" download>
+            Download Excel
+          </a>
           <PrintButton />
         </div>
       </div>

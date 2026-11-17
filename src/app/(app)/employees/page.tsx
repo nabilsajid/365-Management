@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react';
 import Link from 'next/link';
+import { netPay } from '@/lib/domain/payroll';
 import { hiddenSections } from '@/lib/domain/sections';
 import { GivePointsForm } from '@/components/give-points-form';
 import { MonthPicker } from '@/components/month-picker';
@@ -26,6 +27,7 @@ const TABS = [
   { key: 'attendance', label: 'Attendance' },
   { key: 'bonuses', label: 'Bonuses' },
   { key: 'team', label: 'Team' },
+  { key: 'payroll', label: 'Payroll' },
   { key: 'settings', label: 'Rules' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
@@ -51,7 +53,9 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   // A company that switched off Points & rewards keeps only the team list here.
   const orgSettings = await supabase.from('organizations').select('settings').eq('id', orgId).maybeSingle();
   const pointsOff = !orgSettings.error && hiddenSections((orgSettings.data as { settings?: unknown } | null)?.settings).includes('points');
-  const tabs = TABS.filter((item) => (pointsOff ? item.key === 'team' : item.key !== 'settings' || isAdmin || seesTeamPoints));
+  const tabs = TABS.filter((item) =>
+    item.key === 'payroll' ? isAdmin : pointsOff ? item.key === 'team' : item.key !== 'settings' || isAdmin || seesTeamPoints,
+  );
   const tab: Tab = tabs.some((item) => item.key === requestedTab) ? (requestedTab as Tab) : pointsOff ? 'team' : 'points';
   const href = (next: Tab) => `/employees?tab=${next}&month=${month.slice(0, 7)}`;
   const canGivePoints = editsTeamPoints;
@@ -86,6 +90,24 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   }
   const onLeave = rowsOf<{ id: string; employee_id: string; start_date: string; end_date: string; reason: string }>(leaveR.data);
   const people = rowsOf<Profile>(peopleR.data);
+  // Payroll (admins only): salaries, this month's payslips, and accounts to pay from.
+  const payroll = await (async () => {
+    if (tab !== 'payroll' || !isAdmin) return { ready: false, salary: new Map<string, number>(), slips: [], accounts: [] as { value: string; label: string }[] };
+    const [salaryR, slipR, accountR] = await Promise.all([
+      supabase.from('salaries').select('profile_id, monthly_amount').eq('org_id', orgId),
+      supabase.from('payslips').select('*').eq('org_id', orgId).eq('month', month),
+      supabase.from('accounts').select('id, name').eq('org_id', orgId).order('name'),
+    ]);
+    const name = new Map(people.map((profile) => [profile.id, profile.full_name]));
+    return {
+      ready: !salaryR.error && !slipR.error,
+      salary: new Map(rowsOf<{ profile_id: string; monthly_amount: number }>(salaryR.data).map((row) => [row.profile_id, Number(row.monthly_amount)])),
+      slips: rowsOf<{ id: string; profile_id: string; base_salary: number; bonus: number; additions: number; deductions: number; status: string }>(slipR.data)
+        .map((row) => ({ ...row, full_name: name.get(row.profile_id) ?? '—', href: `/payslips/${row.id}`, net: netPay(row), account_id: '' }))
+        .sort((a, b) => a.full_name.localeCompare(b.full_name)),
+      accounts: rowsOf<{ id: string; name: string }>(accountR.data).map((row) => ({ value: row.id, label: row.name })),
+    };
+  })();
   const attendance = rowsOf<Attendance>(attendanceR.data);
   const entries = rowsOf<PointEntry>(entriesR.data);
   const violations = rowsOf<ViolationType>(violationsR.data);
@@ -501,6 +523,86 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             emptyText="No data found."
           />
         </>
+      ) : null}
+
+      {tab === 'payroll' && isAdmin ? (
+        payroll.ready ? (
+          <>
+            <ResourceManager
+              title="Salaries"
+              description="Each person's monthly salary. Only admins see salaries."
+              endpoint="/api/salaries"
+              rows={asRows(
+                people
+                  .filter((profile) => profile.is_active)
+                  .map((profile) => ({ id: profile.id, full_name: profile.full_name, monthly_amount: payroll.salary.get(profile.id) ?? null })),
+              )}
+              columns={[
+                { key: 'full_name', label: 'Employee' },
+                { key: 'monthly_amount', label: 'Monthly salary', kind: 'money' },
+              ]}
+              fields={undefined}
+              editFields={[{ name: 'monthly_amount', label: 'Monthly salary', type: 'number', required: true }]}
+              canWrite
+              allowDelete={false}
+              emptyText="No active employees."
+              pageSize={25}
+            />
+
+            <section className="panel">
+              <header className="panel-header">
+                <div>
+                  <h2>Payslips for {monthLabel(month)}</h2>
+                  <p className="muted">
+                    Each payslip starts with the salary and the bonus approved for that month (earned through points), with
+                    days present, days on leave and points for reference. Adjust additions or deductions with Edit, then choose
+                    the account it was paid from to mark it paid: that records the salary as an expense in Cash Flow. Paid
+                    payslips can be printed or saved as a PDF, and each person sees their own.
+                  </p>
+                </div>
+                <ActionButton endpoint="/api/payslips/generate" body={{ month }} primary>
+                  Create payslips for {monthLabel(month)}
+                </ActionButton>
+              </header>
+            </section>
+            <ResourceManager
+              title={`Payslips · ${monthLabel(month)}`}
+              endpoint="/api/payslips"
+              rows={asRows(payroll.slips)}
+              columns={[
+                { key: 'full_name', label: 'Employee', kind: 'nav', hrefKey: 'href' },
+                { key: 'base_salary', label: 'Salary', kind: 'money' },
+                { key: 'bonus', label: 'Bonus', kind: 'money' },
+                { key: 'additions', label: 'Additions', kind: 'money' },
+                { key: 'deductions', label: 'Deductions', kind: 'money' },
+                { key: 'net', label: 'Take-home', kind: 'money' },
+                { key: 'leave_days', label: 'Leave days', kind: 'number' },
+                { key: 'status', label: 'Status', kind: 'label' },
+              ]}
+              editFields={[
+                { name: 'base_salary', label: 'Salary', type: 'number' },
+                { name: 'bonus', label: 'Bonus', type: 'number' },
+                { name: 'additions', label: 'Other additions', type: 'number', hint: 'Overtime, allowances…' },
+                { name: 'deductions', label: 'Deductions', type: 'number', hint: 'Unpaid leave, advances…' },
+                { name: 'note', label: 'Note on the payslip', type: 'textarea' },
+                {
+                  name: 'account_id',
+                  label: 'Paid from account',
+                  type: 'select',
+                  options: payroll.accounts,
+                  hint: 'Choosing one marks it paid and records the salary in Cash Flow. Leave empty to keep it a draft.',
+                },
+              ]}
+              canWrite
+              emptyText={`No payslips for ${monthLabel(month)} yet. Set salaries above, then press Create payslips.`}
+              pageSize={50}
+            />
+          </>
+        ) : (
+          <section className="panel">
+            <p className="muted">Payroll arrives with the next database update. Reload this page in a minute.</p>
+          </section>
+        )
       ) : null}
 
       {tab === 'team' ? (

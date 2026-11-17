@@ -36,6 +36,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   fixed: 'amber',
   transport: 'purple',
   investment: 'teal',
+  salary: 'orange',
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -44,6 +45,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   fixed: 'Fixed monthly costs',
   transport: 'Transport',
   investment: 'Investment repayment',
+  salary: 'Salaries',
 };
 
 // Entries are shown one month at a time, so each month starts with an empty

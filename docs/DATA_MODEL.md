@@ -273,3 +273,23 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - `ResourceManager` takes `quickActions`: one-click PATCH buttons per row. Approvals and the task page use them for Approve and Request changes.
 
 - `delete_company(org)` (update 45): the owner deletes a customer company from Companies after typing its name. It clears records that block deletion first, then the company; the route then removes its people's logins. You can never delete your own company or the one that is open.
+
+## Client portal, payroll, monthly invoices, urgent alerts, Excel (update 46)
+
+- **Client portal**: `client_portals` holds one private token per client, made under Projects → Clients.
+  - `/portal/<token>` shows the client's projects (monthly clients show their latest month), deliverables to approve or send back, and non-draft invoices (`/portal/<token>/invoice/<id>`).
+  - Answers go to `client_feedback` with `portal_id`, through `POST /api/portal/<token>`.
+- **Payroll** (admins):
+  - `salaries` holds a monthly salary per person.
+  - `payslips` holds one per person and month: salary, the approved bonus for the month, additions, deductions, and for reference days present, leave days and points.
+  - `POST /api/payslips/generate` creates the month's drafts.
+  - `PATCH /api/payslips/:id` with `account_id` pays a payslip: it records a `salary` expense and marks it paid.
+  - Each person can read their own paid payslips. `/payslips/:id` is the printable payslip.
+- **Monthly invoices**: `projects.monthly_fee`. `draft_monthly_invoices()` runs in the daily job and drafts one invoice per monthly client and month (`invoices.project_month_id` is unique), listing the fixed deliverables, and tells admins.
+- **Urgent alerts** by email and WhatsApp:
+  - Covers missed deadlines, projects past their due date, unconfirmed shoots, late equipment and overdue invoices.
+  - `dispatchUrgentAlerts` runs in the daily job and marks `notifications.emailed_at`.
+  - Needs `RESEND_API_KEY` and `ALERT_FROM_EMAIL`. WhatsApp also needs `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_TEMPLATE`, and is sent to the profile's contact number.
+  - Settings → Reminders can switch it off.
+- **Excel**: `GET /api/report/export?month=YYYY-MM` (admins) returns an .xlsx with these sheets: Summary, Money in, Investments, Money out, Invoices, Payroll and Team. It is written by `src/lib/server/xlsx.ts`, with no library.
+- **Photos**: `loadPhotos` and `<Avatar>` (`src/components/avatar.tsx`) show photos in team lists, project teams, comments and cards. The table column kind `person` reads `<key>_photo`.

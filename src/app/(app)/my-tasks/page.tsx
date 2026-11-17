@@ -1,4 +1,5 @@
 import { CalendarClock, Link2, Star } from 'lucide-react';
+import { Avatar, loadPhotos } from '@/components/avatar';
 import Link from 'next/link';
 import { dueLabel, dueState, type DueState } from '@/lib/domain/deadlines';
 import { ActionButton, ResourceManager } from '@/components/resource-manager';
@@ -15,14 +16,6 @@ const COLUMNS = [
   { key: 'done', title: 'Done', badge: 'badge badge-approved', statuses: ['approved'] },
 ] as const;
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-}
 
 function shortDate(date: string): string {
   return new Date(`${date.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -39,6 +32,7 @@ function dueClass(state: DueState): string {
 export default async function MyTasksPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const view = (await searchParams).view === 'list' ? 'list' : 'board';
   const { supabase, orgId, userId, localDate } = await getPageContext();
+  const photos = await loadPhotos(supabase, orgId);
   const today = localDate(new Date().toISOString());
 
   const membershipsR = await supabase.from('project_members').select('*').eq('org_id', orgId).eq('profile_id', userId);
@@ -247,9 +241,7 @@ export default async function MyTasksPage({ searchParams }: { searchParams: Prom
                     <p className="project-client">{task.project_name}</p>
                     <div className="project-foot">
                       <span className="avatars">
-                        <span className="avatar" aria-hidden>
-                          {task.assignee_id ? initials(task.assignee_name) : '?'}
-                        </span>
+                        <Avatar name={task.assignee_id ? task.assignee_name : '?'} photo={task.assignee_id ? photos.get(task.assignee_id) : null} />
                         <span className="project-meta ml-2">{task.assignee_name}</span>
                       </span>
                       {task.due_date ? (
