@@ -1,12 +1,15 @@
 // Which kind a notification is, from the page it points to. People can turn
 // each kind off; the pop-up and device alerts follow their choice.
 
-export type NotificationKind = 'assignments' | 'updates' | 'approvals';
+export type NotificationKind = 'assignments' | 'updates' | 'approvals' | 'money' | 'leave' | 'equipment';
 
 export function notificationKind(href: string | null | undefined): NotificationKind {
   const path = href ?? '';
   if (path.startsWith('/approvals') || path.includes('#award')) return 'approvals';
-  if (path.startsWith('/tasks') || path.startsWith('/projects')) return 'assignments';
+  if (path.startsWith('/tasks') || path.startsWith('/projects') || path.startsWith('/my-tasks')) return 'assignments';
+  if (path.startsWith('/cashflow') || path.startsWith('/invoices') || path.startsWith('/payslips')) return 'money';
+  if (path.startsWith('/leave')) return 'leave';
+  if (path.startsWith('/logistics')) return 'equipment';
   return 'updates';
 }
 

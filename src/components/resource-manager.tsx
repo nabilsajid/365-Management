@@ -73,7 +73,7 @@ function initialState(fields: Field[], initial?: Values): FormState {
   const state: FormState = {};
   for (const field of fields) {
     const value = initial?.[field.name];
-    if (field.type === 'checkbox') state[field.name] = value === undefined ? true : Boolean(value);
+    if (field.type === 'checkbox') state[field.name] = value === undefined ? field.defaultValue !== 'false' : Boolean(value);
     else if (field.type === 'multiselect') state[field.name] = Array.isArray(value) ? value.map(String) : [];
     else if (field.type === 'links') state[field.name] = formatFileLinks(value as FileLinkInput[] | null);
     else if (field.type === 'month') state[field.name] = value ? String(value).slice(0, 7) : '';

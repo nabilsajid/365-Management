@@ -87,6 +87,9 @@ export const PAGES: { title: string; href: string; words: string; need?: string 
   { title: 'Settings · Appearance', href: '/settings?tab=appearance', words: 'appearance colour color theme look', need: 'admin' },
   { title: 'Settings · Delete log', href: '/settings?tab=delete-log', words: 'delete log deleted removed history', need: 'admin' },
   { title: 'Settings · System check', href: '/settings?tab=system', words: 'system check database update', need: 'admin' },
+  { title: 'Activity history', href: '/settings?tab=activity', words: 'activity history audit who changed log', need: 'admin' },
+  { title: 'Backups and full export', href: '/settings?tab=backups', words: 'backup export download everything excel restore', need: 'admin' },
+  { title: 'Two-step sign-in', href: '/settings?tab=security', words: 'two step 2fa mfa security authenticator code', need: 'admin' },
   { title: 'KPIs', href: '/kpi', words: 'kpi performance on time first time approval delivered revenue points dashboard', need: 'admin' },
   { title: 'Monthly summary', href: '/report', words: 'report summary monthly print pdf export', need: 'admin' },
 ];

@@ -1351,6 +1351,19 @@ insert into point_entries (org_id, employee_id, period_month, points, source, re
 select pg_temp.check((select count(*) = 0 from point_entries where period_month = '2026-11-01' and points = 5 and source = 'adjustment' and reason = 'test'), 'no points are recorded while points are switched off');
 update organizations set settings = '{}' where id = '00000000-0000-0000-0000-000000000001';
 
+-- Changes to money records leave a history; automatic fixed costs.
+reset role;
+insert into expenses (org_id, category, description, amount) values ('00000000-0000-0000-0000-000000000001', 'general', 'History test', 100);
+update expenses set amount = 120 where description = 'History test';
+select pg_temp.check(
+  (select count(*) = 2 from activity_log where label = 'History test')
+  and (select changes -> 'amount' ->> 1 = '120.00' from activity_log where label = 'History test' and action = 'changed'),
+  'adding and changing a cost is kept in the activity history');
+insert into fixed_expenses (org_id, name, monthly_amount, auto_record, record_day) values ('00000000-0000-0000-0000-000000000001', 'Office rent', 5000, true, 1);
+select record_fixed_expenses();
+select record_fixed_expenses();
+select pg_temp.check((select count(*) = 1 from expenses where description like 'Office rent · %'), 'an automatic fixed cost is recorded once a month');
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

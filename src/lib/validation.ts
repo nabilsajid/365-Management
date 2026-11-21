@@ -186,6 +186,10 @@ export const fixedExpenseCreate = z.object({
   kind: z.enum(['rent', 'utilities', 'other']).optional(),
   monthly_amount: money,
   is_active: z.boolean().optional(),
+  // Recorded in Cash Flow by itself each month, on this day, from this account.
+  auto_record: z.boolean().optional(),
+  record_day: z.coerce.number().int().min(1, 'Pick a day from 1 to 28.').max(28, 'Pick a day from 1 to 28.').optional(),
+  account_id: z.string().uuid().nullable().optional().or(z.literal('').transform(() => null)),
 });
 export const fixedExpenseUpdate = fixedExpenseCreate.partial();
 
@@ -507,6 +511,9 @@ export const notifyPrefs = z.object({
   assignments: z.boolean(),
   updates: z.boolean(),
   approvals: z.boolean(),
+  money: z.boolean().optional(),
+  leave: z.boolean().optional(),
+  equipment: z.boolean().optional(),
 });
 
 export const clientFeedbackCreate = z.object({

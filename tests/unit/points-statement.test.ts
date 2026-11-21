@@ -25,7 +25,9 @@ test('notifications are grouped by where they lead, and follow each person\'s ch
   assert.equal(notificationKind('/projects/abc#award'), 'approvals');
   assert.equal(notificationKind('/approvals'), 'approvals');
   assert.equal(notificationKind('/updates?tab=messages'), 'updates');
-  assert.equal(notificationKind('/leave'), 'updates');
+  assert.equal(notificationKind('/leave'), 'leave');
+  assert.equal(notificationKind('/cashflow?tab=income'), 'money');
+  assert.equal(notificationKind('/logistics'), 'equipment');
   assert.equal(wants({}, '/approvals'), true);
   assert.equal(wants(null, '/approvals'), true);
   assert.equal(wants({ approvals: false }, '/approvals'), false);

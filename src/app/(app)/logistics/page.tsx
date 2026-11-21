@@ -33,7 +33,7 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
   // Row level security narrows every query to what the viewer's roles allow:
   // without the equipment segment only the items they hold come back, and
   // without the costs segment the cost tables come back empty.
-  const [equipmentResult, peopleResult, fixedResult, tripsResult, needsResult, projectsResult, clientsResult, purposeProbe, checkoutsResult] = await Promise.all([
+  const [equipmentResult, peopleResult, fixedResult, tripsResult, needsResult, projectsResult, clientsResult, purposeProbe, checkoutsResult, accountsResult] = await Promise.all([
     supabase.from('equipment').select('*').eq('org_id', orgId).order('name'),
     supabase.from('profiles').select('*').eq('org_id', orgId).order('full_name'),
     supabase.from('fixed_expenses').select('*').eq('org_id', orgId).order('name'),
@@ -45,7 +45,11 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
     supabase.from('expenses').select('project_id').limit(1),
     // Who took which item, for how long (after the checkouts database update).
     supabase.from('equipment_checkouts').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(300),
+    supabase.from('accounts').select('id, name').eq('org_id', orgId).order('name'),
   ]);
+  const accountOptions = rowsOf<{ id: string; name: string }>(accountsResult.data).map((row) => ({ value: row.id, label: row.name }));
+  // Fixed costs can be recorded in Cash Flow each month by themselves (after the database update).
+  const autoReady = ((fixedResult.data ?? []) as Record<string, unknown>[]).every((row) => 'auto_record' in row);
   const checkoutsReady = !checkoutsResult.error;
   // Sections: everyone sees equipment, checkouts and needed items; costs need the costs role.
   const tabs = TABS.filter((item) => (item.key === 'fixed' || item.key === 'travel' ? seesCosts : item.key !== 'checkouts' || checkoutsReady));
@@ -337,18 +341,31 @@ export default async function LogisticsPage({ searchParams }: { searchParams: Pr
             title="Fixed monthly expenses"
             description={`Active total: ${money(fixedTotal)} per month.`}
             endpoint="/api/fixed-expenses"
-            rows={asRows(fixed)}
+            rows={asRows(
+              fixed.map((row) => {
+                const auto = row as FixedExpense & { auto_record?: boolean; record_day?: number };
+                return { ...row, auto_label: auto.auto_record ? `Yes · day ${auto.record_day ?? 1}` : 'No' };
+              }),
+            )}
             columns={[
               { key: 'name', label: 'Expense' },
               { key: 'kind', label: 'Type', kind: 'label' },
               { key: 'monthly_amount', label: 'Per month', kind: 'money' },
               { key: 'is_active', label: 'Active', kind: 'bool' },
+              ...(autoReady ? [{ key: 'auto_label', label: 'Recorded by itself' }] : []),
             ]}
             fields={[
               { name: 'name', label: 'Name', required: true, placeholder: 'Office rent' },
               { name: 'kind', label: 'Type', type: 'select', required: true, defaultValue: 'other', options: enumOptions(['rent', 'utilities', 'other']) },
               { name: 'monthly_amount', label: 'Monthly amount', type: 'number', required: true },
               { name: 'is_active', label: 'Active', type: 'checkbox' },
+              ...(autoReady
+                ? [
+                    { name: 'auto_record', label: 'Record it in Cash Flow every month by itself', type: 'checkbox' as const, defaultValue: 'false' },
+                    { name: 'record_day', label: 'On day of the month', type: 'number' as const, defaultValue: '1', hint: '1 to 28.' },
+                    { name: 'account_id', label: 'Paid from account', type: 'select' as const, options: accountOptions },
+                  ]
+                : []),
             ]}
             canWrite={editsCosts}
             needsApproval={needsApproval}

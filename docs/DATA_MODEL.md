@@ -317,3 +317,10 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - `leave_requests.kind`: casual, sick, unpaid or other. Yearly casual/sick allowance lives in `organizations.settings.leave_allowance` (defaults 10/14), set at `/api/leave/allowance`.
 - Payslip generation counts approved unpaid days in the month (`payslips.unpaid_leave_days`) and deducts salary/30 per day.
 - `salary_advances` (amount, per_month) and `advance_repayments` (per payslip). `advance_balances` view gives what is left. Each generated payslip takes min(per_month, left) per advance, recorded in `payslips.advance_repaid` and added to deductions. Deleting a payslip removes its repayments (cascade).
+
+## Activity, backups, notification kinds, recurring costs (migration 53)
+- `activity_log`: trigger `log_activity()` on invoices, payments, payslips, projects, expenses and salaries records added/changed/deleted, the actor (`auth.uid()`, null for the system) and `{column: [old, new]}`. Admin read only; shown in Settings → Activity.
+- `backups`: jsonb copy of every table in `src/lib/server/full-export.ts` (secrets and portal tokens stripped). Daily cron takes one per company when the latest is a week old and keeps eight. Settings → Backups downloads them as Excel; `/api/export/all` downloads everything now.
+- Notification kinds now also money, leave and equipment (`notificationKind()`), stored in `profiles.notify_prefs`.
+- `fixed_expenses.auto_record/record_day/account_id`: `record_fixed_expenses()` (daily cron) records the cost once a month on its day.
+- Two-step sign-in uses Supabase MFA (TOTP). Middleware sends a session at aal1 that needs aal2 to `/login?step=code`, and API calls get 401 `needs_code`.

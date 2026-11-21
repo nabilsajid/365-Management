@@ -43,6 +43,29 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+
+  // Two-step sign-in: a password alone is not enough once a code app is set up.
+  // Until the code is entered, only the login page (and signing out) is open.
+  let needsCode = false;
+  if (user) {
+    const { data: level } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    needsCode = level?.nextLevel === 'aal2' && level.currentLevel !== 'aal2';
+  }
+  if (needsCode && !pathname.startsWith('/login') && !pathname.startsWith('/auth')) {
+    if (pathname.startsWith('/api') && !pathname.startsWith('/api/portal') && !pathname.startsWith('/api/review')) {
+      return withCookies(
+        NextResponse.json({ error: { code: 'needs_code', message: 'Enter your two-step sign-in code first.' } }, { status: 401 }),
+        response,
+      );
+    }
+    const isClientPage = pathname.startsWith('/review/') || pathname.startsWith('/invoice/') || pathname.startsWith('/portal/');
+    if (!isClientPage && !pathname.startsWith('/api')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.search = '?step=code';
+      return withCookies(NextResponse.redirect(url), response);
+    }
+  }
   // Client review pages, shared invoices and client portals are opened by clients, who have no account.
   const isPublic =
     pathname.startsWith('/login') ||
@@ -58,7 +81,7 @@ export async function middleware(request: NextRequest) {
 
   // Already signed in and looking at the login page: go straight to the app.
   // (Not when the app itself sent them here, for example a deactivated account.)
-  if (user && pathname === '/login' && !request.nextUrl.searchParams.has('reason')) {
+  if (user && !needsCode && pathname === '/login' && !request.nextUrl.searchParams.has('reason')) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     url.search = '';

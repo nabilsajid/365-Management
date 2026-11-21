@@ -6,16 +6,22 @@ import { toast } from './resource-manager';
 const KINDS = [
   { key: 'assignments', label: 'Assignments', help: 'A project or task is given to you.' },
   { key: 'updates', label: 'Updates', help: 'Announcements, broadcasts, personal messages and leave decisions.' },
-  { key: 'approvals', label: 'Approvals', help: 'Admins only: something is waiting for you to approve.' },
+  { key: 'approvals', label: 'Approvals', help: 'Something is waiting for you to approve.' },
+  { key: 'money', label: 'Money', help: 'Invoices, payments, costs and payslips.' },
+  { key: 'leave', label: 'Leave', help: 'Leave requests and decisions.' },
+  { key: 'equipment', label: 'Equipment', help: 'Equipment requests, returns and late items.' },
 ] as const;
 type Kind = (typeof KINDS)[number]['key'];
 
 /** Lets a person choose which kinds of notification they get, in the app and on their devices. */
-export function NotifySettings({ initial, isAdmin }: { initial: Partial<Record<Kind, boolean>>; isAdmin: boolean }) {
+export function NotifySettings({ initial }: { initial: Partial<Record<Kind, boolean>>; isAdmin?: boolean }) {
   const [prefs, setPrefs] = useState<Record<Kind, boolean>>({
     assignments: initial.assignments !== false,
     updates: initial.updates !== false,
     approvals: initial.approvals !== false,
+    money: initial.money !== false,
+    leave: initial.leave !== false,
+    equipment: initial.equipment !== false,
   });
   const [busy, setBusy] = useState(false);
 
@@ -48,11 +54,13 @@ export function NotifySettings({ initial, isAdmin }: { initial: Partial<Record<K
       <header className="panel-header">
         <div>
           <h2>Notifications</h2>
-          <p className="muted">Choose what you are told about, in the app and on your devices. Turned-off kinds are still listed where they belong.</p>
+          <p className="muted">
+            Choose what you are told about, in the app and on your devices. Turned-off kinds are still listed where they belong.
+          </p>
         </div>
       </header>
       <ul className="check-list">
-        {KINDS.filter((kind) => isAdmin || kind.key !== 'approvals').map((kind) => (
+        {KINDS.map((kind) => (
           <li key={kind.key}>
             <span>
               <strong>{kind.label}</strong>
