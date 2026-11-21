@@ -312,3 +312,8 @@ A project is either **one-time** (`projects.kind = 'one_time'`, as before) or a 
 - `org_mail_settings` (update 49) holds the mailbox a company's alerts come from, such as a Gmail with an app password. Admins set it in Settings → Reminders, and saving sends a test email first. The password is AES-GCM encrypted with a key derived from `MAIL_SECRET` (or the service key), and the table can't be read by anyone through the API. Mail is sent over SMTP (`src/lib/server/smtp.ts`, port 465 or 587, no library); Resend is the fallback.
 
 - `email_outbox` (update 50): every email (daily alerts, salary emails when a payslip is paid) is saved as a draft. Admins and roles with the `emails` segment ("Approve emails") see them on /emails, can edit the subject and body, and send (`POST /api/emails/:id` with `action: send`, which retries failed ones) or skip them. `notify_email_approvers` tells them drafts are waiting. Only the admin's own test emails in Settings go out directly.
+
+## Leave types and salary advances (migration 52)
+- `leave_requests.kind`: casual, sick, unpaid or other. Yearly casual/sick allowance lives in `organizations.settings.leave_allowance` (defaults 10/14), set at `/api/leave/allowance`.
+- Payslip generation counts approved unpaid days in the month (`payslips.unpaid_leave_days`) and deducts salary/30 per day.
+- `salary_advances` (amount, per_month) and `advance_repayments` (per payslip). `advance_balances` view gives what is left. Each generated payslip takes min(per_month, left) per advance, recorded in `payslips.advance_repaid` and added to deductions. Deleting a payslip removes its repayments (cascade).

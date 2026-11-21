@@ -92,12 +92,16 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const people = rowsOf<Profile>(peopleR.data);
   // Payroll (admins only): salaries, this month's payslips, and accounts to pay from.
   const payroll = await (async () => {
-    if (tab !== 'payroll' || !isAdmin) return { ready: false, salary: new Map<string, number>(), slips: [], accounts: [] as { value: string; label: string }[] };
-    const [salaryR, slipR, accountR] = await Promise.all([
+    if (tab !== 'payroll' || !isAdmin)
+      return { ready: false, salary: new Map<string, number>(), slips: [], accounts: [] as { value: string; label: string }[], advances: [] as Record<string, unknown>[] };
+    const [salaryR, slipR, accountR, advanceR, balanceR] = await Promise.all([
       supabase.from('salaries').select('profile_id, monthly_amount').eq('org_id', orgId),
       supabase.from('payslips').select('*').eq('org_id', orgId).eq('month', month),
       supabase.from('accounts').select('id, name').eq('org_id', orgId).order('name'),
+      supabase.from('salary_advances').select('id, profile_id, amount, per_month, given_on, note').eq('org_id', orgId).order('given_on', { ascending: false }),
+      supabase.from('advance_balances').select('advance_id, repaid, left_to_repay').eq('org_id', orgId),
     ]);
+    const balance = new Map(rowsOf<{ advance_id: string; repaid: number; left_to_repay: number }>(balanceR.data).map((row) => [row.advance_id, row]));
     const name = new Map(people.map((profile) => [profile.id, profile.full_name]));
     return {
       ready: !salaryR.error && !slipR.error,
@@ -106,6 +110,16 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
         .map((row) => ({ ...row, full_name: name.get(row.profile_id) ?? '—', href: `/payslips/${row.id}`, net: netPay(row), account_id: '' }))
         .sort((a, b) => a.full_name.localeCompare(b.full_name)),
       accounts: rowsOf<{ id: string; name: string }>(accountR.data).map((row) => ({ value: row.id, label: row.name })),
+      advances: rowsOf<{ id: string; profile_id: string; amount: number; per_month: number; given_on: string; note: string | null }>(advanceR.data).map((row) => {
+        const left = Number(balance.get(row.id)?.left_to_repay ?? row.amount);
+        return {
+          ...row,
+          full_name: name.get(row.profile_id) ?? '—',
+          repaid: Number(balance.get(row.id)?.repaid ?? 0),
+          left_to_repay: left,
+          state: left > 0 ? 'repaying' : 'repaid',
+        };
+      }),
     };
   })();
   const attendance = rowsOf<Attendance>(attendanceR.data);
@@ -555,7 +569,8 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                   <h2>Payslips for {monthLabel(month)}</h2>
                   <p className="muted">
                     Each payslip starts with the salary and the bonus approved for that month (earned through points), with
-                    days present, days on leave and points for reference. Adjust additions or deductions with Edit, then choose
+                    days present, days on leave and points for reference. Unpaid leave (a day is the salary over 30) and
+                    salary advance instalments are taken off as deductions. Adjust additions or deductions with Edit, then choose
                     the account it was paid from to mark it paid: that records the salary as an expense in Cash Flow. Paid
                     payslips can be printed or saved as a PDF, and each person sees their own. Deleting a paid payslip also
                     removes its salary expense.
@@ -584,7 +599,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                 { name: 'base_salary', label: 'Salary', type: 'number' },
                 { name: 'bonus', label: 'Bonus', type: 'number' },
                 { name: 'additions', label: 'Other additions', type: 'number', hint: 'Overtime, allowances…' },
-                { name: 'deductions', label: 'Deductions', type: 'number', hint: 'Unpaid leave, advances…' },
+                { name: 'deductions', label: 'Deductions', type: 'number', hint: 'Already includes unpaid leave and advance instalments.' },
                 { name: 'note', label: 'Note on the payslip', type: 'textarea' },
                 {
                   name: 'account_id',
@@ -597,6 +612,39 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               canWrite
               emptyText={`No payslips for ${monthLabel(month)} yet. Set salaries above, then press Create payslips.`}
               pageSize={50}
+            />
+
+            <ResourceManager
+              title="Salary advances"
+              description="Money given ahead of salary. Each payslip created afterwards takes back the monthly amount until it is repaid. Choosing the account it came from records it in Cash Flow."
+              endpoint="/api/advances"
+              rows={asRows(payroll.advances)}
+              columns={[
+                { key: 'full_name', label: 'Employee' },
+                { key: 'given_on', label: 'Given' },
+                { key: 'amount', label: 'Amount', kind: 'money' },
+                { key: 'per_month', label: 'Taken back monthly', kind: 'money' },
+                { key: 'repaid', label: 'Repaid', kind: 'money' },
+                { key: 'left_to_repay', label: 'Left', kind: 'money' },
+                { key: 'state', label: 'Status', kind: 'label' },
+              ]}
+              fields={[
+                {
+                  name: 'profile_id',
+                  label: 'Employee',
+                  type: 'select',
+                  required: true,
+                  options: people.filter((profile) => profile.is_active).map((profile) => ({ value: profile.id, label: profile.full_name })),
+                },
+                { name: 'amount', label: 'Amount given', type: 'number', required: true },
+                { name: 'per_month', label: 'Take back each month', type: 'number', required: true },
+                { name: 'given_on', label: 'Given on', type: 'date', required: true, defaultValue: localDate(new Date().toISOString()) },
+                { name: 'account_id', label: 'Paid from account', type: 'select', options: payroll.accounts, hint: 'Optional: records it in Cash Flow.' },
+                { name: 'note', label: 'Note', type: 'textarea' },
+              ]}
+              canWrite
+              emptyText="No salary advances."
+              pageSize={25}
             />
           </>
         ) : (

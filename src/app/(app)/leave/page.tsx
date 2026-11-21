@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { MonthPicker } from '@/components/month-picker';
 import { ActionButton, ApiForm } from '@/components/resource-manager';
+import { LEAVE_KIND_LABEL, LEAVE_KINDS, leaveAllowance, leaveBalances, type LeaveKind } from '@/lib/domain/leave';
 import { monthStart, nextMonth, parseMonth } from '@/lib/domain/points';
 import { monthLabel } from '@/lib/format';
 import { getPageContext, rowsOf } from '@/lib/page';
@@ -24,11 +25,14 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   const decides = isAdmin || canEdit('team_points');
   const currentMonth = monthStart(new Date(), timeZone);
   const month = parseMonth(requested) ?? currentMonth;
-  const [leaveR, peopleR] = await Promise.all([
+  const [leaveR, peopleR, orgR] = await Promise.all([
     supabase.from('leave_requests').select('*').eq('org_id', orgId).order('start_date', { ascending: false }).limit(3000),
-    supabase.from('profiles').select('id, full_name, job_title').eq('org_id', orgId),
+    supabase.from('profiles').select('id, full_name, job_title, is_active').eq('org_id', orgId),
+    supabase.from('organizations').select('settings').eq('id', orgId).maybeSingle(),
   ]);
-  const person = new Map(rowsOf<Pick<Profile, 'id' | 'full_name' | 'job_title'>>(peopleR.data).map((row) => [row.id, row]));
+  const allowance = leaveAllowance((orgR.data as { settings?: unknown } | null)?.settings);
+  const peopleRows = rowsOf<Pick<Profile, 'id' | 'full_name' | 'job_title' | 'is_active'>>(peopleR.data);
+  const person = new Map(peopleRows.map((row) => [row.id, row]));
 
   if (leaveR.error) {
     return (
@@ -60,6 +64,16 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   const perPerson = new Map<string, number>();
   for (const row of inMonth) if (row.status === 'approved') perPerson.set(row.employee_id, (perPerson.get(row.employee_id) ?? 0) + daysInMonth(row, month));
   const totals = [...perPerson.entries()].sort((a, b) => b[1] - a[1]);
+  // Casual and sick days used and left this year: yours, and everyone's for admins and HR.
+  const year = Number(today.slice(0, 4));
+  const balanceOf = (id: string) => leaveBalances(all.filter((row) => row.employee_id === id), allowance, year);
+  const myBalance = balanceOf(userId);
+  const teamBalance = decides
+    ? peopleRows
+        .filter((row) => row.is_active)
+        .map((row) => ({ id: row.id, name: row.full_name, balances: balanceOf(row.id) }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
   const upcoming = all.filter((row) => row.status === 'approved' && row.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date));
 
   const line = (row: LeaveRequest, actions: ReactNode) => {
@@ -73,7 +87,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
           </p>
           <p className="message-body">
             {row.start_date === row.end_date ? row.start_date : `${row.start_date} to ${row.end_date}`} · {days(row.start_date, row.end_date)}{' '}
-            {days(row.start_date, row.end_date) === 1 ? 'day' : 'days'}
+            {days(row.start_date, row.end_date) === 1 ? 'day' : 'days'} · {LEAVE_KIND_LABEL[(row.kind ?? 'casual') as LeaveKind]}
           </p>
           <p className="message-meta">{row.reason}</p>
         </div>
@@ -107,12 +121,77 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
           endpoint="/api/leave"
           submitLabel="Send request"
           fields={[
+            {
+              name: 'kind',
+              label: 'Type',
+              type: 'select',
+              required: true,
+              defaultValue: 'casual',
+              options: LEAVE_KINDS.map((kind) => ({ value: kind, label: LEAVE_KIND_LABEL[kind] })),
+              hint: 'Unpaid days are taken off your payslip.',
+            },
             { name: 'start_date', label: 'First day', type: 'date', required: true },
             { name: 'end_date', label: 'Last day', type: 'date', required: true },
             { name: 'reason', label: 'Reason', type: 'textarea', required: true, placeholder: 'Family visit' },
           ]}
         />
+        <p className="muted">
+          Left this year:{' '}
+          {myBalance.map((row) => `${LEAVE_KIND_LABEL[row.kind]} ${row.left} of ${row.allowance}`).join(' · ')}
+        </p>
       </section>
+
+      {decides ? (
+        <section className="panel">
+          <header className="panel-header">
+            <div>
+              <h2>Leave balance · {year}</h2>
+              <p className="muted">
+                Approved casual and sick days used this year, and what is left. Unpaid leave has no limit and is taken off the payslip.
+              </p>
+            </div>
+          </header>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th className="num">Casual used</th>
+                  <th className="num">Casual left</th>
+                  <th className="num">Sick used</th>
+                  <th className="num">Sick left</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamBalance.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.name}</td>
+                    <td className="num">{row.balances[0].used}</td>
+                    <td className="num">{row.balances[0].left}</td>
+                    <td className="num">{row.balances[1].used}</td>
+                    <td className="num">{row.balances[1].left}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isAdmin ? (
+            <details className="fold">
+              <summary>Yearly allowance · {allowance.casual} casual, {allowance.sick} sick days</summary>
+              <ApiForm
+                endpoint="/api/leave/allowance"
+                method="PATCH"
+                submitLabel="Save allowance"
+                resetOnSuccess={false}
+                fields={[
+                  { name: 'casual', label: 'Casual days a year', type: 'number', required: true, defaultValue: String(allowance.casual) },
+                  { name: 'sick', label: 'Sick days a year', type: 'number', required: true, defaultValue: String(allowance.sick) },
+                ]}
+              />
+            </details>
+          ) : null}
+        </section>
+      ) : null}
 
       {decides && waiting.length > 0 ? (
         <section className="panel">

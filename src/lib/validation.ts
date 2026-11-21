@@ -484,9 +484,23 @@ export const leaveCreate = z
     start_date: date,
     end_date: date,
     reason: z.string().trim().min(1, 'Say what the leave is for.').max(500),
+    kind: z.enum(['casual', 'sick', 'unpaid', 'other']).default('casual'),
   })
   .refine((value) => value.end_date >= value.start_date, { message: 'The last day cannot be before the first.', path: ['end_date'] });
 export const leaveDecision = z.object({ status: z.enum(['approved', 'denied']) });
+// Yearly casual and sick days everyone gets.
+export const leaveAllowanceUpdate = z.object({
+  casual: z.coerce.number().int().min(0).max(365),
+  sick: z.coerce.number().int().min(0).max(365),
+});
+export const salaryAdvanceCreate = z.object({
+  profile_id: z.string().uuid('Pick a person.'),
+  amount: z.coerce.number().positive('Enter the amount given.').max(1e10),
+  per_month: z.coerce.number().positive('Enter how much to take back each month.').max(1e10),
+  given_on: date,
+  account_id: z.string().uuid().optional().or(z.literal('').transform(() => undefined)),
+  note: z.string().trim().max(500).optional().or(z.literal('').transform(() => undefined)),
+});
 
 // Which kinds of notification a person wants.
 export const notifyPrefs = z.object({

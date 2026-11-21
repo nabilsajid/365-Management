@@ -49,6 +49,7 @@ export interface LeaveRequest {
   start_date: string;
   end_date: string;
   reason: string;
+  kind?: 'casual' | 'sick' | 'unpaid' | 'other';
   status: 'pending' | 'approved' | 'denied';
   decided_by: string | null;
   decided_at: string | null;
