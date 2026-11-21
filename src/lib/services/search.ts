@@ -87,6 +87,7 @@ export const PAGES: { title: string; href: string; words: string; need?: string 
   { title: 'Settings · Appearance', href: '/settings?tab=appearance', words: 'appearance colour color theme look', need: 'admin' },
   { title: 'Settings · Delete log', href: '/settings?tab=delete-log', words: 'delete log deleted removed history', need: 'admin' },
   { title: 'Settings · System check', href: '/settings?tab=system', words: 'system check database update', need: 'admin' },
+  { title: 'KPIs', href: '/kpi', words: 'kpi performance on time first time approval delivered revenue points dashboard', need: 'admin' },
   { title: 'Monthly summary', href: '/report', words: 'report summary monthly print pdf export', need: 'admin' },
 ];
 

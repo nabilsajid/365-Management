@@ -241,6 +241,7 @@ export default async function CashFlowPage({ searchParams }: { searchParams: Pro
                 </a>
               ))}
               <Link href={`/report?month=${month.slice(0, 7)}`}>Monthly summary (print / PDF)</Link>
+              <Link href={`/kpi?month=${month.slice(0, 7)}`}>KPIs</Link>
             </div>
           </details>
         </div>

@@ -2,6 +2,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   Settings,
+  TrendingUp,
   ContactRound,
   Plane,
   Inbox,
@@ -48,6 +49,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/updates', label: 'Updates', icon: Megaphone },
+      { href: '/kpi', label: 'KPIs', icon: TrendingUp, adminOnly: true },
     ],
   },
   {

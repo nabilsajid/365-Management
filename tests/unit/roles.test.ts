@@ -40,7 +40,7 @@ test('the sidebar only lists what a person can open', () => {
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/approvals'));
   assert.ok(!hrefs(false, ['projects', 'cashflow', 'team_points']).includes('/roles'));
   assert.ok(!hrefs(true, []).includes('/requests'));
-  assert.deepEqual(hrefs(true, []), ['/dashboard', '/updates', '/projects', '/my-tasks', '/calendar', '/cashflow', '/logistics', '/employees', '/profile', '/leave', '/approvals', '/roles', '/settings']);
+  assert.deepEqual(hrefs(true, []), ['/dashboard', '/updates', '/kpi', '/projects', '/my-tasks', '/calendar', '/cashflow', '/logistics', '/employees', '/profile', '/leave', '/approvals', '/roles', '/settings']);
   assert.ok(hrefs(false, ['emails']).includes('/approvals'));
 });
 

@@ -209,6 +209,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                 Attendance (CSV)
               </a>
               {isAdmin ? <Link href={`/report?month=${month.slice(0, 7)}`}>Monthly summary (print / PDF)</Link> : null}
+              {isAdmin ? <Link href={`/kpi?month=${month.slice(0, 7)}`}>KPIs</Link> : null}
             </div>
           </details>
         </div>
