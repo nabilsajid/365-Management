@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { InvoiceSheet, isFirstCompany, type InvoiceSheetData } from '@/components/invoice-sheet';
 import { PrintButton } from '@/components/print-button';
+import { ActionButton } from '@/components/resource-manager';
 import { describeFixed, type FixedDeliverable } from '@/lib/domain/deliverables';
 import { readInvoiceOptions } from '@/lib/domain/invoice-options';
 import { getPageContext } from '@/lib/page';
@@ -11,7 +12,7 @@ import { getPageContext } from '@/lib/page';
 export default async function MonthlyInvoicePreview({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ month?: string }> }) {
   const { id } = await params;
   const { month: monthId } = await searchParams;
-  const { supabase, orgId, isAdmin, can } = await getPageContext();
+  const { supabase, orgId, isAdmin, can, canEdit } = await getPageContext();
   if (!isAdmin && !can('cashflow')) redirect(`/projects/${id}`);
   const project = await supabase.from('projects').select('*').eq('id', id).eq('org_id', orgId).maybeSingle();
   if (!project.data) notFound();
@@ -76,9 +77,16 @@ export default async function MonthlyInvoicePreview({ params, searchParams }: { 
         <PrintButton />
       </div>
       <section className="panel no-print">
+        {fee > 0 && c && month && (isAdmin || canEdit('cashflow')) ? (
+          <div style={{ marginBottom: '0.6rem' }}>
+            <ActionButton endpoint="/api/invoices/month" body={{ month_id: month.id }} primary>
+              Create this month&apos;s invoice now
+            </ActionButton>
+          </div>
+        ) : null}
         <p className="muted" style={{ margin: 0 }}>
           {fee > 0
-            ? `This is what will be drafted ${month ? 'for this month' : ''} on the 1st. Nothing is saved yet; once it is drafted, this page opens the real draft, where you can edit and send it.`
+            ? `This is what will be drafted on the 1st. Nothing is saved yet. Create it now if you do not want to wait (for example, the fee was set mid-month); then this page opens the real draft to edit and send.`
             : 'This client has no monthly fee yet, so no invoice is drafted. Add one under Edit project → Monthly fee.'}
           {!c ? ' Give the project a client so it can be invoiced.' : ''}
         </p>

@@ -1344,6 +1344,13 @@ insert into roles (org_id, name, permissions) values ('00000000-0000-0000-0000-0
 select notify_email_approvers('00000000-0000-0000-0000-000000000001', 1);
 select pg_temp.check((select count(*) >= 1 from notifications where title = 'An email is waiting for approval'), 'approvers are told about waiting emails');
 
+-- Points switched off record nothing; a month's invoice on demand.
+reset role;
+update organizations set settings = '{"hidden_sections": ["points"]}' where id = '00000000-0000-0000-0000-000000000001';
+insert into point_entries (org_id, employee_id, period_month, points, source, reason) values ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000e1', '2026-11-01', 5, 'adjustment', 'test');
+select pg_temp.check((select count(*) = 0 from point_entries where period_month = '2026-11-01' and points = 5 and source = 'adjustment' and reason = 'test'), 'no points are recorded while points are switched off');
+update organizations set settings = '{}' where id = '00000000-0000-0000-0000-000000000001';
+
 -- Deleting a person removes their account and their own records, and nothing blocks it.
 reset role;
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';

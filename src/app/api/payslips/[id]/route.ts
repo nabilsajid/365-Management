@@ -75,10 +75,13 @@ export async function DELETE(_request: Request, { params }: RouteParams): Promis
   const { ctx } = auth;
   const { id } = await params;
   if (!UUID.test(id)) return fail(404, 'Not found.');
-  const { data, error } = await ctx.supabase.from('payslips').delete().eq('id', id).eq('org_id', ctx.profile.org_id).select('id').maybeSingle();
+  const { data, error } = await ctx.supabase.from('payslips').delete().eq('id', id).eq('org_id', ctx.profile.org_id).select('id, expense_id').maybeSingle();
   if (error) return fromDbError(error);
   if (!data) return fail(404, 'Not found.');
-  return ok({ deleted: true });
+  // A paid payslip's salary expense goes with it, so Cash Flow matches.
+  const expenseId = (data as { expense_id: string | null }).expense_id;
+  if (expenseId) await ctx.supabase.from('expenses').delete().eq('id', expenseId).eq('org_id', ctx.profile.org_id);
+  return ok({ deleted: true, expenseRemoved: Boolean(expenseId) });
 }
 
 /**

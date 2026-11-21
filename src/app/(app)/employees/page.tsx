@@ -557,7 +557,8 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                     Each payslip starts with the salary and the bonus approved for that month (earned through points), with
                     days present, days on leave and points for reference. Adjust additions or deductions with Edit, then choose
                     the account it was paid from to mark it paid: that records the salary as an expense in Cash Flow. Paid
-                    payslips can be printed or saved as a PDF, and each person sees their own.
+                    payslips can be printed or saved as a PDF, and each person sees their own. Deleting a paid payslip also
+                    removes its salary expense.
                   </p>
                 </div>
                 <ActionButton endpoint="/api/payslips/generate" body={{ month }} primary>
